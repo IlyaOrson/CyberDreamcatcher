@@ -1,0 +1,6 @@
+[submodule "CybORG"]
+	path = CybORG
+	url = https://github.com/cage-challenge/CybORG.git
+[submodule "cardiff-cage-2"]
+	path = cardiff-cage-2
+	url = https://github.com/IlyaOrson/cardiff-cage-2.git
