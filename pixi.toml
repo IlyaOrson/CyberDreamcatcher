@@ -3,7 +3,7 @@ name = "gnn-rl-aicd"
 version = "0.1.0"
 description = "GNNs as blue agents in RL cyber-defence environments."
 authors = ["Ilya Orson Sandoval <ilya.orson@gmail.com>"]
-channels = ["pytorch", "conda-forge"]
+channels = ["pytorch", "conda-forge", "pyg"]
 platforms = ["osx-arm64"]
 
 [tasks]
@@ -32,6 +32,8 @@ paramiko = ">=3.4.0,<3.5"
 graph-tool = ">=2.59,<3"
 pytest = ">=8.0.2,<8.1"
 docutils = ">=0.20.1,<0.21"
+tqdm = ">=4.66.2,<4.67"
+pytorch_geometric = ">=2.5.0,<2.6"
 
 [pypi-dependencies]
 gym = "~=0.26"
