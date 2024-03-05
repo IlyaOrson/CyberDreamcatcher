@@ -1,0 +1,38 @@
+[project]
+name = "gnn-rl-aicd"
+version = "0.1.0"
+description = "GNNs as blue agents in RL cyber-defence environments."
+authors = ["Ilya Orson Sandoval <ilya.orson@gmail.com>"]
+channels = ["pytorch", "conda-forge"]
+platforms = ["osx-arm64"]
+
+[tasks]
+install-submodules = "pip install --no-build-isolation --no-deps --disable-pip-version-check -e ./CybORG"
+tutorial-cyborg = "jupyter-lab CybORG/CybORG/Tutorial/"
+test-cyborg = "pytest CybORG/CybORG/Tests/test_sim"
+eval-cardiff = "python cardiff-cage-2/evaluation.py"
+train-cardiff = "python cardiff-cage-2/train.py"
+
+[dependencies]
+captum = "~=0.6"
+deepdiff = "~=6.7"
+ipython = "~=8"
+jupyterlab = "~=4"
+matplotlib = "~=3.8"
+networkx = "~=3.2"
+numpy = "~=1.26"
+pandas = ">=2.2.1,<2.3"
+pip = "~=23"
+prettytable = "~=3.9"
+python = "~=3.11"
+pytorch = "~=2.1"
+pyyaml = "~=6.0"
+rich = "~=13.7"
+paramiko = ">=3.4.0,<3.5"
+graph-tool = ">=2.59,<3"
+pytest = ">=8.0.2,<8.1"
+docutils = ">=0.20.1,<0.21"
+
+[pypi-dependencies]
+gym = "~=0.26"
+gymnasium = "*"
