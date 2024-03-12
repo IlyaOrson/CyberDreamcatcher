@@ -1,6 +1,6 @@
 [project]
 name = "gnn-rl-aicd"
-version = "0.1.0"
+version = "0.0.0"
 description = "GNNs as blue agents in RL cyber-defence environments."
 authors = ["Ilya Orson Sandoval <ilya.orson@gmail.com>"]
 channels = ["pytorch", "conda-forge", "pyg"]
@@ -8,13 +8,14 @@ platforms = ["osx-arm64"]
 
 [tasks]
 install-submodules = "pip install --no-build-isolation --no-deps --disable-pip-version-check -e ./CybORG"
+install-pip-deps = "pip install --no-build-isolation --no-deps --disable-pip-version-check tensordict-nightly stable-baselines3"
 tutorial-cyborg = "jupyter-lab CybORG/CybORG/Tutorial/"
 test-cyborg = "pytest CybORG/CybORG/Tests/test_sim"
 eval-cardiff = "python cardiff-cage-2/evaluation.py"
 train-cardiff = "python cardiff-cage-2/train.py"
 
 [dependencies]
-captum = "~=0.6"
+captum = "~=0.7"
 deepdiff = "~=6.7"
 ipython = "~=8"
 jupyterlab = "~=4"
@@ -22,7 +23,7 @@ matplotlib = "~=3.8"
 networkx = "~=3.2"
 numpy = "~=1.26"
 pandas = ">=2.2.1,<2.3"
-pip = "~=23"
+pip = "24.*"
 prettytable = "~=3.9"
 python = "~=3.11"
 pytorch = "~=2.1"
@@ -34,7 +35,10 @@ pytest = ">=8.0.2,<8.1"
 docutils = ">=0.20.1,<0.21"
 tqdm = ">=4.66.2,<4.67"
 pytorch_geometric = ">=2.5.0,<2.6"
+ruff = ">=0.3.0,<0.4"
+pygame = ">=2.5.2,<2.6"
+seaborn = ">=0.13.2,<0.14"
 
 [pypi-dependencies]
-gym = "~=0.26"
 gymnasium = "*"
+ray = { version = "*", extras = ["rllib"] }

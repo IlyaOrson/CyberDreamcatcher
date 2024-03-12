@@ -5,3 +5,7 @@
 [submodule "cardiff-cage-2"]
 	path = cardiff-cage-2
 	url = https://github.com/IlyaOrson/cardiff-cage-2.git
+[submodule "turing-cage-2"]
+	path = turing-cage-2
+	url = https://github.com/IlyaOrson/turing-cage-2.git
+	branch = submission-final
