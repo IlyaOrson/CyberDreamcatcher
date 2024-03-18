@@ -18,6 +18,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/attrs-23.2.0-pyh71513ae_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/babel-2.14.0-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/beautifulsoup4-4.12.3-pyha770c72_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/noarch/bidict-0.23.1-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/bleach-6.1.0-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/blinker-1.7.0-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/cached-property-1.5.2-hd8ed1ab_1.tar.bz2
@@ -339,10 +340,10 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/60/82/3762ef4555791a729ae554e13c011efe5e8347d7eba9ea5ed245a8d1b234/gymnasium-0.28.1-py3-none-any.whl#sha256=7bc9a5bce1022f997d1dbc152fc91d1ac977bad9cc7794cdc25437010867cabf
       - pypi: https://files.pythonhosted.org/packages/71/ca/046bd7e7e1ed4639eb398192374bc3fbf5010d3c168361fec161b63e8bfa/lz4-4.3.3-cp311-cp311-macosx_11_0_arm64.whl#sha256=2f7b1839f795315e480fb87d9bc60b186a98e3e5d17203c6e757611ef7dcef61
       - pypi: https://files.pythonhosted.org/packages/73/23/338caee543d80584916da20f018aeb017764509d964fd347b97f41f97baa/jax_jumpy-1.0.0-py3-none-any.whl#sha256=ab7e01454bba462de3c4d098e3e585c302a8f06bc36d9182ab4e7e4aa7067c5e
+      - pypi: https://files.pythonhosted.org/packages/7d/98/282bfe05071c9e1e7e4af692bc937e12e7adacf3b297e0274579de01c9d7/protobuf-5.26.0-cp37-abi3-macosx_10_9_universal2.whl#sha256=7e47c57303466c867374a17b2b5e99c5a7c8b72a94118e2f28efb599f19b4069
       - pypi: https://files.pythonhosted.org/packages/96/43/dae06432d0c4b1dc9e9149ad37b4ca8384cf6eb7700cd9215b177b914f0a/cloudpickle-3.0.0-py3-none-any.whl#sha256=246ee7d0c295602a036e86369c77fecda4ab17b506496730f2f576d9016fd9c7
       - pypi: https://files.pythonhosted.org/packages/ad/30/2281c062222dc39328843bd1ddd30ff3005ef8e30b2fd09c4d2792766061/fsspec-2024.2.0-py3-none-any.whl#sha256=817f969556fa5916bc682e02ca2045f96ff7f586d45110fcb76022063ad2c7d8
       - pypi: https://files.pythonhosted.org/packages/bf/0e/c68adf10adda05f28a6ed7b9f4cd7b8e07f641b44af88ba72d9c89e4de7a/typer-0.9.0-py3-none-any.whl#sha256=5d96d986a21493606a358cae4461bd8cdf83cbf33a5aa950ae629ca3b51467ee
-      - pypi: https://files.pythonhosted.org/packages/f3/bf/26deba06a4c910a85f78245cac7698f67cedd7efe00d04f6b3e1b3506a59/protobuf-4.25.3-cp37-abi3-macosx_10_9_universal2.whl#sha256=f1279ab38ecbfae7e456a108c5c0681e4956d5b1090027c1de0f934dfdb4b35c
 packages:
 - kind: conda
   name: aiohttp
@@ -641,6 +642,23 @@ packages:
   license_family: MIT
   size: 118200
   timestamp: 1705564819537
+- kind: conda
+  name: bidict
+  version: 0.23.1
+  build: pyhd8ed1ab_0
+  subdir: noarch
+  noarch: python
+  url: https://conda.anaconda.org/conda-forge/noarch/bidict-0.23.1-pyhd8ed1ab_0.conda
+  sha256: cc7af340b9c99fb170032e103546329cd7c280d28ceca74468e19dd8b0539531
+  md5: c9916c3975b19f470218f415701d6362
+  depends:
+  - python >=3.8
+  license: MPL-2.0
+  license_family: MOZILLA
+  purls:
+  - pkg:pypi/bidict
+  size: 31346
+  timestamp: 1708298386480
 - kind: conda
   name: bleach
   version: 6.1.0
@@ -4555,9 +4573,9 @@ packages:
   timestamp: 1702399557137
 - kind: pypi
   name: protobuf
-  version: 4.25.3
-  url: https://files.pythonhosted.org/packages/f3/bf/26deba06a4c910a85f78245cac7698f67cedd7efe00d04f6b3e1b3506a59/protobuf-4.25.3-cp37-abi3-macosx_10_9_universal2.whl#sha256=f1279ab38ecbfae7e456a108c5c0681e4956d5b1090027c1de0f934dfdb4b35c
-  sha256: f1279ab38ecbfae7e456a108c5c0681e4956d5b1090027c1de0f934dfdb4b35c
+  version: 5.26.0
+  url: https://files.pythonhosted.org/packages/7d/98/282bfe05071c9e1e7e4af692bc937e12e7adacf3b297e0274579de01c9d7/protobuf-5.26.0-cp37-abi3-macosx_10_9_universal2.whl#sha256=7e47c57303466c867374a17b2b5e99c5a7c8b72a94118e2f28efb599f19b4069
+  sha256: 7e47c57303466c867374a17b2b5e99c5a7c8b72a94118e2f28efb599f19b4069
   requires_python: '>=3.8'
 - kind: conda
   name: psutil
