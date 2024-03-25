@@ -10,7 +10,7 @@ Clone this repo recursevely to clone the environments (CybORG, YawningTitan) as 
 git clone https://github.com/IlyaOrson/GNN-cyber-defence.git --recurse-submodules -j3
 ```
 
-We use [pixi](https://github.com/prefix-dev/pixi) (version >= 0.15.2) to setup a reproducible environment.
+We use [pixi](https://github.com/prefix-dev/pixi) to setup a reproducible environment.
 First one needs to install the dependencies in a local environment, activate a shell within it and afterwards install the submodules as local packages as well as troublesome dependencies.
 
 ```bash
@@ -28,7 +28,7 @@ From the activated shell, install the local submodules and troublesome pip depen
 
 ```bash
 # install environments from git submodule as a local packages
-pixi run install-submodules  # CybORG
+pixi run install-submodules  # gymnasium compatible CybORG 2.1
 # install troublesome dependencies without using pip to track their requirements
 pixi run install-pip-deps  # stable baselines 3
 ```
@@ -41,3 +41,7 @@ There are other predefined tasks that can be run to make sure everything is work
 pixi run test-cyborg  # run gymnasium-based cyborg tests
 pixi run eval-cardiff  # cage 2 winner policy inference
 ```
+
+## Notes
+
+To see the notes on the project locally use `quarto render notes/`.

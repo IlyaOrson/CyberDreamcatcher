@@ -1,0 +1,20 @@
+project:
+  title: "GNN policies for cyber defence"
+  output-dir: _output
+author: "Ilya Orson Sandoval"
+# format: revealjs  # for presentations
+toc: true
+bibliography: references.bib
+number-sections: true
+highlight-style: pygments
+# pdf-engine: tectonic
+# latex-auto-mk: false
+format:
+  html: 
+    code-fold: true
+    html-math-method: katex
+  typst: default
+  # pdf: default
+  # docx: default
+editor:
+  render-on-save: true

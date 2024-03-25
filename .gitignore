@@ -173,3 +173,10 @@ cython_debug/
 
 # vscode
 .vscode/
+
+# quarto
+*/.quarto/
+*/_output/
+
+# iOS
+.DS_Store

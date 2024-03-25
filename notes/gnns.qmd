@@ -1,0 +1,138 @@
+# Graph Neural Networks notation
+
+- $\mathcal{G} = (\mathcal{V}, \mathcal{E})$  a graph is a set of nodes and edges
+- $N_n$  number of nodes
+- $N_e$  number of edges
+- $d_n$  node feature dimension
+- $d_e$  edge feature dimension
+- $X \in \mathbb{R}^{N_n \times d_n}$  stacked nodes (one per row)
+- $E \in \mathbb{R}^{N_e \times d_e}$  stacked edges (one per row)
+- $A_{uv} = 1$ if $(u,v) \in \mathcal{E}$  Adjacency matrix, often replaced by
+- $A_{uv} = 0$ if $(u,v) \notin \mathcal{E}$  a list of source $\to$ target tuples
+- $\mathcal{N}(u) = \left\{ v \mid v \in \mathcal{V} \text{ and } (u, v) \in \mathcal{E} \right\}$
+
+
+# Types of GNNs
+Following [@velickovic_everything_2023].
+Two neural networks $\psi$ and $\phi$ are defined.
+One is associated with an updated step while the other is related to the message encoding.
+A permutation-invariant operator $\oplus$ (_e.g._ sum, average or max) mixes the signals from the neighbors.
+
+$$
+\phi(\mathbf{x}) = ReLU(\mathbf{Wx} + \mathbf{b})
+$$
+
+The models progress sequentially in expressivenes at the cost of interpretability, scalability and stability during learning:
+_convolution ⊆ attention ⊆ message-passing_.
+
+## Convolutional
+Weights $c_{vu}$ between nodes are constant.
+
+$$\mathbf{\tilde x}_u=\phi\left(\mathbf{x}_u, \oplus_{v \in \mathcal{N}_u} c_{v u} \psi\left(\mathbf{x}_v\right)\right)$$
+
+## Attentional
+Weights $a(x_u x_v)$ can form a soft adjacency matrix if softmax is used.
+$$\mathbf{\tilde x}_u=\phi\left(\mathbf{x}_u, \oplus_{v \in \mathcal{N}_u} a(\mathbf{x}_u, \mathbf{x}_v) \psi\left(\mathbf{x}_v\right)\right)$$
+
+## Message - passing
+$$\mathbf{\tilde x}_u=\phi\left(\mathbf{x}_u, \oplus_{v \in \mathcal{N}_u} \psi(\mathbf{x}_u, \mathbf{x}_v)\right)$$
+
+### GAT v2
+
+Independent weights are associated with edges, source and target node embeddings.
+
+$$
+\mathbf{\tilde x}_i = \alpha_{ii}\mathbf{\Theta}_{s}\mathbf{x}_{i} +
+        \sum_{j \in \mathcal{N}(i)}
+        \alpha_{ij}\mathbf{\Theta}_{t}\mathbf{x}_{j}
+$$
+
+An edge score function $\eta$ with training parameters $\Theta$
+$$
+\Theta = \mathbf{a} \cup \Theta_s \cup \Theta_t \cup \Theta_e
+$$
+
+$$
+\eta_{\Theta}(\mathbf{x}_i, \mathbf{x}_j, \mathbf{e}_{ij}) \equiv \mathbf{a}^{\top}\mathrm{LeakyReLU}\left(
+        \mathbf{\Theta}_{s} \mathbf{x}_i
+        + \mathbf{\Theta}_{t} \mathbf{x}_j
+        + \mathbf{\Theta}_{e} \mathbf{e}_{ij}
+        \right)
+$$
+
+And the attention is normalized through a softmax over neighbors
+$$
+\alpha_{ij} =
+        \frac{
+        \exp\left(\eta_{\Theta}(\mathbf{x}_i, \mathbf{x}_j, \mathbf{e}_{ij})\right)}
+        {\sum_{k \in \mathcal{N}(i) \cup \{ i \}}
+        \exp\left(\eta_{\Theta}(\mathbf{x}_i, \mathbf{x}_k, \mathbf{e}_{ik})\right)}
+$$
+
+### Self-Attention
+
+A subtype of GNNs where the neighbourhood $\mathcal{N}$ is the whole graph.
+Comparison from [@brody2022how]:
+
+$$
+\begin{aligned}
+& \text{GAT}& &\eta_{\Theta}\left(\mathbf{x}_i, \mathbf{x}_j\right)=\operatorname{LeakyReLU}\left(\mathbf{a}^{\top} \cdot\left[\mathbf{W} \mathbf{x}_i \| \mathbf{W} \mathbf{x}_j\right]\right) \\
+& \text{GATv2}& &\eta_{\Theta}\left(\mathbf{x}_i, \mathbf{x}_j\right)=\mathbf{a}^{\top} \operatorname{LeakyReLU}\left(\mathbf{W} \cdot\left[\mathbf{x}_i \| \mathbf{x}_j\right]\right) \\
+& \text{Attention}& &\eta_{\Theta}\left(\mathbf{x}_i, \mathbf{x}_j\right)=\left(\left(\mathbf{x}_i^{\top} \mathbf{Q}\right) \cdot\left(\mathbf{x}_j^{\top} \mathbf{K}\right)^{\top}\right) / \sqrt{d^{\prime}}
+\end{aligned}
+$$
+
+## Edge updates
+
+$$
+\mathbf{\tilde e}_{ij} = \zeta(\mathbf{x}_i, \mathbf{x}_j, \mathbf{e}_{ij})
+$$
+
+# Pipeline
+
+Following [NYU recorded lecture](https://www.youtube.com/watch?v=Iiv9R6BjxHM)
+
+## Input Layer
+  - Linear (?) embedding of node/edge features
+  $$\mathcal{V}^{\ell = 0} = \text{Emb}\left(\mathcal{V}^{(input)}\right)$$
+  $$\mathcal{E}^{\ell = 0} = \text{Emb}\left(\mathcal{E}^{(input)}\right)$$
+
+## GNN layer
+  - Apply preferred layer $L$ times
+  $$\mathcal{V}^{\ell = i} \in \mathbb{R}^{n \times {d_n}}$$
+  $$\mathcal{E}^{\ell = i} \in \mathbb{R}^{e \times {d_n}}$$
+
+## Task layer
+
+  - Graph (why only pooling over nodes?)
+  $$\mathcal{G} = \bigoplus_{i=0}^{n}{\mathcal{V}_i^{\ell = L}} \in \mathbb{R}^{d_n}$$
+
+  - Nodes
+  $$\mathcal{V}_i = \mathcal{V}_i^{\ell = L} \in \mathbb{R}^{d_n}$$
+  
+  - Edges
+  $$\mathcal{E}_{ij} = \left( \mathcal{V}_i \| \mathcal{V}_j \right) \in \mathbb{R}^{2 \times d_n}$$
+
+- Prediction
+
+  $$\text{score} = \text{MLP}(\mathcal{G} | \mathcal{V}_i | \mathcal{E}_{ij})$$
+
+  - Regression
+  $$\text{score} \in \mathbb{R}$$
+  - Classification
+  $$\text{score} \in \mathbb{R}^{K}$$
+  $$K \in \mathbb{N}$$
+
+# Resources
+
+## Courses
+- [Stanford](https://web.stanford.edu/class/cs224w/)
+- [GNNs for Molecules](https://dmol.pub/index.html)
+
+## Videos
+- [Foundations by Petar](https://www.youtube.com/watch?v=uF53xsT7mjc)
+
+## Papers
+
+- GNNs extrapolation [@xu2021how],[@yehudai_generalization_2020]
+
