@@ -177,6 +177,8 @@ cython_debug/
 # quarto
 */.quarto/
 */_output/
+# https://github.com/quarto-dev/quarto-cli/issues/6011
+*/.gitignore
 
 # iOS
 .DS_Store
