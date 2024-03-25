@@ -42,6 +42,14 @@ pixi run test-cyborg  # run gymnasium-based cyborg tests
 pixi run eval-cardiff  # cage 2 winner policy inference
 ```
 
+## Graph layout
+
+Quickly visualize the graph layout setup in the cage 2 challenge scenario file
+
+```bash
+python -m blueskynet
+```
+
 ## Notes
 
 To see the notes on the project locally use `quarto render notes/`.
