@@ -1,24 +1,16 @@
 from rich.pretty import pprint
-import networkx as nx
-import matplotlib.pyplot as plt
 
 from blueskynet.env import GraphWrapper
+from blueskynet.plots import plot_feasible_connections
+
 
 env = GraphWrapper()
 print("Observation:")
 pprint(env.get_observation())
 print(env.get_table())
 
+plot_feasible_connections(env)
 
-# TODO setup as multipartite graph
-# https://networkx.org/documentation/stable/auto_examples/drawing/plot_multipartite_graph.html#multipartite-layout
-
-graph = nx.DiGraph()
-graph.add_nodes_from(env.host_names)
-graph.add_edges_from(env.feasible_connections)
-positions = nx.kamada_kawai_layout(graph)
-nx.draw_networkx(graph, pos=positions)
-plt.show()
 print("Voila!")
 
 # FIXME BaseWrapper.get_action_space calls the wrapped env method
