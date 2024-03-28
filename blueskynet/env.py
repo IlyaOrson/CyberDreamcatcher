@@ -1,4 +1,3 @@
-import inspect
 from collections import defaultdict
 from itertools import combinations
 
@@ -10,24 +9,27 @@ from bidict import frozenbidict
 
 from CybORG import CybORG
 from CybORG.Agents import RedMeanderAgent # , TestAgent
-from CybORG.Agents.Wrappers import ChallengeWrapper # , BaseWrapper
+from CybORG.Agents.Wrappers import ChallengeWrapper  #, BaseWrapper
 
+from blueskynet.utils import get_scenario
 
-class GraphWrapper(gym.Env):  # , BaseWrapper
+class GraphWrapper(gym.Env):
 
     # TODO define render mode
     agent_name = "Blue"
 
-    def __init__(self, scenario="Scenario2", max_steps=100) -> None:
+    def __init__(self, scenario=None, max_steps=100) -> None:
 
         self.scenario = scenario
         self.max_steps = max_steps
 
-        path = str(inspect.getfile(CybORG))
-        path = path[:-10] + f"/Shared/Scenarios/{self.scenario}.yaml"
+        if not scenario:
+            scenario_path = get_scenario(name="Scenario2", from_cyborg=True)    
+        else:
+            scenario_path = get_scenario(name=scenario, from_cyborg=False)
 
         # ChallengeWrapper > OpenAIGymWrapper > EnumActionWrapper > BlueTableWrapper > TrueTableWrapper > CyBORG
-        self.cyborg = CybORG(path, "sim", agents={'Red': RedMeanderAgent})
+        self.cyborg = CybORG(scenario_path, "sim", agents={"Red": RedMeanderAgent})
 
         # NOTE  the "true" state is not really updated because the observations are updated instead...
         #       directly in ec.observation["Blue"] in the ec.step(...) method
@@ -38,14 +40,15 @@ class GraphWrapper(gym.Env):  # , BaseWrapper
         # ec_obs_blue = ec._filter_obs(ec.get_true_state(ec.INFO_DICT["Blue"]), "Blue").data
 
         self.env = ChallengeWrapper(agent_name=self.agent_name, env=self.cyborg, max_steps=self.max_steps)
-
+        # self.env = OpenAIGymWrapper(agent_name=self.agent_name, env=self.cyborg)
         self.blue_table = self.env.env.env.env
         self.blue_baseline = self.blue_table.baseline
 
-        # initialize connection map with communication structure from initial condition
+        # initialize feasiable connection graph with the structure from the scenario
         self.set_feasible_connections()
 
-        self.host_props_baseline, self.connections_map = self.distill_observation(self.blue_baseline)
+        # extract graph represention of blue the initial observation of the blue agent
+        self.host_props_baseline, self.observed_connections = self.distill_observation(self.blue_baseline)
 
     def set_feasible_connections(self):
         "Extract graph layout from State object in CybORG, which is populated from the Scenario config."
@@ -167,23 +170,38 @@ class GraphWrapper(gym.Env):  # , BaseWrapper
 
     # TODO method to encode observation
 
+    def reset(self, *, seed = None, options = None):
+        # CybORG does not expect options as a keyword
+        if options:
+            return self.env.reset(seed=seed, **options)
+        else:
+            return self.env.reset(seed=seed)
+
+    def step(self, action):
+        obs, reward, terminated, truncated, info = self.env.step(action)
+        return obs, reward, terminated, truncated, info
+
+    def get_challenge_action_space(self):
+        self.env.get_action_space(self.agent_name)
+
     def get_observation(self):
         # NOTE this is equivalent to: ec == CybORG.environment_controller and
         # ec.get_last_observation("Blue").data --> ec.observation["Blue"]
         blue_observation = self.blue_table.get_observation("Blue")
         return self.distill_observation(blue_observation)
 
-    def get_table(self):
-        self.blue_table.get_table()
-        return self.blue_table.get_table()
+    def get_true_table(self):
+        return self.blue_table.get_table(output_mode="true_table")
+
+    def get_blue_table(self):
+        return self.blue_table.get_table(output_mode="blue_table")
 
     def get_last_action(self):
         return self.cyborg.get_last_action(self.agent_name)
 
-    # TODO how to use previous action in the graph repr?
+    # NOTE use previous action in the graph repr with an independent linear transformation
     # def encode_last_action(self):
     #     """BlueTable logic relies only on the last action being of the broad type
     #     (Restore, Remove or Other)
     #     """
     #     action = self.get_last_action()
-

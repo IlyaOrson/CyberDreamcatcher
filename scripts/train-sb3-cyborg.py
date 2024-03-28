@@ -1,20 +1,21 @@
-import inspect
 from stable_baselines3 import PPO # A2C
 
 from CybORG import CybORG
 from CybORG.Agents import RedMeanderAgent
 from CybORG.Agents.Wrappers import ChallengeWrapper
 
-max_steps = 50
+from blueskynet.utils import get_scenario
+
+max_steps = 30
 agent_name = "Blue"
 
-path = str(inspect.getfile(CybORG))
-path = path[:-10] + '/Shared/Scenarios/Scenario2.yaml'
-cyborg = CybORG(path, "sim", agents={'Red': RedMeanderAgent})
+# scenario_path = get_scenario(name="Scenario2", from_cyborg=True)
+scenario_path = get_scenario(name="Scenario2_+_user5", from_cyborg=False)
+cyborg = CybORG(scenario_path, "sim", agents={'Red': RedMeanderAgent})
 env = ChallengeWrapper(agent_name=agent_name, env=cyborg, max_steps=max_steps)
 
 model = PPO("MlpPolicy", env, verbose=1, device="cpu")
-model.learn(total_timesteps=100_000, progress_bar=True)
+model.learn(total_timesteps=1_000_000, progress_bar=True)  # 1_000_000 produces competitive results
 
 
 # Example of policy inference

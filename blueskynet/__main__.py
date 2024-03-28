@@ -1,29 +1,32 @@
 from rich.pretty import pprint
 
+# from CybORG.Agents import TestAgent
 from blueskynet.env import GraphWrapper
 from blueskynet.plots import plot_feasible_connections
 
+# scenario = None
+scenario = "Scenario2_+_user5"
+env = GraphWrapper(scenario=scenario)
 
-env = GraphWrapper()
 print("Observation:")
 pprint(env.get_observation())
-print(env.get_table())
+
+print(env.get_true_table())
+print(env.get_blue_table())
 
 plot_feasible_connections(env)
 
 print("Voila!")
 
-# FIXME BaseWrapper.get_action_space calls the wrapped env method
-# action_space = env.get_action_space("Blue")
+obs, info = env.reset()
 
-# results = env.reset()
-# agent = TestAgent()  # selects random actions
-
-# for step in range(5):
-#     action = agent.get_action(results.observation, results.action_space)
-#     results = env.step(action=action, agent='Red')
-#     print(results.reward)
-
+for step in range(5):
+    num_actions = info["action_space"]
+    # TestAgent selects random actions from the CybORG level action space
+    # action = TestAgent().get_action(obs, env.cyborg.get_action_space(env.agent_name))
+    action = env.env.action_space.sample()
+    obs, reward, terminated, truncated, info = env.step(action)
+    print(reward)
 
 # TODO adapt to sb3 api
 # from stable_baselines3 import PPO
