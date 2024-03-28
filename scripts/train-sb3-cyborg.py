@@ -10,7 +10,8 @@ max_steps = 30
 agent_name = "Blue"
 
 # scenario_path = get_scenario(name="Scenario2", from_cyborg=True)
-scenario_path = get_scenario(name="Scenario2_+_user5", from_cyborg=False)
+# scenario_path = get_scenario(name="Scenario2_-_User2_User4", from_cyborg=False)
+scenario_path = get_scenario(name="Scenario2_+_User5_User6", from_cyborg=False)
 cyborg = CybORG(scenario_path, "sim", agents={'Red': RedMeanderAgent})
 env = ChallengeWrapper(agent_name=agent_name, env=cyborg, max_steps=max_steps)
 

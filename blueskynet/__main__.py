@@ -5,7 +5,8 @@ from blueskynet.env import GraphWrapper
 from blueskynet.plots import plot_feasible_connections
 
 # scenario = None
-scenario = "Scenario2_+_user5"
+scenario = "Scenario2_-_User2_User4"
+# scenario = "Scenario2_+_User5_User6"
 env = GraphWrapper(scenario=scenario)
 
 print("Observation:")
