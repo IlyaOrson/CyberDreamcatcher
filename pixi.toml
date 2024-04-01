@@ -6,6 +6,9 @@ authors = ["Ilya Orson Sandoval <ilya.orson@gmail.com>"]
 channels = ["pytorch", "conda-forge", "pyg"]
 platforms = ["osx-arm64"]
 
+[host-dependencies]
+python = "~=3.11.8"
+
 [tasks]
 install-submodules = "pip install --no-build-isolation --no-deps --disable-pip-version-check -e ./CybORG"
 install-pip-deps = "pip install --no-build-isolation --no-deps --disable-pip-version-check tensordict-nightly stable-baselines3==2.2.1"
@@ -42,5 +45,5 @@ seaborn = ">=0.13.2,<0.14"
 bidict = ">=0.23.1,<0.24"
 
 [pypi-dependencies]
-gymnasium = "*"
-ray = { version = "*", extras = ["rllib"] }
+gymnasium = "~=0.28.1"
+ray = { version = "~=2.10", extras = ["rllib"] }
