@@ -28,7 +28,9 @@ From the activated shell, install the local submodules and troublesome pip depen
 
 ```bash
 # install environments from git submodule as a local packages
-pixi run install-submodules  # gymnasium compatible CybORG 2.1
+
+pixi run install-submodules  # CybORG 2.1 (updated to gymnasium API)
+
 # install troublesome dependencies without using pip to track their requirements
 pixi run install-pip-deps  # stable baselines 3
 ```
@@ -38,7 +40,9 @@ There are other predefined tasks that can be run to make sure everything is work
 
 ```bash
 # pixi run <TAB>  # displays options
+
 pixi run test-cyborg  # run gymnasium-based cyborg tests
+
 pixi run eval-cardiff  # cage 2 winner policy inference
 ```
 

@@ -37,3 +37,54 @@ Possible connections are defined in the scenario configuration file `Scenario2.y
 :::
 
 <!-- TODO  explain how low level observability relates to blue table observation and prev gym observation -->
+
+## Action space
+
+```python
+>>> action_space = cyborg.environment_controller.agent_interfaces["Blue"].action_space
+>>> action_space.action_params  # dict with signature of each actions
+# ...
+>>> action_space.get_action_space()
+# {
+#     'action': self.actions,
+#     'subnet': self.subnet,
+#     'ip_address': self.ip_address,
+#     'session': self.server_session,
+#     'username': self.username,
+#     'password': self.password,
+#     'process': self.process,
+#     'port': self.port,
+#     'target_session': self.client_session,
+#     'agent': self.agent,
+#     'hostname': self.hostname
+# }
+>>> action_space.get_max_actions(action)
+# def get_max_actions(self, action):
+#     params = self.action_params[action]
+#     size = 1
+#     for param in params.keys():
+#         if param == "session":
+#             size *= len(self.server_session)
+#         elif param == "target_session":
+#             size *= len(self.client_session)
+#         elif param == "subnet":
+#             size *= len(self.subnet)
+#         elif param == "ip_address":
+#             size *= len(self.ip_address)
+#         elif param == "username":
+#             size *= len(self.username)
+#         elif param == "password":
+#             size *= len(self.password)
+#         elif param == "process":
+#             size *= len(self.process)
+#         elif param == "port":
+#             size *= len(self.port)
+#         elif param == "agent":
+#             size *= len(self.agent)
+#         else:
+#             raise NotImplementedError(
+#                 f"Param '{param}' in action '{action.__name__}' has no"
+#                 " code to parse its size for action space"
+#             )
+#     return size
+```

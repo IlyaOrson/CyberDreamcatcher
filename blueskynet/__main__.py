@@ -1,6 +1,7 @@
+import numpy as np
+
 from rich.pretty import pprint
 
-# from CybORG.Agents import TestAgent
 from blueskynet.env import GraphWrapper
 from blueskynet.plots import plot_feasible_connections
 
@@ -19,15 +20,17 @@ plot_feasible_connections(env)
 
 print("Voila!")
 
-obs, info = env.reset()
+obs, info = env.reset()  # TODO gymnasium space
 
-for step in range(5):
-    num_actions = info["action_space"]
-    # TestAgent selects random actions from the CybORG level action space
-    # action = TestAgent().get_action(obs, env.cyborg.get_action_space(env.agent_name))
-    action = env.env.action_space.sample()
-    obs, reward, terminated, truncated, info = env.step(action)
-    print(reward)
+for step in range(20):
+
+    action = env.action_space.sample()
+    obs, reward, terminated, truncated, info = env.step(action)  # TODO gymnasium space
+    
+    print(f"action_name = {env.action_names[action[0]]}")
+    print(f"host_name = {env.host_names[action[1]]}")
+    print(env.get_true_table())
+    print(env.get_blue_table())
 
 # TODO adapt to sb3 api
 # from stable_baselines3 import PPO

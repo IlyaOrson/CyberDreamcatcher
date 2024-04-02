@@ -1,8 +1,10 @@
+import sys
 from collections import defaultdict
-from itertools import combinations
+from itertools import combinations, product  #, starmap
 
+import numpy as np
 import gymnasium as gym
-from bidict import frozenbidict
+from bidict import bidict
 
 # https://pytorch.org/docs/stable/generated/torch.nn.functional.one_hot.html#torch-nn-functional-one-hot
 # from torch.nn.functional import one_hot
@@ -13,6 +15,8 @@ from CybORG.Agents.Wrappers import ChallengeWrapper  #, BaseWrapper
 
 from blueskynet.utils import get_scenario
 
+# We do not inherit from wrapper because we need lower level information for our graph
+# than the distilled information that travels through the wrappers observations
 class GraphWrapper(gym.Env):
 
     # TODO define render mode
@@ -20,58 +24,61 @@ class GraphWrapper(gym.Env):
 
     def __init__(self, scenario=None, max_steps=100) -> None:
 
-        self.scenario = scenario
         self.max_steps = max_steps
 
         if not scenario:
-            scenario_path = get_scenario(name="Scenario2", from_cyborg=True)    
+            self.scenario_path = get_scenario(name="Scenario2", from_cyborg=True)
         else:
-            scenario_path = get_scenario(name=scenario, from_cyborg=False)
+            self.scenario_path = get_scenario(name=scenario, from_cyborg=False)
 
-        # ChallengeWrapper > OpenAIGymWrapper > EnumActionWrapper > BlueTableWrapper > TrueTableWrapper > CyBORG
-        self.cyborg = CybORG(scenario_path, "sim", agents={"Red": RedMeanderAgent})
+        self.cyborg = CybORG(self.scenario_path, "sim", agents={"Red": RedMeanderAgent})
+        self.env_controller = self.cyborg.environment_controller
 
-        # NOTE  the "true" state is not really updated because the observations are updated instead...
-        #       directly in ec.observation["Blue"] in the ec.step(...) method
-
+        # NOTE  the "true" state is not really updated because the observations are updated instead
+        #       directly in self.env_controller.observation["Blue"]
+        #       in the self.env_controller.step(...) method
         # state = ec.state
         # ec_st_true = ec.get_true_state(ec.INFO_DICT["True"]).data
         # ec_obs_true = ec._filter_obs(ec.get_true_state(ec.INFO_DICT["True"])).data
         # ec_obs_blue = ec._filter_obs(ec.get_true_state(ec.INFO_DICT["Blue"]), "Blue").data
 
-        self.env = ChallengeWrapper(agent_name=self.agent_name, env=self.cyborg, max_steps=self.max_steps)
-        # self.env = OpenAIGymWrapper(agent_name=self.agent_name, env=self.cyborg)
-        self.blue_table = self.env.env.env.env
-        self.blue_baseline = self.blue_table.baseline
+        # ChallengeWrapper > OpenAIGymWrapper > EnumActionWrapper > BlueTableWrapper > TrueTableWrapper > CyBORG
+        self.challenge = ChallengeWrapper(agent_name=self.agent_name, env=self.cyborg, max_steps=self.max_steps)
+        self.openai_gym = self.challenge.env
+        self.enum_action = self.openai_gym.env
+        self.blue_table = self.enum_action.env
+        self.true_table = self.blue_table.env
 
-        # initialize feasiable connection graph with the structure from the scenario
+        # This imitates the logic in BlueTable._process_initial_obs()
+        self.blue_baseline = {k: v for k,v in self.get_observation().items() if k != "success"}
+
+        # Initialize feasiable connection graph with the structure from the scenario
         self.set_feasible_connections()
 
-        # extract graph represention of blue the initial observation of the blue agent
+        # Extract graph represention of blue the initial observation of the blue agent
         self.host_props_baseline, self.observed_connections = self.distill_observation(self.blue_baseline)
+
+        # Extract possible actions from cyborg
+        # action_space = self.env_controller.agent_interfaces[self.agent_name].action_space
+        self.action_names = self.env_controller.scenario._scenario["Agents"][self.agent_name]["actions"]
+        self.set_feasible_actions()
+
+        self.action_space = gym.spaces.MultiDiscrete([len(self.action_names), len(self.host_names)])
 
     def set_feasible_connections(self):
         "Extract graph layout from State object in CybORG, which is populated from the Scenario config."
 
-        ec = self.cyborg.environment_controller
-
         # subnet name <--> ip network (subnet)
-        self.subnet_cidr_map = frozenbidict(ec.subnet_cidr_map)
+        self.subnet_cidr_map = bidict(self.env_controller.subnet_cidr_map)
         # hostname <--> ip address
-        self.hostname_ip_map = frozenbidict(ec.hostname_ip_map)
-        # hostname --> ip network (subnet)
-        # self.hostname_subnet_map = {
-        #     host: props["Interface"][0]["Subnet"]
-        #     for host, props in self.blue_baseline.items()
-        #     if host != "sucess"
-        # }
+        self.hostname_ip_map = bidict(self.env_controller.hostname_ip_map)
         # ip_address --> subnet
-        # ec.state.get_subnet_containing_ip_address(ip_address)
+        # self.env_controller.state.get_subnet_containing_ip_address(ip_address)
 
         # feasible connections between hosts in different subnet
         self.internet_connections = []
-        # ec.state.hosts --> dictionary from host names to Host() objects
-        for hostname, host in ec.state.hosts.items():
+        # self.env_controller.state.hosts --> dictionary from host names to Host() objects
+        for hostname, host in self.env_controller.state.hosts.items():
             # self_reference = False
             # if interface appears here, suppose a connection is feasible
             for name, interface in host.info.items():
@@ -90,7 +97,7 @@ class GraphWrapper(gym.Env):
 
         # feasible connections between hosts in the same subnet
         self.intranet_connections = []
-        subnets = ec.state.subnets.values()
+        subnets = self.env_controller.state.subnets.values()
         for subnet in subnets:
 
             subnet_name = subnet.name
@@ -170,25 +177,75 @@ class GraphWrapper(gym.Env):
 
     # TODO method to encode observation
 
+    def get_action_class(self, action_name):
+        "Retrieve the action class defined in CybORG from the action name."
+        action_module = sys.modules["CybORG.Shared.Actions"]
+        action_class = getattr(action_module, action_name)
+        return action_class
+
+    def gym_to_cyborg_action(self, gym_action):
+        "Converts gymnasium action to the equivalent cyborg action."
+        action_idx, host_idx = gym_action
+        action_name = self.action_names[action_idx]
+        host_name = self.host_names[host_idx] 
+        if action_name in self.global_actions_names:
+            host_name = None  # global actions ignore host selection
+        assert (action_name, host_name) in self.feasible_actions
+        action_instance = self.instantiate_action(action_name, host_name)
+        return action_instance
+
+    def instantiate_action(self, action_name, host_name):
+        """Create instantiate the class object with the given host."""
+
+        action_class = self.get_action_class(action_name)
+
+        if action_name == "Sleep":
+            action = action_class()
+        elif action_name == "Monitor":
+            action = action_class(session=0, agent=self.agent_name)
+        else:
+            action = action_class(session=0, agent=self.agent_name, hostname=host_name)
+        return action
+
+    def set_feasible_actions(self):
+        """Iterate over the action classes reported by cyborg and instantiate each of them
+        with the parameters available in the action space which match their signature.
+        """
+
+        self.global_actions_names = ("Sleep", "Monitor")
+        global_signatures = [(action, None) for action in self.global_actions_names]
+
+        host_actions = (action for action in self.action_names if action not in self.global_actions_names)
+        action_host_signatures = product(host_actions, self.host_names)
+        self.feasible_actions = list(action_host_signatures) + global_signatures
+
+        # Equivalent to the logic in EnumActionWrapper.action_space_change(action_space_dict)
+        # self.feasible_action_instances = list(starmap(self.instantiate_action, self.feasible_actions))
+
     def reset(self, *, seed = None, options = None):
         # CybORG does not expect options as a keyword
         if options:
-            return self.env.reset(seed=seed, **options)
+            result = self.cyborg.reset(seed=seed, **options)
         else:
-            return self.env.reset(seed=seed)
+            result = self.cyborg.reset(seed=seed)
+
+        return np.array(result.observation), vars(result)
 
     def step(self, action):
-        obs, reward, terminated, truncated, info = self.env.step(action)
+        action_instance = self.gym_to_cyborg_action(action)
+        cyborg_result = self.cyborg.step(agent=self.agent_name, action=action_instance)
+        obs = np.array(cyborg_result.observation)  # TODO gymnasium space
+        reward = cyborg_result.reward
+        terminated = cyborg_result.done
+        truncated = False
+        info = vars(cyborg_result)
         return obs, reward, terminated, truncated, info
 
-    def get_challenge_action_space(self):
-        self.env.get_action_space(self.agent_name)
-
     def get_observation(self):
-        # NOTE this is equivalent to: ec == CybORG.environment_controller and
+        # NOTE with ec == CybORG.environment_controller
+        # self.blue_table.get_observation("Blue") is equivalent to
         # ec.get_last_observation("Blue").data --> ec.observation["Blue"]
-        blue_observation = self.blue_table.get_observation("Blue")
-        return self.distill_observation(blue_observation)
+        return self.env_controller.observation[self.agent_name].data
 
     def get_true_table(self):
         return self.blue_table.get_table(output_mode="true_table")
