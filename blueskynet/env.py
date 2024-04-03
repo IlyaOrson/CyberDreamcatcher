@@ -1,6 +1,6 @@
 import sys
-from collections import defaultdict
-from itertools import combinations, product  #, starmap
+from collections import defaultdict, namedtuple, ChainMap
+from itertools import combinations, product, repeat  #, starmap
 
 import numpy as np
 import gymnasium as gym
@@ -8,10 +8,17 @@ from bidict import bidict
 
 # https://pytorch.org/docs/stable/generated/torch.nn.functional.one_hot.html#torch-nn-functional-one-hot
 # from torch.nn.functional import one_hot
+import torch
+from torch import tensor
+from torch_geometric.data import Data
+# from torch_geometric.utils import to_networkx  # TODO render observation
 
 from CybORG import CybORG
 from CybORG.Agents import RedMeanderAgent # , TestAgent
 from CybORG.Agents.Wrappers import ChallengeWrapper  #, BaseWrapper
+# NOTE not sure if this limits are actually enforced in CybORG
+from CybORG.Shared.AgentInterface import MAX_CONNECTIONS
+from CybORG.Shared.ActionSpace import MAX_PORTS
 
 from blueskynet.utils import get_scenario
 
@@ -21,6 +28,8 @@ class GraphWrapper(gym.Env):
 
     # TODO define render mode
     agent_name = "Blue"
+
+    HostProperties = namedtuple("Host", ("subnet", "num_local_ports", "malware"))
 
     def __init__(self, scenario=None, max_steps=100) -> None:
 
@@ -49,21 +58,56 @@ class GraphWrapper(gym.Env):
         self.blue_table = self.enum_action.env
         self.true_table = self.blue_table.env
 
-        # This imitates the logic in BlueTable._process_initial_obs()
-        self.blue_baseline = {k: v for k,v in self.get_observation().items() if k != "success"}
-
         # Initialize feasiable connection graph with the structure from the scenario
         self.set_feasible_connections()
-
-        # Extract graph represention of blue the initial observation of the blue agent
-        self.host_props_baseline, self.observed_connections = self.distill_observation(self.blue_baseline)
 
         # Extract possible actions from cyborg
         # action_space = self.env_controller.agent_interfaces[self.agent_name].action_space
         self.action_names = self.env_controller.scenario._scenario["Agents"][self.agent_name]["actions"]
         self.set_feasible_actions()
 
-        self.action_space = gym.spaces.MultiDiscrete([len(self.action_names), len(self.host_names)])
+        # Form encoding mappings
+        self.subnet_names_encoder = self._enumerate_bidict(self.subnet_names)
+        self.host_names_encoder = self._enumerate_bidict(self.host_names)
+        self.action_names_encoder = self._enumerate_bidict(self.action_names)
+
+        # Save handy props
+        self.num_subnets = len(self.subnet_names)
+        self.num_hosts = len(self.host_names)
+        self.num_actions = len(self.action_names)
+
+        # This imitates the logic in BlueTable._process_initial_obs()
+        self.blue_baseline = {k: v for k,v in self.get_raw_observation().items() if k != "success"}
+
+        # Set gymnasium properties
+        self.reward_range = (float("-inf"), float("inf"))
+        self.action_space = gym.spaces.MultiDiscrete([self.num_actions, self.num_hosts])
+        # host_properties[host] = [subnet, num_local_ports, malware]
+        host_props = gym.spaces.Dict(
+            {
+                "host": gym.spaces.Discrete(self.num_hosts),
+                "properties": gym.spaces.Dict(
+                    {
+                        "subnet": gym.spaces.Discrete(self.num_subnets),
+                        "num_local_ports": gym.spaces.Discrete(MAX_PORTS),
+                        "malware": gym.spaces.Discrete(2),  # boolean
+                    }
+                ),
+            }
+        )
+        connection_props = gym.spaces.Dict(
+            {
+                "origin": gym.spaces.Discrete(self.num_hosts),
+                "target": gym.spaces.Discrete(self.num_hosts),
+                "connections": gym.spaces.Discrete(MAX_CONNECTIONS),
+            }
+        )
+        self.observation_space = gym.spaces.Dict(
+            {
+                "hosts": gym.spaces.Tuple(repeat(host_props, self.num_hosts)),
+                "connections": gym.spaces.Tuple(repeat(connection_props, len(self.feasible_connections))),
+            }
+        )
 
     def set_feasible_connections(self):
         "Extract graph layout from State object in CybORG, which is populated from the Scenario config."
@@ -119,10 +163,60 @@ class GraphWrapper(gym.Env):
         self.host_names = list(self.hostname_ip_map.keys())
         self.subnet_names = list(self.subnet_cidr_map.keys())
         self.feasible_connections = set(self.intranet_connections + self.internet_connections)
+        self.num_feasible_connections = len(self.feasible_connections)
 
-    def distill_observation(self, observation):
-        """Extracts from the blue observation the information required
-        to reconstruct the the blue table state but in a graph representation
+    def set_feasible_actions(self):
+        """Iterate over the action classes reported by cyborg and instantiate each of them
+        with the parameters available in the action space which match their signature.
+        """
+
+        self.global_actions_names = ("Sleep", "Monitor")
+        global_signatures = [(action, None) for action in self.global_actions_names]
+
+        host_actions = (action for action in self.action_names if action not in self.global_actions_names)
+        action_host_signatures = product(host_actions, self.host_names)
+        self.feasible_actions = list(action_host_signatures) + global_signatures
+
+        # Equivalent to the logic in EnumActionWrapper.action_space_change(action_space_dict)
+        # self.feasible_action_instances = list(starmap(self.instantiate_action, self.feasible_actions))
+
+    def _enumerate_bidict(self, iterable):
+        "Form bidirectional mappings between categorical values and their enumeration."
+        return bidict((val, idx) for idx, val in enumerate(iterable))
+
+    def _get_action_class(self, action_name):
+        "Retrieve the action class defined in CybORG from the action name."
+        action_module = sys.modules["CybORG.Shared.Actions"]
+        action_class = getattr(action_module, action_name)
+        return action_class
+
+    def gym_to_cyborg_action(self, gym_action):
+        "Converts gymnasium action to the equivalent cyborg action."
+        action_idx, host_idx = gym_action
+        action_name = self.action_names[action_idx]
+        host_name = self.host_names[host_idx]
+        if action_name in self.global_actions_names:
+            host_name = None  # global actions ignore host selection
+        assert (action_name, host_name) in self.feasible_actions
+        action_instance = self.instantiate_action(action_name, host_name)
+        return action_instance
+
+    def instantiate_action(self, action_name, host_name):
+        """Create instantiate the class object with the given host."""
+
+        action_class = self._get_action_class(action_name)
+
+        if action_name == "Sleep":
+            action = action_class()
+        elif action_name == "Monitor":
+            action = action_class(session=0, agent=self.agent_name)
+        else:
+            action = action_class(session=0, agent=self.agent_name, hostname=host_name)
+        return action
+
+    def distill_graph_observation(self, observation):
+        """Extracts from the raw blue observation the information required
+        to reconstruct the the blue table state but in a graph representation.
         """
 
         host_properties = {}
@@ -130,6 +224,9 @@ class GraphWrapper(gym.Env):
         for host, properties in observation.items():
 
             if host == "success":
+                # FIXME what is done if the environment fails normally?
+                if properties.name == "FALSE":
+                    return self.host_properties_baseline, self.connections_baseline
                 continue
 
             num_local_ports = 0
@@ -148,19 +245,29 @@ class GraphWrapper(gym.Env):
                         if "Transport Protocol" in connection:
                             continue  # FIXME double check
 
-                        local_port = connection["local_ports"]
+                        local_port = connection["local_port"]
                         local_ports_counter[local_port] += 1
 
-                        remote_port = connection["remote_ports"]
+                        remote_port = connection["remote_port"]
                         remote_ports_counter[remote_port] += 1
 
                         local_address = connection["local_address"]
                         remote_address = connection["remote_address"]
-                        local_remote = (local_address, remote_address)
-                        assert local_remote in self.feasible_connections
-                        connections_between_hosts[local_remote] += 1
+                        if local_address == remote_address:
+                            print(f"Self-connection observed in {host} between ports {local_port} and {remote_port}...")
+                            continue
 
-                        assert local_address == self.subnet_cidr_map[host]
+                        local_host_name = self.hostname_ip_map.inv[local_address]
+                        remote_host_name = self.hostname_ip_map.inv[remote_address]
+                        local_remote_tuple = (local_host_name, remote_host_name)
+
+                        assert host == local_host_name, "Utter nonsense again!"
+                        # FIXME Cover this cases with the feasible connections logic
+                        # assert local_remote in self.feasible_connections, "Unfeasible connection appeared!"
+                        if local_remote_tuple in self.feasible_connections:
+                            print(f"Unfeasible connection appeared! {local_remote_tuple}")
+                        connections_between_hosts[local_remote_tuple] += 1
+
 
                 num_local_ports = sum(local_ports_counter.values())
 
@@ -171,56 +278,45 @@ class GraphWrapper(gym.Env):
 
             subnet_ip = self.hostname_subnet_map[host]
             subnet = self.subnet_cidr_map.inv[subnet_ip]
-            host_properties[host] = [subnet, num_local_ports, malware]
+            # host_properties[host] = [subnet, num_local_ports, malware]
+            host_properties[host] = self.HostProperties(subnet, num_local_ports, malware)
 
         return host_properties, connections_between_hosts
 
-    # TODO method to encode observation
-
-    def get_action_class(self, action_name):
-        "Retrieve the action class defined in CybORG from the action name."
-        action_module = sys.modules["CybORG.Shared.Actions"]
-        action_class = getattr(action_module, action_name)
-        return action_class
-
-    def gym_to_cyborg_action(self, gym_action):
-        "Converts gymnasium action to the equivalent cyborg action."
-        action_idx, host_idx = gym_action
-        action_name = self.action_names[action_idx]
-        host_name = self.host_names[host_idx] 
-        if action_name in self.global_actions_names:
-            host_name = None  # global actions ignore host selection
-        assert (action_name, host_name) in self.feasible_actions
-        action_instance = self.instantiate_action(action_name, host_name)
-        return action_instance
-
-    def instantiate_action(self, action_name, host_name):
-        """Create instantiate the class object with the given host."""
-
-        action_class = self.get_action_class(action_name)
-
-        if action_name == "Sleep":
-            action = action_class()
-        elif action_name == "Monitor":
-            action = action_class(session=0, agent=self.agent_name)
-        else:
-            action = action_class(session=0, agent=self.agent_name, hostname=host_name)
-        return action
-
-    def set_feasible_actions(self):
-        """Iterate over the action classes reported by cyborg and instantiate each of them
-        with the parameters available in the action space which match their signature.
+    def encode_graph_observation(self, host_properties, connections):
+        """Transform the human understandable graph representation to a matrix encoding.
+        Categorical values are not one-hot-encoded for now.
         """
 
-        self.global_actions_names = ("Sleep", "Monitor")
-        global_signatures = [(action, None) for action in self.global_actions_names]
+        node_matrix = np.zeros((self.num_hosts, len(self.HostProperties._fields)), dtype="i")  # int32
+        for host_idx, host_name in enumerate(self.host_names):
+            props = host_properties.get(host_name, self.host_properties_baseline[host_name])
+            subnet_id = self.subnet_names_encoder[props.subnet]
+            local_ports = props.num_local_ports  # already an integer
+            malware_int = int(props.malware)
+            node_matrix[host_idx, :] = (subnet_id, local_ports, malware_int)
 
-        host_actions = (action for action in self.action_names if action not in self.global_actions_names)
-        action_host_signatures = product(host_actions, self.host_names)
-        self.feasible_actions = list(action_host_signatures) + global_signatures
+        edge_tuples = []
+        edge_weights = []
+        edge_geom_format = np.zeros((2, self.num_feasible_connections), dtype="i")
+        for idx, (source, target) in enumerate(self.feasible_connections):
+            source_id = self.host_names_encoder[source]
+            target_id = self.host_names_encoder[target]
+            tuple_id = (source_id, target_id)
+            edge_tuples.append(tuple_id)
+            edge_geom_format[:, idx] = tuple_id
+            current_connections = connections[(source, target)]
+            edge_weights.append(current_connections)
 
-        # Equivalent to the logic in EnumActionWrapper.action_space_change(action_space_dict)
-        # self.feasible_action_instances = list(starmap(self.instantiate_action, self.feasible_actions))
+        # edge weights are expected as a matrix of shape num_edges x num_attrs_per_edge
+        edge_attr = np.array(edge_weights).reshape((-1, 1))
+
+        # TODO any benefit from fitting into the Graph space of gymnasium?
+        # https://gymnasium.farama.org/api/spaces/composite/#graph
+
+        return Data(x=tensor(node_matrix, dtype=torch.int), edge_index=tensor(edge_geom_format, dtype=torch.int), edge_attr=tensor(edge_attr, dtype=torch.int))
+
+    # def graph_to_gym_observation(self) TODO method to adapt graph to gymnasium space
 
     def reset(self, *, seed = None, options = None):
         # CybORG does not expect options as a keyword
@@ -229,19 +325,34 @@ class GraphWrapper(gym.Env):
         else:
             result = self.cyborg.reset(seed=seed)
 
-        return np.array(result.observation), vars(result)
+        # TODO does it affect if this change the order of the nodes?
+        self.set_feasible_connections()
+
+        # Extract graph represention of blue the initial observation of the blue agent
+        self.host_properties_baseline, self.connections_baseline = self.distill_graph_observation(self.blue_baseline)
+        observation = self.encode_graph_observation(self.host_properties_baseline, self.connections_baseline)
+
+        # return np.array(result.observation), vars(result)
+        return observation, ChainMap(vars(result), {"hosts": self.host_properties_baseline, "connections": self.connections_baseline})
 
     def step(self, action):
+        
         action_instance = self.gym_to_cyborg_action(action)
         cyborg_result = self.cyborg.step(agent=self.agent_name, action=action_instance)
-        obs = np.array(cyborg_result.observation)  # TODO gymnasium space
+
+        # cyborg_observation = cyborg_result.observation
+        raw_observation = self.get_raw_observation()
+        host_properties, connections = self.distill_graph_observation(raw_observation)
+        observation = self.encode_graph_observation(host_properties, connections)
+
         reward = cyborg_result.reward
         terminated = cyborg_result.done
         truncated = False
-        info = vars(cyborg_result)
-        return obs, reward, terminated, truncated, info
+        info = ChainMap(vars(cyborg_result), {"hosts": host_properties, "connections": connections})
 
-    def get_observation(self):
+        return observation, reward, terminated, truncated, info
+
+    def get_raw_observation(self):
         # NOTE with ec == CybORG.environment_controller
         # self.blue_table.get_observation("Blue") is equivalent to
         # ec.get_last_observation("Blue").data --> ec.observation["Blue"]

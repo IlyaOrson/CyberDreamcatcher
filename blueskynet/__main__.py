@@ -1,5 +1,3 @@
-import numpy as np
-
 from rich.pretty import pprint
 
 from blueskynet.env import GraphWrapper
@@ -11,7 +9,7 @@ scenario = "Scenario2_-_User2_User4"
 env = GraphWrapper(scenario=scenario)
 
 print("Observation:")
-pprint(env.get_observation())
+pprint(env.get_raw_observation())
 
 print(env.get_true_table())
 print(env.get_blue_table())
@@ -20,15 +18,17 @@ plot_feasible_connections(env)
 
 print("Voila!")
 
-obs, info = env.reset()  # TODO gymnasium space
+obs, info = env.reset()
 
-for step in range(20):
-
-    action = env.action_space.sample()
-    obs, reward, terminated, truncated, info = env.step(action)  # TODO gymnasium space
+for step in range(50):
     
+    action = env.action_space.sample()
+
     print(f"action_name = {env.action_names[action[0]]}")
     print(f"host_name = {env.host_names[action[1]]}")
+
+    obs, reward, terminated, truncated, info = env.step(action)
+
     print(env.get_true_table())
     print(env.get_blue_table())
 
