@@ -1,6 +1,6 @@
 import sys
 from collections import defaultdict, namedtuple, ChainMap
-from itertools import combinations, product, repeat  #, starmap
+from itertools import combinations, product, repeat  # , starmap
 
 import numpy as np
 import gymnasium as gym
@@ -14,25 +14,25 @@ from torch_geometric.data import Data
 # from torch_geometric.utils import to_networkx  # TODO render observation
 
 from CybORG import CybORG
-from CybORG.Agents import RedMeanderAgent # , TestAgent
-from CybORG.Agents.Wrappers import ChallengeWrapper  #, BaseWrapper
+from CybORG.Agents import RedMeanderAgent  # , TestAgent
+from CybORG.Agents.Wrappers import ChallengeWrapper  # , BaseWrapper
+
 # NOTE not sure if this limits are actually enforced in CybORG
 from CybORG.Shared.AgentInterface import MAX_CONNECTIONS
 from CybORG.Shared.ActionSpace import MAX_PORTS
 
 from blueskynet.utils import get_scenario
 
+
 # We do not inherit from wrapper because we need lower level information for our graph
 # than the distilled information that travels through the wrappers observations
 class GraphWrapper(gym.Env):
-
     # TODO define render mode
     agent_name = "Blue"
 
     HostProperties = namedtuple("Host", ("subnet", "num_local_ports", "malware"))
 
     def __init__(self, scenario=None, max_steps=100) -> None:
-
         self.max_steps = max_steps
 
         if not scenario:
@@ -52,7 +52,9 @@ class GraphWrapper(gym.Env):
         # ec_obs_blue = ec._filter_obs(ec.get_true_state(ec.INFO_DICT["Blue"]), "Blue").data
 
         # ChallengeWrapper > OpenAIGymWrapper > EnumActionWrapper > BlueTableWrapper > TrueTableWrapper > CyBORG
-        self.challenge = ChallengeWrapper(agent_name=self.agent_name, env=self.cyborg, max_steps=self.max_steps)
+        self.challenge = ChallengeWrapper(
+            agent_name=self.agent_name, env=self.cyborg, max_steps=self.max_steps
+        )
         self.openai_gym = self.challenge.env
         self.enum_action = self.openai_gym.env
         self.blue_table = self.enum_action.env
@@ -63,7 +65,9 @@ class GraphWrapper(gym.Env):
 
         # Extract possible actions from cyborg
         # action_space = self.env_controller.agent_interfaces[self.agent_name].action_space
-        self.action_names = self.env_controller.scenario._scenario["Agents"][self.agent_name]["actions"]
+        self.action_names = self.env_controller.scenario._scenario["Agents"][
+            self.agent_name
+        ]["actions"]
         self.set_feasible_actions()
 
         # Form encoding mappings
@@ -77,7 +81,9 @@ class GraphWrapper(gym.Env):
         self.num_actions = len(self.action_names)
 
         # This imitates the logic in BlueTable._process_initial_obs()
-        self.blue_baseline = {k: v for k,v in self.get_raw_observation().items() if k != "success"}
+        self.blue_baseline = {
+            k: v for k, v in self.get_raw_observation().items() if k != "success"
+        }
 
         # Set gymnasium properties
         self.reward_range = (float("-inf"), float("inf"))
@@ -105,7 +111,9 @@ class GraphWrapper(gym.Env):
         self.observation_space = gym.spaces.Dict(
             {
                 "hosts": gym.spaces.Tuple(repeat(host_props, self.num_hosts)),
-                "connections": gym.spaces.Tuple(repeat(connection_props, len(self.feasible_connections))),
+                "connections": gym.spaces.Tuple(
+                    repeat(connection_props, len(self.feasible_connections))
+                ),
             }
         )
 
@@ -117,7 +125,7 @@ class GraphWrapper(gym.Env):
         # hostname <--> ip address
         self.hostname_ip_map = bidict(self.env_controller.hostname_ip_map)
         # ip_address --> subnet
-        # self.env_controller.state.get_subnet_containing_ip_address(ip_address)
+        # self.env_controller.state.get_subnet_containing_ip_address(ip_address)
 
         # feasible connections between hosts in different subnet
         self.internet_connections = []
@@ -143,7 +151,6 @@ class GraphWrapper(gym.Env):
         self.intranet_connections = []
         subnets = self.env_controller.state.subnets.values()
         for subnet in subnets:
-
             subnet_name = subnet.name
             subnet_hostnames = []
 
@@ -162,7 +169,9 @@ class GraphWrapper(gym.Env):
 
         self.host_names = list(self.hostname_ip_map.keys())
         self.subnet_names = list(self.subnet_cidr_map.keys())
-        self.feasible_connections = set(self.intranet_connections + self.internet_connections)
+        self.feasible_connections = set(
+            self.intranet_connections + self.internet_connections
+        )
         self.num_feasible_connections = len(self.feasible_connections)
 
     def set_feasible_actions(self):
@@ -173,7 +182,11 @@ class GraphWrapper(gym.Env):
         self.global_actions_names = ("Sleep", "Monitor")
         global_signatures = [(action, None) for action in self.global_actions_names]
 
-        host_actions = (action for action in self.action_names if action not in self.global_actions_names)
+        host_actions = (
+            action
+            for action in self.action_names
+            if action not in self.global_actions_names
+        )
         action_host_signatures = product(host_actions, self.host_names)
         self.feasible_actions = list(action_host_signatures) + global_signatures
 
@@ -222,7 +235,6 @@ class GraphWrapper(gym.Env):
         host_properties = {}
         connections_between_hosts = defaultdict(int)
         for host, properties in observation.items():
-
             if host == "success":
                 # FIXME what is done if the environment fails normally?
                 if properties.name == "FALSE":
@@ -238,12 +250,11 @@ class GraphWrapper(gym.Env):
 
                 for process in processes:
                     if "Connections" in process:
-
                         assert len(process["Connections"]) == 1
                         connection = process["Connections"][0]
 
                         if "Transport Protocol" in connection:
-                            continue  # FIXME double check
+                            continue  # FIXME double check
 
                         local_port = connection["local_port"]
                         local_ports_counter[local_port] += 1
@@ -254,7 +265,9 @@ class GraphWrapper(gym.Env):
                         local_address = connection["local_address"]
                         remote_address = connection["remote_address"]
                         if local_address == remote_address:
-                            print(f"Self-connection observed in {host} between ports {local_port} and {remote_port}...")
+                            print(
+                                f"Self-connection observed in {host} between ports {local_port} and {remote_port}..."
+                            )
                             continue
 
                         local_host_name = self.hostname_ip_map.inv[local_address]
@@ -265,21 +278,24 @@ class GraphWrapper(gym.Env):
                         # FIXME Cover this cases with the feasible connections logic
                         # assert local_remote in self.feasible_connections, "Unfeasible connection appeared!"
                         if local_remote_tuple in self.feasible_connections:
-                            print(f"Unfeasible connection appeared! {local_remote_tuple}")
+                            print(
+                                f"Unfeasible connection appeared! {local_remote_tuple}"
+                            )
                         connections_between_hosts[local_remote_tuple] += 1
-
 
                 num_local_ports = sum(local_ports_counter.values())
 
             malware = False
             if "Files" in properties:
                 files = properties["Files"]
-                malware = any(_file['Density'] >= 0.9 for _file in files)
+                malware = any(_file["Density"] >= 0.9 for _file in files)
 
             subnet_ip = self.hostname_subnet_map[host]
             subnet = self.subnet_cidr_map.inv[subnet_ip]
             # host_properties[host] = [subnet, num_local_ports, malware]
-            host_properties[host] = self.HostProperties(subnet, num_local_ports, malware)
+            host_properties[host] = self.HostProperties(
+                subnet, num_local_ports, malware
+            )
 
         return host_properties, connections_between_hosts
 
@@ -288,9 +304,13 @@ class GraphWrapper(gym.Env):
         Categorical values are not one-hot-encoded for now.
         """
 
-        node_matrix = np.zeros((self.num_hosts, len(self.HostProperties._fields)), dtype="i")  # int32
+        node_matrix = np.zeros(
+            (self.num_hosts, len(self.HostProperties._fields)), dtype="i"
+        )  # int32
         for host_idx, host_name in enumerate(self.host_names):
-            props = host_properties.get(host_name, self.host_properties_baseline[host_name])
+            props = host_properties.get(
+                host_name, self.host_properties_baseline[host_name]
+            )
             subnet_id = self.subnet_names_encoder[props.subnet]
             local_ports = props.num_local_ports  # already an integer
             malware_int = int(props.malware)
@@ -314,29 +334,42 @@ class GraphWrapper(gym.Env):
         # TODO any benefit from fitting into the Graph space of gymnasium?
         # https://gymnasium.farama.org/api/spaces/composite/#graph
 
-        return Data(x=tensor(node_matrix, dtype=torch.int), edge_index=tensor(edge_geom_format, dtype=torch.int), edge_attr=tensor(edge_attr, dtype=torch.int))
+        return Data(
+            x=tensor(node_matrix, dtype=torch.int),
+            edge_index=tensor(edge_geom_format, dtype=torch.int),
+            edge_attr=tensor(edge_attr, dtype=torch.int),
+        )
 
     # def graph_to_gym_observation(self) TODO method to adapt graph to gymnasium space
 
-    def reset(self, *, seed = None, options = None):
+    def reset(self, *, seed=None, options=None):
         # CybORG does not expect options as a keyword
         if options:
             result = self.cyborg.reset(seed=seed, **options)
         else:
             result = self.cyborg.reset(seed=seed)
 
-        # TODO does it affect if this change the order of the nodes?
+        # TODO does it affect if this change the order of the nodes?
         self.set_feasible_connections()
 
         # Extract graph represention of blue the initial observation of the blue agent
-        self.host_properties_baseline, self.connections_baseline = self.distill_graph_observation(self.blue_baseline)
-        observation = self.encode_graph_observation(self.host_properties_baseline, self.connections_baseline)
+        self.host_properties_baseline, self.connections_baseline = (
+            self.distill_graph_observation(self.blue_baseline)
+        )
+        observation = self.encode_graph_observation(
+            self.host_properties_baseline, self.connections_baseline
+        )
 
         # return np.array(result.observation), vars(result)
-        return observation, ChainMap(vars(result), {"hosts": self.host_properties_baseline, "connections": self.connections_baseline})
+        return observation, ChainMap(
+            vars(result),
+            {
+                "hosts": self.host_properties_baseline,
+                "connections": self.connections_baseline,
+            },
+        )
 
     def step(self, action):
-        
         action_instance = self.gym_to_cyborg_action(action)
         cyborg_result = self.cyborg.step(agent=self.agent_name, action=action_instance)
 
@@ -348,7 +381,9 @@ class GraphWrapper(gym.Env):
         reward = cyborg_result.reward
         terminated = cyborg_result.done
         truncated = False
-        info = ChainMap(vars(cyborg_result), {"hosts": host_properties, "connections": connections})
+        info = ChainMap(
+            vars(cyborg_result), {"hosts": host_properties, "connections": connections}
+        )
 
         return observation, reward, terminated, truncated, info
 

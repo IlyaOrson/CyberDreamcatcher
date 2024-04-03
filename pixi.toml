@@ -12,6 +12,7 @@ python = "~=3.11.8"
 [tasks]
 install-submodules = "pip install --no-build-isolation --no-deps --disable-pip-version-check -e ./CybORG"
 install-pip-deps = "pip install --no-build-isolation --no-deps --disable-pip-version-check tensordict-nightly stable-baselines3==2.2.1"
+format = "ruff format blueskynet"
 tutorial-cyborg = "jupyter-lab CybORG/CybORG/Tutorial/"
 test-cyborg = "pytest CybORG/CybORG/Tests/test_sim"
 eval-cardiff = "python cardiff-cage-2/evaluation.py"

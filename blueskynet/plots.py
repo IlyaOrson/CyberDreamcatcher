@@ -4,7 +4,6 @@ import matplotlib.pyplot as plt
 
 
 def plot_feasible_connections(env, multipartite=False):
-
     # Simplest version
     # graph = nx.DiGraph()
     # graph.add_nodes_from(env.host_names)
@@ -18,19 +17,22 @@ def plot_feasible_connections(env, multipartite=False):
     n_colors = len(env.subnet_names)
     cmap = plt.cm.Set2
     colors = cmap(np.linspace(0, 1, n_colors))
-    subnet_color_map = {subnet: colors[idx] for idx, subnet in enumerate(env.subnet_names)}
+    subnet_color_map = {
+        subnet: colors[idx] for idx, subnet in enumerate(env.subnet_names)
+    }
 
     for subnet, hostnames in env.subnet_hostnames_map.items():
         graph.add_nodes_from(hostnames, subnet=subnet)
     graph.add_edges_from(env.feasible_connections)
 
     if multipartite:
-        positions = nx.multipartite_layout(graph, subset_key="subnet", align="horizontal")
+        positions = nx.multipartite_layout(
+            graph, subset_key="subnet", align="horizontal"
+        )
     else:
         positions = nx.kamada_kawai_layout(graph)
 
     for subnet, hostnames in env.subnet_hostnames_map.items():
-
         color = subnet_color_map[subnet]
         node_colors = len(hostnames) * [color]
 
