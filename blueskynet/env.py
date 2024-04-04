@@ -1,25 +1,27 @@
 import sys
-from collections import defaultdict, namedtuple, ChainMap
+from collections import ChainMap, defaultdict, namedtuple
 from itertools import combinations, product, repeat  # , starmap
 
-import numpy as np
 import gymnasium as gym
-from bidict import bidict
+import matplotlib.pyplot as plt
+import networkx as nx
+import numpy as np
 
 # https://pytorch.org/docs/stable/generated/torch.nn.functional.one_hot.html#torch-nn-functional-one-hot
 # from torch.nn.functional import one_hot
 import torch
-from torch import tensor
-from torch_geometric.data import Data
-# from torch_geometric.utils import to_networkx  # TODO render observation
+from bidict import bidict
 
 from CybORG import CybORG
 from CybORG.Agents import RedMeanderAgent  # , TestAgent
 from CybORG.Agents.Wrappers import ChallengeWrapper  # , BaseWrapper
+from CybORG.Shared.ActionSpace import MAX_PORTS
+from CybORG.Shared.AgentInterface import MAX_CONNECTIONS
 
 # NOTE not sure if this limits are actually enforced in CybORG
-from CybORG.Shared.AgentInterface import MAX_CONNECTIONS
-from CybORG.Shared.ActionSpace import MAX_PORTS
+from torch import tensor
+from torch_geometric.data import Data
+from torch_geometric.utils import to_networkx
 
 from blueskynet.utils import get_scenario
 
@@ -27,12 +29,14 @@ from blueskynet.utils import get_scenario
 # We do not inherit from wrapper because we need lower level information for our graph
 # than the distilled information that travels through the wrappers observations
 class GraphWrapper(gym.Env):
-    # TODO define render mode
+
+    # TODO define render modes
     agent_name = "Blue"
 
     HostProperties = namedtuple("Host", ("subnet", "num_local_ports", "malware"))
 
     def __init__(self, scenario=None, max_steps=100) -> None:
+
         self.max_steps = max_steps
 
         if not scenario:
@@ -42,6 +46,31 @@ class GraphWrapper(gym.Env):
 
         self.cyborg = CybORG(self.scenario_path, "sim", agents={"Red": RedMeanderAgent})
         self.env_controller = self.cyborg.environment_controller
+        self.scenario = self.env_controller.scenario
+
+        self.host_names = self.scenario.hosts
+        self.subnet_names = self.scenario.subnets
+        self.action_names = self.scenario._scenario["Agents"][self.agent_name][
+            "actions"
+        ]
+
+        # Form enumeration mappings
+        self.subnet_enumeration = self._enumerate_bidict(self.subnet_names)
+        self.host_enumeration = self._enumerate_bidict(self.host_names)
+        self.action_enumeration = self._enumerate_bidict(self.action_names)
+
+        # Handy properties
+        self.num_subnets = len(self.subnet_names)
+        self.num_hosts = len(self.host_names)
+        self.num_actions = len(self.action_names)
+
+        # Extract possible actions from cyborg
+        # action_space = self.env_controller.agent_interfaces[self.agent_name].action_space
+        self.set_feasible_actions()
+
+        # NOTE this depends on the random IPs assigned so need to be called after each environment reset as well
+        # Initialize feasiable connection graph with the structure from the scenario
+        self.set_feasible_connections()
 
         # NOTE  the "true" state is not really updated because the observations are updated instead
         #       directly in self.env_controller.observation["Blue"]
@@ -59,26 +88,6 @@ class GraphWrapper(gym.Env):
         self.enum_action = self.openai_gym.env
         self.blue_table = self.enum_action.env
         self.true_table = self.blue_table.env
-
-        # Initialize feasiable connection graph with the structure from the scenario
-        self.set_feasible_connections()
-
-        # Extract possible actions from cyborg
-        # action_space = self.env_controller.agent_interfaces[self.agent_name].action_space
-        self.action_names = self.env_controller.scenario._scenario["Agents"][
-            self.agent_name
-        ]["actions"]
-        self.set_feasible_actions()
-
-        # Form encoding mappings
-        self.subnet_names_encoder = self._enumerate_bidict(self.subnet_names)
-        self.host_names_encoder = self._enumerate_bidict(self.host_names)
-        self.action_names_encoder = self._enumerate_bidict(self.action_names)
-
-        # Save handy props
-        self.num_subnets = len(self.subnet_names)
-        self.num_hosts = len(self.host_names)
-        self.num_actions = len(self.action_names)
 
         # This imitates the logic in BlueTable._process_initial_obs()
         self.blue_baseline = {
@@ -167,8 +176,6 @@ class GraphWrapper(gym.Env):
                 self.intranet_connections.append((source, target))
                 self.intranet_connections.append((target, source))
 
-        self.host_names = list(self.hostname_ip_map.keys())
-        self.subnet_names = list(self.subnet_cidr_map.keys())
         self.feasible_connections = set(
             self.intranet_connections + self.internet_connections
         )
@@ -203,17 +210,6 @@ class GraphWrapper(gym.Env):
         action_class = getattr(action_module, action_name)
         return action_class
 
-    def gym_to_cyborg_action(self, gym_action):
-        "Converts gymnasium action to the equivalent cyborg action."
-        action_idx, host_idx = gym_action
-        action_name = self.action_names[action_idx]
-        host_name = self.host_names[host_idx]
-        if action_name in self.global_actions_names:
-            host_name = None  # global actions ignore host selection
-        assert (action_name, host_name) in self.feasible_actions
-        action_instance = self.instantiate_action(action_name, host_name)
-        return action_instance
-
     def instantiate_action(self, action_name, host_name):
         """Create instantiate the class object with the given host."""
 
@@ -226,6 +222,17 @@ class GraphWrapper(gym.Env):
         else:
             action = action_class(session=0, agent=self.agent_name, hostname=host_name)
         return action
+
+    def gym_to_cyborg_action(self, gym_action):
+        "Converts gymnasium action to the equivalent cyborg action."
+        action_idx, host_idx = gym_action
+        action_name = self.action_names[action_idx]
+        host_name = self.host_names[host_idx]
+        if action_name in self.global_actions_names:
+            host_name = None  # global actions ignore host selection
+        assert (action_name, host_name) in self.feasible_actions
+        action_instance = self.instantiate_action(action_name, host_name)
+        return action_instance
 
     def distill_graph_observation(self, observation):
         """Extracts from the raw blue observation the information required
@@ -256,18 +263,10 @@ class GraphWrapper(gym.Env):
                         if "Transport Protocol" in connection:
                             continue  # FIXME double check
 
-                        local_port = connection["local_port"]
-                        local_ports_counter[local_port] += 1
-
-                        remote_port = connection["remote_port"]
-                        remote_ports_counter[remote_port] += 1
-
                         local_address = connection["local_address"]
                         remote_address = connection["remote_address"]
                         if local_address == remote_address:
-                            print(
-                                f"Self-connection observed in {host} between ports {local_port} and {remote_port}..."
-                            )
+                            print(f"Self-connection observed in {host}: {connection}")
                             continue
 
                         local_host_name = self.hostname_ip_map.inv[local_address]
@@ -282,6 +281,17 @@ class GraphWrapper(gym.Env):
                                 f"Unfeasible connection appeared! {local_remote_tuple}"
                             )
                         connections_between_hosts[local_remote_tuple] += 1
+
+                        local_port = connection["local_port"]
+                        local_ports_counter[local_port] += 1
+
+                        try:
+                            remote_port = connection["remote_port"]
+                            remote_ports_counter[remote_port] += 1
+                        except KeyError:
+                            print(
+                                f"Connection {local_remote_tuple} has no remote port!"
+                            )
 
                 num_local_ports = sum(local_ports_counter.values())
 
@@ -307,11 +317,12 @@ class GraphWrapper(gym.Env):
         node_matrix = np.zeros(
             (self.num_hosts, len(self.HostProperties._fields)), dtype="i"
         )  # int32
-        for host_idx, host_name in enumerate(self.host_names):
+        for host_name in self.host_names:
+            host_idx = self.host_enumeration[host_name]
             props = host_properties.get(
                 host_name, self.host_properties_baseline[host_name]
             )
-            subnet_id = self.subnet_names_encoder[props.subnet]
+            subnet_id = self.subnet_enumeration[props.subnet]
             local_ports = props.num_local_ports  # already an integer
             malware_int = int(props.malware)
             node_matrix[host_idx, :] = (subnet_id, local_ports, malware_int)
@@ -320,8 +331,8 @@ class GraphWrapper(gym.Env):
         edge_weights = []
         edge_geom_format = np.zeros((2, self.num_feasible_connections), dtype="i")
         for idx, (source, target) in enumerate(self.feasible_connections):
-            source_id = self.host_names_encoder[source]
-            target_id = self.host_names_encoder[target]
+            source_id = self.host_enumeration[source]
+            target_id = self.host_enumeration[target]
             tuple_id = (source_id, target_id)
             edge_tuples.append(tuple_id)
             edge_geom_format[:, idx] = tuple_id
