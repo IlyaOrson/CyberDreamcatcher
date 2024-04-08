@@ -4,7 +4,6 @@ from itertools import combinations, product, repeat  # , starmap
 
 import gymnasium as gym
 import matplotlib.pyplot as plt
-import networkx as nx
 import numpy as np
 
 # https://pytorch.org/docs/stable/generated/torch.nn.functional.one_hot.html#torch-nn-functional-one-hot
@@ -17,32 +16,34 @@ from CybORG.Agents import RedMeanderAgent  # , TestAgent
 from CybORG.Agents.Wrappers import ChallengeWrapper  # , BaseWrapper
 from CybORG.Shared.ActionSpace import MAX_PORTS
 from CybORG.Shared.AgentInterface import MAX_CONNECTIONS
-
 # NOTE not sure if this limits are actually enforced in CybORG
+
 from torch import tensor
 from torch_geometric.data import Data
-from torch_geometric.utils import to_networkx
 
 from blueskynet.utils import get_scenario
+from blueskynet.plots import plot_observation, plot_feasible_connections
 
 
 # We do not inherit from wrapper because we need lower level information for our graph
 # than the distilled information that travels through the wrappers observations
 class GraphWrapper(gym.Env):
 
-    # TODO define render modes
     agent_name = "Blue"
 
     HostProperties = namedtuple("Host", ("subnet", "num_local_ports", "malware"))
 
-    def __init__(self, scenario=None, max_steps=100) -> None:
+    metadata = {"render_modes": ["human"]}
 
+    def __init__(self, scenario=None, max_steps=100, render_mode="human") -> None:
         self.max_steps = max_steps
 
         if not scenario:
             self.scenario_path = get_scenario(name="Scenario2", from_cyborg=True)
+            self.scenario_name = "CybORG's Scenario2"
         else:
             self.scenario_path = get_scenario(name=scenario, from_cyborg=False)
+            self.scenario_name = scenario
 
         self.cyborg = CybORG(self.scenario_path, "sim", agents={"Red": RedMeanderAgent})
         self.env_controller = self.cyborg.environment_controller
@@ -94,6 +95,8 @@ class GraphWrapper(gym.Env):
             k: v for k, v in self.get_raw_observation().items() if k != "success"
         }
 
+        self.previous_action = None
+
         # Set gymnasium properties
         self.reward_range = (float("-inf"), float("inf"))
         self.action_space = gym.spaces.MultiDiscrete([self.num_actions, self.num_hosts])
@@ -121,10 +124,19 @@ class GraphWrapper(gym.Env):
             {
                 "hosts": gym.spaces.Tuple(repeat(host_props, self.num_hosts)),
                 "connections": gym.spaces.Tuple(
-                    repeat(connection_props, len(self.feasible_connections))
+                    repeat(connection_props, self.num_feasible_connections)
                 ),
             }
         )
+
+        assert render_mode is None or render_mode in self.metadata["render_modes"]
+        self.render_mode = render_mode
+
+        if self.render_mode == "human":
+            # plt.ion()
+            # plt.ioff()
+            self.fig, self.axis = plt.subplots()
+            self._node_positions = plot_feasible_connections(self, axis=self.axis)
 
     def set_feasible_connections(self):
         "Extract graph layout from State object in CybORG, which is populated from the Scenario config."
@@ -176,10 +188,12 @@ class GraphWrapper(gym.Env):
                 self.intranet_connections.append((source, target))
                 self.intranet_connections.append((target, source))
 
-        self.feasible_connections = set(
-            self.intranet_connections + self.internet_connections
+        self.feasible_connections = (
+            self.internet_connections + self.intranet_connections
         )
+        self.feasible_connections_set = set(self.feasible_connections)
         self.num_feasible_connections = len(self.feasible_connections)
+        self.connections_enumeration = self._enumerate_bidict(self.feasible_connections)
 
     def set_feasible_actions(self):
         """Iterate over the action classes reported by cyborg and instantiate each of them
@@ -276,7 +290,7 @@ class GraphWrapper(gym.Env):
                         assert host == local_host_name, "Utter nonsense again!"
                         # FIXME Cover this cases with the feasible connections logic
                         # assert local_remote in self.feasible_connections, "Unfeasible connection appeared!"
-                        if local_remote_tuple in self.feasible_connections:
+                        if local_remote_tuple in self.feasible_connections_set:
                             print(
                                 f"Unfeasible connection appeared! {local_remote_tuple}"
                             )
@@ -330,7 +344,8 @@ class GraphWrapper(gym.Env):
         edge_tuples = []
         edge_weights = []
         edge_geom_format = np.zeros((2, self.num_feasible_connections), dtype="i")
-        for idx, (source, target) in enumerate(self.feasible_connections):
+        for source, target in self.feasible_connections:
+            idx = self.connections_enumeration[(source, target)]
             source_id = self.host_enumeration[source]
             target_id = self.host_enumeration[target]
             tuple_id = (source_id, target_id)
@@ -341,9 +356,6 @@ class GraphWrapper(gym.Env):
 
         # edge weights are expected as a matrix of shape num_edges x num_attrs_per_edge
         edge_attr = np.array(edge_weights).reshape((-1, 1))
-
-        # TODO any benefit from fitting into the Graph space of gymnasium?
-        # https://gymnasium.farama.org/api/spaces/composite/#graph
 
         return Data(
             x=tensor(node_matrix, dtype=torch.int),
@@ -396,7 +408,25 @@ class GraphWrapper(gym.Env):
             vars(cyborg_result), {"hosts": host_properties, "connections": connections}
         )
 
+        self.previous_action = action_instance
+
         return observation, reward, terminated, truncated, info
+
+    def render(self):
+        raw_observation = self.get_raw_observation()
+        host_properties, connections = self.distill_graph_observation(raw_observation)
+
+        # TODO Plot observations on top of the feasible connections plot
+        # to show both partial observability and comparison to baseline,
+        # which is the heart of the logic.
+        if self.render_mode == "human":
+            plot_observation(
+                host_properties,
+                connections,
+                action_name=str(self.previous_action),
+                axis=self.axis,
+                node_positions=self._node_positions,
+            )
 
     def get_raw_observation(self):
         # NOTE with ec == CybORG.environment_controller
