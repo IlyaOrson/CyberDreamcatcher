@@ -5,6 +5,7 @@ from itertools import combinations, product, repeat  # , starmap
 import gymnasium as gym
 import matplotlib.pyplot as plt
 import numpy as np
+from rich.pretty import pprint
 
 # https://pytorch.org/docs/stable/generated/torch.nn.functional.one_hot.html#torch-nn-functional-one-hot
 # from torch.nn.functional import one_hot
@@ -28,7 +29,6 @@ from blueskynet.plots import plot_observation, plot_feasible_connections
 # We do not inherit from wrapper because we need lower level information for our graph
 # than the distilled information that travels through the wrappers observations
 class GraphWrapper(gym.Env):
-
     agent_name = "Blue"
 
     HostProperties = namedtuple("Host", ("subnet", "num_local_ports", "malware"))
@@ -96,6 +96,8 @@ class GraphWrapper(gym.Env):
         }
 
         self.previous_action = None
+        self.previous_action_encoding = [0, 0]  # always "slept" in the first move
+        assert str(self.gym_to_cyborg_action(self.previous_action_encoding)) == "Sleep"
 
         # Set gymnasium properties
         self.reward_range = (float("-inf"), float("inf"))
@@ -126,6 +128,7 @@ class GraphWrapper(gym.Env):
                 "connections": gym.spaces.Tuple(
                     repeat(connection_props, self.num_feasible_connections)
                 ),
+                "previous_action": self.action_space,
             }
         )
 
@@ -288,7 +291,6 @@ class GraphWrapper(gym.Env):
                         local_remote_tuple = (local_host_name, remote_host_name)
 
                         assert host == local_host_name, "Utter nonsense again!"
-                        # FIXME Cover this cases with the feasible connections logic
                         # assert local_remote in self.feasible_connections, "Unfeasible connection appeared!"
                         if local_remote_tuple in self.feasible_connections_set:
                             print(
@@ -320,6 +322,20 @@ class GraphWrapper(gym.Env):
             host_properties[host] = self.HostProperties(
                 subnet, num_local_ports, malware
             )
+
+        if observation != self.blue_baseline:
+            # extract processes per host
+            anomalies = self.blue_table._detect_anomalies(observation)
+            # flag if processes represent a connection or a file
+            relevant_anomalies = {
+                host: processes
+                for host, processes in anomalies.items()
+                if "Connections" in processes.keys() or "Files" in processes.keys()
+            }
+            if relevant_anomalies:
+                pprint(relevant_anomalies)
+                pprint(host_properties)
+                pprint(connections_between_hosts)
 
         return host_properties, connections_between_hosts
 
@@ -361,6 +377,7 @@ class GraphWrapper(gym.Env):
             x=tensor(node_matrix, dtype=torch.int),
             edge_index=tensor(edge_geom_format, dtype=torch.int),
             edge_attr=tensor(edge_attr, dtype=torch.int),
+            global_attr=tensor(self.previous_action_encoding),
         )
 
     # def graph_to_gym_observation(self) TODO method to adapt graph to gymnasium space
@@ -408,6 +425,7 @@ class GraphWrapper(gym.Env):
             vars(cyborg_result), {"hosts": host_properties, "connections": connections}
         )
 
+        self.previous_action_encoding = action
         self.previous_action = action_instance
 
         return observation, reward, terminated, truncated, info
