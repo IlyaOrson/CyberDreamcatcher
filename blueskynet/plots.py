@@ -52,7 +52,9 @@ def plot_feasible_connections(env, axis=None, multipartite=False):
             # cmap=cmap
         )
 
-    nx.draw_networkx_edges(graph, pos=node_positions, ax=axis, alpha=0.4)
+    nx.draw_networkx_edges(
+        graph, pos=node_positions, ax=axis, connectionstyle="Arc3, rad = 0.2", alpha=0.4
+    )
     nx.draw_networkx_labels(graph, pos=node_positions, ax=axis, font_size=8, alpha=0.8)
 
     plt.title(f"Layout from {env.scenario_name}")
@@ -90,7 +92,9 @@ def plot_observation(
         axis.cla()
 
     nx.draw_networkx_nodes(graph, pos=node_positions, ax=axis)
-    nx.draw_networkx_edges(graph, pos=node_positions, ax=axis, alpha=0.3)
+    nx.draw_networkx_edges(
+        graph, pos=node_positions, ax=axis, connectionstyle="Arc3, rad = 0.2", alpha=0.3
+    )
     nx.draw_networkx_labels(graph, pos=node_positions, ax=axis, font_size=8, alpha=0.8)
 
     edge_labels = nx.get_edge_attributes(graph, "connections")
@@ -99,8 +103,9 @@ def plot_observation(
         pos=node_positions,
         ax=axis,
         edge_labels=edge_labels,
+        label_pos=0.3,  # (0=head, 0.5=center, 1=tail)
         font_size=8,
-        alpha=0.8,
+        alpha=0.5,
     )
 
     if action_name is None:

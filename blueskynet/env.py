@@ -33,6 +33,9 @@ class GraphWrapper(gym.Env):
 
     HostProperties = namedtuple("Host", ("subnet", "num_local_ports", "malware"))
 
+    host_embedding_size = 3
+    edge_embedding_size = 1
+
     metadata = {"render_modes": ["human"]}
 
     def __init__(self, scenario=None, max_steps=100, render_mode="human") -> None:
@@ -374,9 +377,9 @@ class GraphWrapper(gym.Env):
         edge_attr = np.array(edge_weights).reshape((-1, 1))
 
         return Data(
-            x=tensor(node_matrix, dtype=torch.int),
-            edge_index=tensor(edge_geom_format, dtype=torch.int),
-            edge_attr=tensor(edge_attr, dtype=torch.int),
+            x=tensor(node_matrix, dtype=torch.float),
+            edge_index=tensor(edge_geom_format, dtype=torch.long),
+            edge_attr=tensor(edge_attr, dtype=torch.float),
             global_attr=tensor(self.previous_action_encoding),
         )
 
@@ -389,7 +392,6 @@ class GraphWrapper(gym.Env):
         else:
             result = self.cyborg.reset(seed=seed)
 
-        # TODO does it affect if this change the order of the nodes?
         self.set_feasible_connections()
 
         # Extract graph represention of blue the initial observation of the blue agent
@@ -414,8 +416,7 @@ class GraphWrapper(gym.Env):
         cyborg_result = self.cyborg.step(agent=self.agent_name, action=action_instance)
 
         # cyborg_observation = cyborg_result.observation
-        raw_observation = self.get_raw_observation()
-        host_properties, connections = self.distill_graph_observation(raw_observation)
+        host_properties, connections = self.get_graph_observation()
         observation = self.encode_graph_observation(host_properties, connections)
 
         reward = cyborg_result.reward
@@ -431,8 +432,7 @@ class GraphWrapper(gym.Env):
         return observation, reward, terminated, truncated, info
 
     def render(self):
-        raw_observation = self.get_raw_observation()
-        host_properties, connections = self.distill_graph_observation(raw_observation)
+        host_properties, connections = self.get_graph_observation()
 
         # TODO Plot observations on top of the feasible connections plot
         # to show both partial observability and comparison to baseline,
@@ -445,6 +445,14 @@ class GraphWrapper(gym.Env):
                 axis=self.axis,
                 node_positions=self._node_positions,
             )
+
+    def get_encoded_observation(self):
+        host_properties, connections = self.get_graph_observation()
+        return self.encode_graph_observation(host_properties, connections)
+
+    def get_graph_observation(self):
+        raw_observation = self.get_raw_observation()
+        return self.distill_graph_observation(raw_observation)
 
     def get_raw_observation(self):
         # NOTE with ec == CybORG.environment_controller
