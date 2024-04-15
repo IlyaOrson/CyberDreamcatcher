@@ -104,7 +104,7 @@ class GraphWrapper(gym.Env):
 
         # Set gymnasium properties
         self.reward_range = (float("-inf"), float("inf"))
-        self.action_space = gym.spaces.MultiDiscrete([self.num_actions, self.num_hosts])
+        self.action_space = gym.spaces.MultiDiscrete([self.num_hosts, self.num_actions])
         # host_properties[host] = [subnet, num_local_ports, malware]
         host_props = gym.spaces.Dict(
             {
@@ -245,7 +245,7 @@ class GraphWrapper(gym.Env):
 
     def gym_to_cyborg_action(self, gym_action):
         "Converts gymnasium action to the equivalent cyborg action."
-        action_idx, host_idx = gym_action
+        host_idx, action_idx = gym_action
         action_name = self.action_names[action_idx]
         host_name = self.host_names[host_idx]
         if action_name in self.global_actions_names:

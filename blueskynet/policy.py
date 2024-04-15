@@ -1,11 +1,10 @@
+import torch
 from torch import nn
 from torch_geometric.nn.conv import GATv2Conv
 
 from stable_baselines3.common.distributions import CategoricalDistribution
 
 
-# FIXME figure out how to define a torch categorical distribution over 2 dimensions
-#       to be able to choose directly a node and an action
 class Police(nn.Module):
     def __init__(self, env, latent_node_dim, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -26,10 +25,7 @@ class Police(nn.Module):
             share_weights=True,
         )
 
-        self.action_dist = CategoricalDistribution(action_dim=2)
-
-        # TODO does the MultiCategorical distribution has any benefit over doing this manually?
-        # self.action_heads = make_proba_distribution(env.action_space)
+        self.action_dist = CategoricalDistribution(action_dim=1)
 
     def forward(self, graph):
         # Destructure Data() object from pytorch geometric
@@ -44,9 +40,15 @@ class Police(nn.Module):
         action_logits = self.action_layer(latent_nodes, edge_index, edges_matrix)
 
         # Turn logits into the categorical probability distribution
-        action_selection, action_log_prob = self.action_dist.log_prob_from_params(
-            action_logits
+        # Flatten the logits array to use a one-dimensional distribution.
+        action_selection_flat, action_log_prob = self.action_dist.log_prob_from_params(
+            action_logits.flatten()
         )
+
+        # Recover the original array index from the flattened selection
+        action_selection = torch.unravel_index(action_selection_flat, action_logits.shape)
+
+        assert action_logits[action_selection] == action_logits.flatten()[action_selection_flat]
 
         return action_selection, action_log_prob
 
@@ -83,9 +85,6 @@ class ConditionalPolice(nn.Module):
 
         self.node_dist = CategoricalDistribution(action_dim=1)
         self.action_dist = CategoricalDistribution(action_dim=1)
-
-        # TODO does the MultiCategorical distribution has any benefit over doing this manually?
-        # self.action_heads = make_proba_distribution(env.action_space)
 
     def forward(self, graph):
         # Destructure Data() object from pytorch geometric
