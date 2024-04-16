@@ -2,8 +2,10 @@ import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 
+from torch.nn.functional import softmax
 
-def plot_feasible_connections(env, axis=None, multipartite=False):
+
+def plot_feasible_connections(env, axis=None, multipartite=False, block=False):
     # Simplest version
     # graph = nx.DiGraph()
     # graph.add_nodes_from(env.host_names)
@@ -59,13 +61,18 @@ def plot_feasible_connections(env, axis=None, multipartite=False):
 
     plt.title(f"Layout from {env.scenario_name}")
     plt.legend()
-    plt.show(block=False)
+    plt.show(block=block)
 
     return node_positions
 
 
 def plot_observation(
-    host_properties, connections, action_name=None, axis=None, node_positions=None
+    host_properties,
+    connections,
+    action_name=None,
+    axis=None,
+    node_positions=None,
+    block=False,
 ):
     # Simplest version
     # graph = nx.DiGraph()
@@ -113,4 +120,24 @@ def plot_observation(
     else:
         plt.title(f"Blue observation after {action_name}")
     plt.legend()
-    plt.show(block=False)
+    plt.show(block=block)
+
+
+def plot_action_probabilities(logits, host_names, action_names, block=True):
+    probs = softmax(logits.flatten(), dim=-1).reshape(logits.shape).detach()
+
+    fig, ax = plt.subplots()
+
+    mat = ax.matshow(probs)
+    cbar = fig.colorbar(mat, fraction=0.05, pad=0.05)
+    # cbar = fig.colorbar(mat, orientation="horizontal")
+    cbar.set_label("Probability")
+
+    # Show all ticks and label them with the respective list entries
+    ax.set_yticks(np.arange(len(host_names)), labels=host_names)
+    ax.set_xticks(np.arange(len(action_names)), labels=action_names)
+
+    # Rotate the tick labels and set their alignment.
+    plt.setp(ax.get_xticklabels(), rotation=45, ha="left", rotation_mode="anchor")
+
+    plt.show(block=block)

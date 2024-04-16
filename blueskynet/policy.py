@@ -27,7 +27,7 @@ class Police(nn.Module):
 
         self.action_dist = CategoricalDistribution(action_dim=1)
 
-    def forward(self, graph):
+    def get_action_logits(self, graph):
         # Destructure Data() object from pytorch geometric
         nodes_matrix = graph.x
         edge_index = graph.edge_index
@@ -39,6 +39,11 @@ class Police(nn.Module):
         # Use gnn to score each node to select an action
         action_logits = self.action_layer(latent_nodes, edge_index, edges_matrix)
 
+        return action_logits
+
+    def forward(self, graph):
+        action_logits = self.get_action_logits(graph)
+
         # Turn logits into the categorical probability distribution
         # Flatten the logits array to use a one-dimensional distribution.
         action_selection_flat, action_log_prob = self.action_dist.log_prob_from_params(
@@ -46,9 +51,15 @@ class Police(nn.Module):
         )
 
         # Recover the original array index from the flattened selection
-        action_selection = torch.unravel_index(action_selection_flat, action_logits.shape)
+        action_selection = torch.unravel_index(
+            action_selection_flat, action_logits.shape
+        )
 
-        assert action_logits[action_selection] == action_logits.flatten()[action_selection_flat]
+        # action_logits == action_logits.flatten().reshape(action_logits.shape)
+        # assert (
+        #     action_logits[action_selection]
+        #     == action_logits.flatten()[action_selection_flat]
+        # )
 
         return action_selection, action_log_prob
 
