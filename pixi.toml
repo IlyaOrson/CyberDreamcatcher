@@ -10,14 +10,14 @@ platforms = ["osx-arm64"]
 python = "~=3.11.8"
 
 [tasks]
-install-submodules = "pip install --no-build-isolation --no-deps --disable-pip-version-check -e ./CybORG"
-install-pip-deps = "pip install --no-build-isolation --no-deps --disable-pip-version-check tensordict-nightly stable-baselines3==2.2.1"
+install-cyborg = "pip install --no-build-isolation --no-deps --disable-pip-version-check -e ./CybORG"
+install-custom-sb3 = "pip install --no-build-isolation --no-deps --disable-pip-version-check -e ./stable-baselines3"
 format = "ruff format blueskynet"
 tutorial-cyborg = "jupyter-lab CybORG/CybORG/Tutorial/"
 test-cyborg = "pytest CybORG/CybORG/Tests/test_sim"
 eval-cardiff = "python cardiff-cage-2/evaluation.py"
 train-cardiff = "python cardiff-cage-2/train.py"
-train-sb3-ppo = "python scripts/train-sb3-cyborg.py"
+train-sb3-ppo = "python -m scripts.train-sb3-cyborg"
 
 [dependencies]
 captum = "~=0.7"

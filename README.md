@@ -28,11 +28,10 @@ From the activated shell, install the local submodules and troublesome pip depen
 
 ```bash
 # install environments from git submodule as a local packages
-
-pixi run install-submodules  # CybORG 2.1 (updated to gymnasium API)
+pixi run install-cyborg  # CybORG 2.1 + update to gymnasium API
 
 # install troublesome dependencies without using pip to track their requirements
-pixi run install-pip-deps  # stable baselines 3
+pixi run install-custom-sb3  # stable baselines 3 + adaptation to GNN policies and graph environment
 ```
 
 Voila!
