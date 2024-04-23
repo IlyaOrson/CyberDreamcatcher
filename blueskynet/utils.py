@@ -1,5 +1,6 @@
 import inspect
 from pathlib import Path
+from bidict import bidict
 
 import CybORG
 
@@ -18,3 +19,8 @@ def get_scenario(name="Scenario2", from_cyborg=True):
     print(f"Loaded scenario file from {scenario_path}")
 
     return scenario_path
+
+
+def enumerate_bidict(iterable):
+    "Form bidirectional mappings between categorical values and their enumeration."
+    return bidict((val, idx) for idx, val in enumerate(iterable))
