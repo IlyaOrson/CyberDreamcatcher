@@ -9,6 +9,7 @@ environments:
       osx-arm64:
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/aiohttp-3.9.3-py311h05b510d_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/aiosignal-1.3.1-pyhd8ed1ab_0.tar.bz2
+      - conda: https://conda.anaconda.org/conda-forge/noarch/antlr-python-runtime-4.9.3-pyhd8ed1ab_1.tar.bz2
       - conda: https://conda.anaconda.org/conda-forge/noarch/anyio-4.3.0-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/aom-3.8.1-h078ce10_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/appnope-0.1.4-pyhd8ed1ab_0.conda
@@ -97,6 +98,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/hpack-4.0.0-pyh9f0ad1d_0.tar.bz2
       - conda: https://conda.anaconda.org/conda-forge/noarch/httpcore-1.0.4-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/httpx-0.27.0-pyhd8ed1ab_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/noarch/hydra-core-1.3.2-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/hyperframe-6.0.1-pyhd8ed1ab_0.tar.bz2
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/icu-73.2-hc8870d7_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/idna-3.6-pyhd8ed1ab_0.conda
@@ -206,6 +208,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/notebook-shim-0.2.4-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/numba-0.59.0-py311h00351ea_1.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/numpy-1.26.4-py311h7125741_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/noarch/omegaconf-2.3.0-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/openjpeg-2.5.2-h9f1df11_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/openssl-3.2.1-h0d3ecfb_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/opt_einsum-3.3.0-pyhc1e730c_2.conda
@@ -338,13 +341,11 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/71/ca/046bd7e7e1ed4639eb398192374bc3fbf5010d3c168361fec161b63e8bfa/lz4-4.3.3-cp311-cp311-macosx_11_0_arm64.whl
       - pypi: https://files.pythonhosted.org/packages/17/29/7f3f30dd40bf1c2599350099645d3664b3aadb803583cbfce57a28047c4d/msgpack-1.0.8-cp311-cp311-macosx_11_0_arm64.whl
       - pypi: https://files.pythonhosted.org/packages/1e/40/2eb2bf643d4b060b1602a25748b48d75431f4951be2470f8ae136952b3d3/protobuf-5.26.1-cp37-abi3-macosx_10_9_universal2.whl
-      - pypi: https://files.pythonhosted.org/packages/47/cb/be17c4879e60e683761be281d955923d586a572fbc2503e08f08ca713349/pyarrow-15.0.2-cp311-cp311-macosx_11_0_arm64.whl
-      - pypi: https://files.pythonhosted.org/packages/3a/4f/ccd5f023ce6d910c9ff295c654b24f0864ee07ef5804f9a728f835cf02a0/ray-2.10.0-cp311-cp311-macosx_11_0_arm64.whl
+      - pypi: https://files.pythonhosted.org/packages/75/97/5c1e0169ea1ee22f675801956682ef44731c0ccf1c0361a37e9701f46107/pyarrow-16.0.0-cp311-cp311-macosx_11_0_arm64.whl
+      - pypi: https://files.pythonhosted.org/packages/47/20/52cb8ffa0b6cd33f554446c8e1086adab08092ae4028025783582c5eb601/ray-2.11.0-cp311-cp311-macosx_11_0_arm64.whl
       - pypi: https://files.pythonhosted.org/packages/e0/f9/0595336914c5619e5f28a1fb793285925a8cd4b432c9da0a987836c7f822/shellingham-1.5.4-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/44/71/f3e7c9b2ab67e28c572ab4e9d5fa3499e0d252650f96d8a3a03e26677f53/tensorboardX-2.6.2.2-py2.py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/d8/21/6a9c5c3363e30345346f59d236fd416730c2ac7802abe3609fed89d46ac1/typer-0.12.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/c1/11/a0a5c4ff576299b57a5012a618291ea3f64f75e187c6dec276944d5820a5/typer_cli-0.12.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/9e/8d/cd24db348ffdec4e2331c293f63eb8492956879c0925dd05d1e747b49cc7/typer_slim-0.12.0-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/20/b5/11cf2e34fbb11b937e006286ab5b8cfd334fde1c8fa4dd7f491226931180/typer-0.12.3-py3-none-any.whl
 packages:
 - kind: conda
   name: aiohttp
@@ -365,6 +366,8 @@ packages:
   - yarl >=1.0,<2.0
   license: MIT AND Apache-2.0
   license_family: Apache
+  purls:
+  - pkg:pypi/aiohttp
   size: 776641
   timestamp: 1707670168525
 - kind: conda
@@ -385,6 +388,24 @@ packages:
   - pkg:pypi/aiosignal
   size: 12730
   timestamp: 1667935912504
+- kind: conda
+  name: antlr-python-runtime
+  version: 4.9.3
+  build: pyhd8ed1ab_1
+  build_number: 1
+  subdir: noarch
+  noarch: python
+  url: https://conda.anaconda.org/conda-forge/noarch/antlr-python-runtime-4.9.3-pyhd8ed1ab_1.tar.bz2
+  sha256: b91f8ab4ac2b48972fbee1fc8e092cc452fdf59156e4ff2322c94bbf73650f94
+  md5: c88eaec8de9ae1fa161205aa18e7a5b1
+  depends:
+  - python >=3.6
+  license: BSD-3-Clause
+  license_family: BSD
+  purls:
+  - pkg:pypi/antlr4-python3-runtime
+  size: 101065
+  timestamp: 1638309284042
 - kind: conda
   name: anyio
   version: 4.3.0
@@ -496,6 +517,8 @@ packages:
   - types-python-dateutil >=2.8.10
   license: Apache-2.0
   license_family: Apache
+  purls:
+  - pkg:pypi/arrow
   size: 100096
   timestamp: 1696129131844
 - kind: conda
@@ -641,6 +664,8 @@ packages:
   - soupsieve >=1.2
   license: MIT
   license_family: MIT
+  purls:
+  - pkg:pypi/beautifulsoup4
   size: 118200
   timestamp: 1705564819537
 - kind: conda
@@ -767,6 +792,8 @@ packages:
   - libbrotlicommon 1.1.0 hb547adb_1
   license: MIT
   license_family: MIT
+  purls:
+  - pkg:pypi/brotli
   size: 343332
   timestamp: 1695991223439
 - kind: conda
@@ -930,6 +957,8 @@ packages:
   - numpy
   - pytorch >=1.6
   license: BSD
+  purls:
+  - pkg:pypi/captum
   size: 1119014
   timestamp: 1701766033798
 - kind: conda
@@ -944,6 +973,8 @@ packages:
   depends:
   - python >=3.7
   license: ISC
+  purls:
+  - pkg:pypi/certifi
   size: 160559
   timestamp: 1707022289175
 - kind: conda
@@ -962,6 +993,8 @@ packages:
   - python_abi 3.11.* *_cp311
   license: MIT
   license_family: MIT
+  purls:
+  - pkg:pypi/cffi
   size: 292511
   timestamp: 1696002194472
 - kind: conda
@@ -1093,6 +1126,8 @@ packages:
   - __osx >=11.0
   license: Apache-2.0 AND BSD-3-Clause AND PSF-2.0 AND MIT
   license_family: BSD
+  purls:
+  - pkg:pypi/cryptography
   size: 1288841
   timestamp: 1708780939275
 - kind: conda
@@ -1498,6 +1533,8 @@ packages:
   - python >=2.7,<4
   license: MPL-2.0
   license_family: MOZILLA
+  purls:
+  - pkg:pypi/fqdn
   size: 14395
   timestamp: 1638810388635
 - kind: conda
@@ -1926,6 +1963,8 @@ packages:
   - python_abi 3.11.* *_cp311
   license: BSD-3-Clause
   license_family: BSD
+  purls:
+  - pkg:pypi/h5py
   size: 1094447
   timestamp: 1702473059977
 - kind: conda
@@ -2045,6 +2084,27 @@ packages:
   - pkg:pypi/httpx
   size: 64651
   timestamp: 1708531043505
+- kind: conda
+  name: hydra-core
+  version: 1.3.2
+  build: pyhd8ed1ab_0
+  subdir: noarch
+  noarch: python
+  url: https://conda.anaconda.org/conda-forge/noarch/hydra-core-1.3.2-pyhd8ed1ab_0.conda
+  sha256: 35044b4bb1059c4ed7d8392b776e663a390ad7a2bb6f7e2f09ecd5e9b5d40b75
+  md5: 297d09ccdcec5b347d44c88f2b61cf03
+  depends:
+  - antlr-python-runtime 4.9.*
+  - importlib_resources
+  - omegaconf >=2.2,<2.4
+  - packaging
+  - python >=3.6
+  license: MIT
+  license_family: MIT
+  purls:
+  - pkg:pypi/hydra-core
+  size: 290591
+  timestamp: 1677543858686
 - kind: conda
   name: hyperframe
   version: 6.0.1
@@ -2173,6 +2233,8 @@ packages:
   - zipp >=0.5
   license: Apache-2.0
   license_family: APACHE
+  purls:
+  - pkg:pypi/importlib-metadata
   size: 26450
   timestamp: 1703269427097
 - kind: conda
@@ -2319,6 +2381,8 @@ packages:
   - python >=3.7
   license: MIT
   license_family: MIT
+  purls:
+  - pkg:pypi/isoduration
   size: 17189
   timestamp: 1638811664194
 - kind: conda
@@ -2399,6 +2463,8 @@ packages:
   - setuptools
   license: BSD-3-Clause
   license_family: BSD
+  purls:
+  - pkg:pypi/joblib
   size: 221200
   timestamp: 1691577306309
 - kind: conda
@@ -2456,6 +2522,8 @@ packages:
   - rpds-py >=0.7.1
   license: MIT
   license_family: MIT
+  purls:
+  - pkg:pypi/jsonschema
   size: 72817
   timestamp: 1705707712082
 - kind: conda
@@ -2516,6 +2584,8 @@ packages:
   - python >=3.8
   license: BSD-3-Clause
   license_family: BSD
+  purls:
+  - pkg:pypi/jupyter-lsp
   size: 55376
   timestamp: 1708990564893
 - kind: conda
@@ -2557,6 +2627,8 @@ packages:
   - traitlets >=5.3
   license: BSD-3-Clause
   license_family: BSD
+  purls:
+  - pkg:pypi/jupyter-core
   size: 96069
   timestamp: 1710257757802
 - kind: conda
@@ -2579,6 +2651,8 @@ packages:
   - traitlets >=5.3
   license: BSD-3-Clause
   license_family: BSD
+  purls:
+  - pkg:pypi/jupyter-events
   size: 21354
   timestamp: 1699286038042
 - kind: conda
@@ -2710,6 +2784,8 @@ packages:
   - openapi-core >=0.18.0,<0.19.0
   license: BSD-3-Clause
   license_family: BSD
+  purls:
+  - pkg:pypi/jupyterlab-server
   size: 48789
   timestamp: 1707957935382
 - kind: conda
@@ -3859,6 +3935,8 @@ packages:
   - python_abi 3.11.* *_cp311
   license: Apache-2.0
   license_family: APACHE
+  purls:
+  - pkg:pypi/multidict
   size: 56038
   timestamp: 1707041092018
 - kind: conda
@@ -3874,6 +3952,8 @@ packages:
   - python
   license: Apache-2.0
   license_family: Apache
+  purls:
+  - pkg:pypi/munkres
   size: 12452
   timestamp: 1600387789153
 - kind: conda
@@ -3928,6 +4008,8 @@ packages:
   - pandoc >=2.14.2,<4.0.0
   - nbconvert =7.16.2=*_0
   license: BSD-3-Clause
+  purls:
+  - pkg:pypi/nbconvert
   size: 188317
   timestamp: 1709581437093
 - kind: conda
@@ -4079,6 +4161,26 @@ packages:
   size: 6652352
   timestamp: 1707226297967
 - kind: conda
+  name: omegaconf
+  version: 2.3.0
+  build: pyhd8ed1ab_0
+  subdir: noarch
+  noarch: python
+  url: https://conda.anaconda.org/conda-forge/noarch/omegaconf-2.3.0-pyhd8ed1ab_0.conda
+  sha256: df806841be847e5287b22b6ae7f380874f81ea51f1b51ae14a570f3385c7b133
+  md5: 23cc056834cab53849b91f78d6ee3ea0
+  depends:
+  - antlr-python-runtime 4.9.*
+  - python >=3.7
+  - pyyaml >=5.1.0
+  - typing_extensions
+  license: BSD-3-Clause
+  license_family: BSD
+  purls:
+  - pkg:pypi/omegaconf
+  size: 166453
+  timestamp: 1670575519562
+- kind: conda
   name: openjpeg
   version: 2.5.2
   build: h9f1df11_0
@@ -4126,6 +4228,8 @@ packages:
   - python >=3.6
   license: MIT
   license_family: MIT
+  purls:
+  - pkg:pypi/opt-einsum
   size: 58004
   timestamp: 1696449058916
 - kind: conda
@@ -4196,6 +4300,8 @@ packages:
   - typing_utils
   license: Apache-2.0
   license_family: APACHE
+  purls:
+  - pkg:pypi/overrides
   size: 30232
   timestamp: 1706394723472
 - kind: conda
@@ -4234,6 +4340,8 @@ packages:
   - pytz >=2020.1
   license: BSD-3-Clause
   license_family: BSD
+  purls:
+  - pkg:pypi/pandas
   size: 14748104
   timestamp: 1708709831625
 - kind: conda
@@ -4401,6 +4509,8 @@ packages:
   - python_abi 3.11.* *_cp311
   - tk >=8.6.13,<8.7.0a0
   license: HPND
+  purls:
+  - pkg:pypi/pillow
   size: 41593553
   timestamp: 1704252636313
 - kind: conda
@@ -4570,6 +4680,8 @@ packages:
   - prompt_toolkit 3.0.42
   license: BSD-3-Clause
   license_family: BSD
+  purls:
+  - pkg:pypi/prompt-toolkit
   size: 270398
   timestamp: 1702399557137
 - kind: pypi
@@ -4644,11 +4756,11 @@ packages:
   timestamp: 1642876055775
 - kind: pypi
   name: pyarrow
-  version: 15.0.2
-  url: https://files.pythonhosted.org/packages/47/cb/be17c4879e60e683761be281d955923d586a572fbc2503e08f08ca713349/pyarrow-15.0.2-cp311-cp311-macosx_11_0_arm64.whl
-  sha256: f5e81dfb4e519baa6b4c80410421528c214427e77ca0ea9461eb4097c328fa33
+  version: 16.0.0
+  url: https://files.pythonhosted.org/packages/75/97/5c1e0169ea1ee22f675801956682ef44731c0ccf1c0361a37e9701f46107/pyarrow-16.0.0-cp311-cp311-macosx_11_0_arm64.whl
+  sha256: 266ddb7e823f03733c15adc8b5078db2df6980f9aa93d6bb57ece615df4e0ba7
   requires_dist:
-  - numpy <2, >=1.16.6
+  - numpy >=1.16.6
   requires_python: '>=3.8'
 - kind: conda
   name: pycairo
@@ -4709,6 +4821,8 @@ packages:
   - sdl2_mixer >=2.6.3,<3.0a0
   - sdl2_ttf >=2.20.2,<3.0a0
   license: LGPL-2.1-only
+  purls:
+  - pkg:pypi/pygame
   size: 2862015
   timestamp: 1696018034649
 - kind: conda
@@ -4811,6 +4925,8 @@ packages:
   - setuptools
   license: MIT
   license_family: MIT
+  purls:
+  - pkg:pypi/pyobjc-core
   size: 459224
   timestamp: 1702120163052
 - kind: conda
@@ -4829,6 +4945,8 @@ packages:
   - python_abi 3.11.* *_cp311
   license: MIT
   license_family: MIT
+  purls:
+  - pkg:pypi/pyobjc-framework-cocoa
   size: 374326
   timestamp: 1702125842955
 - kind: conda
@@ -5021,6 +5139,8 @@ packages:
   - cpuonly
   license: BSD 3-Clause
   license_family: BSD
+  purls:
+  - pkg:pypi/torch
   size: 58221380
   timestamp: 1708028278072
 - kind: conda
@@ -5120,6 +5240,8 @@ packages:
   - yaml >=0.2.5,<0.3.0a0
   license: MIT
   license_family: MIT
+  purls:
+  - pkg:pypi/pyyaml
   size: 187795
   timestamp: 1695373829282
 - kind: conda
@@ -5158,9 +5280,9 @@ packages:
   timestamp: 1694329743011
 - kind: pypi
   name: ray
-  version: 2.10.0
-  url: https://files.pythonhosted.org/packages/3a/4f/ccd5f023ce6d910c9ff295c654b24f0864ee07ef5804f9a728f835cf02a0/ray-2.10.0-cp311-cp311-macosx_11_0_arm64.whl
-  sha256: 8eb11aec8a65946f7546d0e703158c03a85a8be27332dbbf86d9411802700e7e
+  version: 2.11.0
+  url: https://files.pythonhosted.org/packages/47/20/52cb8ffa0b6cd33f554446c8e1086adab08092ae4028025783582c5eb601/ray-2.11.0-cp311-cp311-macosx_11_0_arm64.whl
+  sha256: fe8a6b5ae78fbc1503d6004d245710342b7dc4e5fbb8701084a965c247eca17a
   requires_dist:
   - click >=7.0
   - filelock
@@ -5172,65 +5294,67 @@ packages:
   - aiosignal
   - frozenlist
   - requests
-  - pandas >=1.3 ; extra == 'air'
-  - tensorboardx >=1.9 ; extra == 'air'
+  - numpy >=1.20 ; extra == 'air'
   - prometheus-client >=0.7.1 ; extra == 'air'
   - aiohttp >=3.7 ; extra == 'air'
-  - pydantic !=2.0.*, !=2.1.*, !=2.2.*, !=2.3.*, !=2.4.*, <3 ; extra == 'air'
   - virtualenv !=20.21.1, >=20.0.24 ; extra == 'air'
+  - uvicorn[standard] ; extra == 'air'
+  - watchfiles ; extra == 'air'
+  - pyarrow >=6.0.1 ; extra == 'air'
+  - aiohttp-cors ; extra == 'air'
+  - pandas >=1.3 ; extra == 'air'
+  - fastapi ; extra == 'air'
+  - smart-open ; extra == 'air'
+  - pandas ; extra == 'air'
   - py-spy >=0.2.0 ; extra == 'air'
   - starlette ; extra == 'air'
-  - fsspec ; extra == 'air'
   - colorful ; extra == 'air'
-  - numpy >=1.20 ; extra == 'air'
-  - pyarrow >=6.0.1 ; extra == 'air'
-  - uvicorn[standard] ; extra == 'air'
-  - fastapi ; extra == 'air'
-  - pandas ; extra == 'air'
-  - aiohttp-cors ; extra == 'air'
-  - opencensus ; extra == 'air'
-  - watchfiles ; extra == 'air'
+  - fsspec ; extra == 'air'
   - requests ; extra == 'air'
-  - smart-open ; extra == 'air'
+  - tensorboardx >=1.9 ; extra == 'air'
+  - opencensus ; extra == 'air'
+  - pydantic !=2.0.*, !=2.1.*, !=2.2.*, !=2.3.*, !=2.4.*, <3 ; extra == 'air'
   - grpcio >=1.32.0 ; python_version < '3.10' and extra == 'air'
   - grpcio >=1.42.0 ; python_version >= '3.10' and extra == 'air'
-  - grpcio !=1.56.0 ; extra == 'all'
-  - pandas >=1.3 ; extra == 'all'
-  - tensorboardx >=1.9 ; extra == 'all'
+  - memray ; sys_platform != 'win32' and extra == 'air'
+  - numpy >=1.20 ; extra == 'all'
+  - rich ; extra == 'all'
   - prometheus-client >=0.7.1 ; extra == 'all'
-  - scipy ; extra == 'all'
   - aiohttp >=3.7 ; extra == 'all'
   - opentelemetry-exporter-otlp ; extra == 'all'
-  - pydantic !=2.0.*, !=2.1.*, !=2.2.*, !=2.3.*, !=2.4.*, <3 ; extra == 'all'
-  - virtualenv !=20.21.1, >=20.0.24 ; extra == 'all'
-  - py-spy >=0.2.0 ; extra == 'all'
-  - starlette ; extra == 'all'
-  - opentelemetry-sdk ; extra == 'all'
   - lz4 ; extra == 'all'
-  - fsspec ; extra == 'all'
-  - colorful ; extra == 'all'
-  - dm-tree ; extra == 'all'
-  - numpy >=1.20 ; extra == 'all'
-  - scikit-image ; extra == 'all'
-  - pyarrow >=6.0.1 ; extra == 'all'
+  - virtualenv !=20.21.1, >=20.0.24 ; extra == 'all'
   - uvicorn[standard] ; extra == 'all'
-  - opentelemetry-api ; extra == 'all'
-  - rich ; extra == 'all'
-  - fastapi ; extra == 'all'
-  - typer ; extra == 'all'
-  - pandas ; extra == 'all'
-  - aiohttp-cors ; extra == 'all'
-  - opencensus ; extra == 'all'
-  - pyyaml ; extra == 'all'
   - watchfiles ; extra == 'all'
-  - gymnasium ==0.28.1 ; extra == 'all'
-  - requests ; extra == 'all'
+  - pyarrow >=6.0.1 ; extra == 'all'
+  - aiohttp-cors ; extra == 'all'
+  - scikit-image ; extra == 'all'
+  - scipy ; extra == 'all'
+  - pandas >=1.3 ; extra == 'all'
+  - ray-cpp ==2.11.0 ; extra == 'all'
+  - typer ; extra == 'all'
+  - fastapi ; extra == 'all'
+  - dm-tree ; extra == 'all'
   - smart-open ; extra == 'all'
-  - ray-cpp ==2.10.0 ; extra == 'all'
+  - py-spy >=0.2.0 ; extra == 'all'
+  - pandas ; extra == 'all'
+  - pyyaml ; extra == 'all'
+  - starlette ; extra == 'all'
+  - colorful ; extra == 'all'
+  - opentelemetry-sdk ; extra == 'all'
+  - fsspec ; extra == 'all'
+  - grpcio !=1.56.0 ; extra == 'all'
+  - requests ; extra == 'all'
+  - tensorboardx >=1.9 ; extra == 'all'
+  - opentelemetry-api ; extra == 'all'
+  - opencensus ; extra == 'all'
+  - pydantic !=2.0.*, !=2.1.*, !=2.2.*, !=2.3.*, !=2.4.*, <3 ; extra == 'all'
+  - gymnasium ==0.28.1 ; extra == 'all'
   - grpcio >=1.32.0 ; python_version < '3.10' and extra == 'all'
   - grpcio >=1.42.0 ; python_version >= '3.10' and extra == 'all'
+  - memray ; sys_platform != 'win32' and extra == 'all'
   - grpcio !=1.56.0 ; extra == 'client'
-  - ray-cpp ==2.10.0 ; extra == 'cpp'
+  - ray-cpp ==2.11.0 ; extra == 'cpp'
   - numpy >=1.20 ; extra == 'data'
   - pandas >=1.3 ; extra == 'data'
   - pyarrow >=6.0.1 ; extra == 'data'
@@ -5247,6 +5371,7 @@ packages:
   - virtualenv !=20.21.1, >=20.0.24 ; extra == 'default'
   - grpcio >=1.32.0 ; python_version < '3.10' and extra == 'default'
   - grpcio >=1.42.0 ; python_version >= '3.10' and extra == 'default'
+  - memray ; sys_platform != 'win32' and extra == 'default'
   - opentelemetry-api ; extra == 'observability'
   - opentelemetry-sdk ; extra == 'observability'
   - opentelemetry-exporter-otlp ; extra == 'observability'
@@ -5263,38 +5388,40 @@ packages:
   - scipy ; extra == 'rllib'
   - typer ; extra == 'rllib'
   - rich ; extra == 'rllib'
-  - py-spy >=0.2.0 ; extra == 'serve'
-  - aiohttp-cors ; extra == 'serve'
-  - opencensus ; extra == 'serve'
-  - watchfiles ; extra == 'serve'
   - colorful ; extra == 'serve'
-  - starlette ; extra == 'serve'
+  - watchfiles ; extra == 'serve'
   - prometheus-client >=0.7.1 ; extra == 'serve'
-  - smart-open ; extra == 'serve'
+  - aiohttp-cors ; extra == 'serve'
   - aiohttp >=3.7 ; extra == 'serve'
-  - requests ; extra == 'serve'
-  - uvicorn[standard] ; extra == 'serve'
-  - pydantic !=2.0.*, !=2.1.*, !=2.2.*, !=2.3.*, !=2.4.*, <3 ; extra == 'serve'
   - fastapi ; extra == 'serve'
+  - smart-open ; extra == 'serve'
+  - requests ; extra == 'serve'
+  - py-spy >=0.2.0 ; extra == 'serve'
   - virtualenv !=20.21.1, >=20.0.24 ; extra == 'serve'
-  - py-spy >=0.2.0 ; extra == 'serve-grpc'
-  - aiohttp-cors ; extra == 'serve-grpc'
-  - opencensus ; extra == 'serve-grpc'
-  - watchfiles ; extra == 'serve-grpc'
+  - starlette ; extra == 'serve'
+  - opencensus ; extra == 'serve'
+  - pydantic !=2.0.*, !=2.1.*, !=2.2.*, !=2.3.*, !=2.4.*, <3 ; extra == 'serve'
+  - uvicorn[standard] ; extra == 'serve'
   - colorful ; extra == 'serve-grpc'
-  - starlette ; extra == 'serve-grpc'
+  - watchfiles ; extra == 'serve-grpc'
   - prometheus-client >=0.7.1 ; extra == 'serve-grpc'
-  - pydantic !=2.0.*, !=2.1.*, !=2.2.*, !=2.3.*, !=2.4.*, <3 ; extra == 'serve-grpc'
+  - aiohttp-cors ; extra == 'serve-grpc'
   - aiohttp >=3.7 ; extra == 'serve-grpc'
-  - requests ; extra == 'serve-grpc'
-  - uvicorn[standard] ; extra == 'serve-grpc'
-  - smart-open ; extra == 'serve-grpc'
   - fastapi ; extra == 'serve-grpc'
+  - smart-open ; extra == 'serve-grpc'
+  - requests ; extra == 'serve-grpc'
+  - py-spy >=0.2.0 ; extra == 'serve-grpc'
   - virtualenv !=20.21.1, >=20.0.24 ; extra == 'serve-grpc'
+  - starlette ; extra == 'serve-grpc'
+  - opencensus ; extra == 'serve-grpc'
+  - pydantic !=2.0.*, !=2.1.*, !=2.2.*, !=2.3.*, !=2.4.*, <3 ; extra == 'serve-grpc'
+  - uvicorn[standard] ; extra == 'serve-grpc'
   - grpcio >=1.32.0 ; python_version < '3.10' and extra == 'serve-grpc'
   - grpcio >=1.42.0 ; python_version >= '3.10' and extra == 'serve-grpc'
+  - memray ; sys_platform != 'win32' and extra == 'serve-grpc'
   - grpcio >=1.32.0 ; python_version < '3.10' and extra == 'serve'
   - grpcio >=1.42.0 ; python_version >= '3.10' and extra == 'serve'
+  - memray ; sys_platform != 'win32' and extra == 'serve'
   - pandas ; extra == 'train'
   - tensorboardx >=1.9 ; extra == 'train'
   - requests ; extra == 'train'
@@ -5322,6 +5449,8 @@ packages:
   - python >=3.7
   license: BSD-3-Clause
   license_family: BSD
+  purls:
+  - pkg:pypi/rdflib
   size: 402865
   timestamp: 1690986570439
 - kind: conda
@@ -5432,6 +5561,8 @@ packages:
   - typing_extensions >=4.0.0,<5.0.0
   license: MIT
   license_family: MIT
+  purls:
+  - pkg:pypi/rich
   size: 184347
   timestamp: 1709150578093
 - kind: conda
@@ -5535,6 +5666,8 @@ packages:
   - threadpoolctl >=2.0.0
   license: BSD-3-Clause
   license_family: BSD
+  purls:
+  - pkg:pypi/scikit-learn
   size: 9493384
   timestamp: 1708075164565
 - kind: conda
@@ -5561,6 +5694,8 @@ packages:
   - python_abi 3.11.* *_cp311
   license: BSD-3-Clause
   license_family: BSD
+  purls:
+  - pkg:pypi/scipy
   size: 15535360
   timestamp: 1706043503868
 - kind: conda
@@ -5930,6 +6065,8 @@ packages:
   - python >=3.8
   license: BSD-3-Clause
   license_family: BSD
+  purls:
+  - pkg:pypi/threadpoolctl
   size: 22707
   timestamp: 1707930691866
 - kind: conda
@@ -6113,37 +6250,20 @@ packages:
   - chardet
   license: MIT
   license_family: MIT
+  purls:
+  - pkg:pypi/trimesh
   size: 558755
   timestamp: 1709252298232
 - kind: pypi
   name: typer
-  version: 0.12.0
-  url: https://files.pythonhosted.org/packages/d8/21/6a9c5c3363e30345346f59d236fd416730c2ac7802abe3609fed89d46ac1/typer-0.12.0-py3-none-any.whl
-  sha256: 0441a0bb8962fb4383b8537ada9f7eb2d0deda0caa2cfe7387cc221290f617e4
-  requires_dist:
-  - typer-slim[standard] ==0.12.0
-  - typer-cli ==0.12.0
-  requires_python: '>=3.7'
-- kind: pypi
-  name: typer-cli
-  version: 0.12.0
-  url: https://files.pythonhosted.org/packages/c1/11/a0a5c4ff576299b57a5012a618291ea3f64f75e187c6dec276944d5820a5/typer_cli-0.12.0-py3-none-any.whl
-  sha256: 7b7e2dd49f59974bb5a869747045d5444b17bffb851e006cd424f602d3578104
-  requires_dist:
-  - typer-slim[standard] ==0.12.0
-  requires_python: '>=3.7'
-- kind: pypi
-  name: typer-slim
-  version: 0.12.0
-  url: https://files.pythonhosted.org/packages/9e/8d/cd24db348ffdec4e2331c293f63eb8492956879c0925dd05d1e747b49cc7/typer_slim-0.12.0-py3-none-any.whl
-  sha256: ddd7042b29a32140528caa415750bcae54113ba0c32270ca11a6f64069ddadf9
+  version: 0.12.3
+  url: https://files.pythonhosted.org/packages/20/b5/11cf2e34fbb11b937e006286ab5b8cfd334fde1c8fa4dd7f491226931180/typer-0.12.3-py3-none-any.whl
+  sha256: 070d7ca53f785acbccba8e7d28b08dcd88f79f1fbda035ade0aecec71ca5c914
   requires_dist:
   - click >=8.0.0
   - typing-extensions >=3.7.4.3
-  - shellingham >=1.3.0 ; extra == 'all'
-  - rich >=10.11.0 ; extra == 'all'
-  - shellingham >=1.3.0 ; extra == 'standard'
-  - rich >=10.11.0 ; extra == 'standard'
+  - shellingham >=1.3.0
+  - rich >=10.11.0
   requires_python: '>=3.7'
 - kind: conda
   name: types-python-dateutil
@@ -6157,6 +6277,8 @@ packages:
   depends:
   - python >=3.6
   license: Apache-2.0 AND MIT
+  purls:
+  - pkg:pypi/types-python-dateutil
   size: 21896
   timestamp: 1704512704737
 - kind: conda
@@ -6233,6 +6355,8 @@ packages:
   - python >=3.7
   license: MIT
   license_family: MIT
+  purls:
+  - pkg:pypi/uri-template
   size: 23999
   timestamp: 1688655976471
 - kind: conda
@@ -6302,6 +6426,8 @@ packages:
   - python >=2.6
   license: BSD-3-Clause
   license_family: BSD
+  purls:
+  - pkg:pypi/webencodings
   size: 15600
   timestamp: 1694681458271
 - kind: conda
@@ -6420,6 +6546,8 @@ packages:
   - python_abi 3.11.* *_cp311
   license: Apache-2.0
   license_family: Apache
+  purls:
+  - pkg:pypi/yarl
   size: 113463
   timestamp: 1705508875443
 - kind: conda
