@@ -1,6 +1,7 @@
 # adapted from https://github.com/OptiMaL-PSE-Lab/REINFORCE-PSE
 
 from dataclasses import dataclass
+# from itertools import accumulate
 
 import numpy as np
 from tqdm import trange
@@ -35,20 +36,26 @@ class REINFORCE:
         # define initial conditions
         obs, info = self.env.reset(seed=self.conf.seed)
 
-        sum_log_probs = 0.0
-        sum_reward = 0.0
+        log_probs = []
+        rewards = []
         done = False
         while not done:
             action, log_prob = self.policy(obs)
 
             obs, reward, terminated, truncated, info = self.env.step(action)
 
-            sum_log_probs += log_prob
-            sum_reward += reward
+            log_probs.append(log_prob)
+            rewards.append(reward)
 
             done = terminated or truncated
 
-        return sum_reward, sum_log_probs
+        # rewards to go per timestep
+        # (no discount because episodes have fixed length)
+        # pure python version
+        # rewards_to_go = list(reversed(list(accumulate(reversed(rewards)))))
+        rewards_to_go = np.flip(np.cumsum(np.flip(np.array(rewards))))
+
+        return rewards_to_go, log_probs
 
     def sample_episodes(self):
         """
@@ -58,22 +65,27 @@ class REINFORCE:
         """
 
         num_episodes = self.conf.num_episodes_sample
-        rewards = [None for _ in range(num_episodes)]
-        sum_log_probs = [None for _ in range(num_episodes)]
+        batch_rewards_to_go = [None for _ in range(num_episodes)]
+        batch_log_probs = [None for _ in range(num_episodes)]
 
         for epi in trange(num_episodes, desc="Sampling episodes"):
-            reward, sum_log_prob = self.run_episode()
-            rewards[epi] = reward
-            sum_log_probs[epi] = sum_log_prob
+            rewards_to_go, log_probs = self.run_episode()
+            batch_rewards_to_go[epi] = rewards_to_go
+            batch_log_probs[epi] = log_probs
 
-        reward_mean = np.mean(rewards)
-        reward_std = np.std(rewards)
+        reward_mean = np.mean(batch_rewards_to_go)
+        reward_std = np.std(batch_rewards_to_go)
 
         log_prob_R = 0.0
-        for epi in reversed(range(num_episodes)):
-            baselined_reward = (rewards[epi] - reward_mean) / (reward_std + EPS)
+        for epi in range(num_episodes):
+
+            # TODO is normalizing a valid baseline?
+            reward_to_go_baselined = (batch_rewards_to_go[epi] - reward_mean) / (reward_std + EPS)
+
             # invert signs to maximize reward
-            log_prob_R -= sum_log_probs[epi] * baselined_reward
+            log_prob_R -= torch.sum(torch.mul(torch.stack(batch_log_probs[epi]), torch.tensor(reward_to_go_baselined)))
+            for log_prob, reward_to_go in zip(batch_log_probs[epi], reward_to_go_baselined):
+                log_prob_R -= log_prob * reward_to_go
 
         mean_log_prob_R = log_prob_R / num_episodes
         return mean_log_prob_R, reward_mean, reward_std
@@ -95,16 +107,17 @@ class REINFORCE:
 
 
 if __name__ == "__main__":
+
     from blueskynet.env import GraphWrapper
     from blueskynet.policy import Police
 
     conf = Conf(
         scenario="Scenario2_-_User2_User4",  # "Scenario2_+_User5_User6"
         episode_length=30,
-        num_episodes_sample=10,
+        num_episodes_sample=100,
         seed=0,
-        learning_rate=1e-4,
-        optimizer_iterations=100,
+        learning_rate=1e-2,
+        optimizer_iterations=1000,
     )
 
     env = GraphWrapper(scenario=conf.scenario, max_steps=conf.episode_length)
