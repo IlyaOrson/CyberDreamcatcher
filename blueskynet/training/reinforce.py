@@ -15,10 +15,10 @@ EPS = np.finfo(np.float32).eps.item()
 class Config:
     scenario: str = "Scenario2_-_User2_User4"  # "Scenario2_+_User5_User6"
     episode_length: int = 30
-    num_episodes_sample: int = 100
+    num_episodes_sample: int = 2000
     seed: int = 0
-    learning_rate: float = 1e-3
-    optimizer_iterations: int = 1000
+    learning_rate: float = 1e-2
+    optimizer_iterations: int = 200
 
 
 class REINFORCE:
@@ -126,12 +126,15 @@ if __name__ == "__main__":
     from blueskynet.env import GraphWrapper
     from blueskynet.policy import Police
 
+    # https://hydra.cc/docs/tutorials/structured_config/minimal_example/
     cs = ConfigStore.instance()
+
     # Registering the Config class with the name 'config'.
     cs.store(name="config", node=Config)
 
     @hydra.main(version_base=None, config_name="config")
     def app(cfg: Config) -> None:
+        # https://hydra.cc/docs/tutorials/basic/running_your_app/working_directory/
         print(f"Working directory : {os.getcwd()}")
         output_dir = hydra.core.hydra_config.HydraConfig.get().runtime.output_dir
         print(f"Output directory  : {output_dir}")
@@ -148,7 +151,15 @@ if __name__ == "__main__":
         params_dict = trainer.learn()
 
         # store trained policy
-        torch.save(policy.state_dict(), Path(output_dir) / "trained_params.pt")
+        file_path = Path(output_dir) / "trained_params.pt"
+        torch.save(policy.state_dict(), file_path)
+
+        # policy.load_state_dict(params_dict)
+        # policy.load_state_dict(torch.load(file_path))
+        # NOTE Call model.eval() to set dropout and batch normalization layers
+        # to evaluation mode before running inference.
+        # Failing to do this will yield inconsistent inference results.
+        # policy.eval()
 
         print("Voila!")
 

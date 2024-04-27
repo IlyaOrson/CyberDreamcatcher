@@ -1,6 +1,9 @@
 import torch
 from torch import nn
+
 from torch_geometric.nn.conv import GATv2Conv
+# FIXME add global vector in attention mechanism
+# from blueskynet.gnn import GATv2Conv
 
 from stable_baselines3.common.distributions import CategoricalDistribution
 
@@ -12,6 +15,7 @@ class Police(nn.Module):
         self.gnn_layer = GATv2Conv(
             in_channels=env.host_embedding_size,
             out_channels=latent_node_dim,
+            # global_channels=env.global_embedding_size,
             edge_dim=env.edge_embedding_size,
             heads=1,
             share_weights=True,
@@ -20,6 +24,7 @@ class Police(nn.Module):
         self.action_layer = GATv2Conv(
             in_channels=latent_node_dim,
             out_channels=env.num_actions,  # one score per host/node and per action
+            # global_channels=env.global_embedding_size,
             edge_dim=env.edge_embedding_size,
             heads=1,
             share_weights=True,
@@ -32,12 +37,23 @@ class Police(nn.Module):
         nodes_matrix = graph.x
         edge_index = graph.edge_index
         edges_matrix = graph.edge_attr
+        # global_vector = graph.global_attr
 
         # A few gnn layers to pass messages around the graph
-        latent_nodes = self.gnn_layer(nodes_matrix, edge_index, edges_matrix)
+        latent_nodes = self.gnn_layer(
+            nodes_matrix, edge_index, edges_matrix
+        )
+        # latent_nodes = self.gnn_layer(
+        #     nodes_matrix, edge_index, global_vector, edges_matrix
+        # )
 
         # Use gnn to score each node to select an action
-        action_logits = self.action_layer(latent_nodes, edge_index, edges_matrix)
+        action_logits = self.action_layer(
+            latent_nodes, edge_index, edges_matrix
+        )
+        # action_logits = self.action_layer(
+        #     latent_nodes, edge_index, global_vector, edges_matrix
+        # )
 
         return action_logits
 

@@ -35,6 +35,8 @@ pixi run install-custom-sb3  # stable baselines 3 + adaptation to GNN policies 
 ```
 
 Voila!
+
+
 There are other predefined tasks that can be run to make sure everything is working:
 
 ```bash
@@ -47,12 +49,32 @@ pixi run eval-cardiff  # cage 2 winner policy inference
 
 ## Graph layout
 
-Quickly visualize the graph layout setup in the cage 2 challenge scenario file
+Quickly visualize the graph layout setup in the cage 2 challenge scenario file,
+and the graph observations received by a random GNN policy.
 
 ```bash
 python -m blueskynet
 ```
 
+## Training
+
+Train a GNN policy with a REINFORCE algorithm with a normalized rewards-to-go baseline.
+This is very slow since it samples a lot of episodes with a fixed policy to estimate the gradient before taking an optimization step.
+
+```bash
+pixi run train-gnn-reinforce  # see --help for hyperparameters
+```
+
+To get a comparison for optimality and performance with a standard flat observation space and a MLP policy we use SB3 with PPO:
+
+```bash
+pixi run train-flat-sb3-ppo
+```
+
 ## Notes
 
-To see the notes on the project locally use `quarto render notes/`.
+To see the notes on the project locally you will need [quarto](https://quarto.org):
+
+```bash
+quarto render notes/
+```

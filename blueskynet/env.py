@@ -28,8 +28,6 @@ from blueskynet.plots import (
 )
 
 
-# We do not inherit from BaseWrapper because we need lower level information for our graph
-# than the distilled information that travels through the wrappers observations
 class GraphWrapper(gym.Env):
     agent_name = "Blue"
 
@@ -37,6 +35,7 @@ class GraphWrapper(gym.Env):
 
     host_embedding_size = 3
     edge_embedding_size = 1
+    global_embedding_size = 2
 
     metadata = {"render_modes": ["human"]}
 
@@ -112,8 +111,8 @@ class GraphWrapper(gym.Env):
         self.reward_range = (float("-inf"), float("inf"))
         self.action_space = gym.spaces.MultiDiscrete([self.num_hosts, self.num_actions])
 
-        self.observation_space = self.build_dict_obs_space()
-        # self.observation_space = gym.spaces.Discrete(3)
+        # NOTE not very useful since unexpected connecitons appear regardless of layout constraints...
+        self.observation_space = self._build_dict_obs_space()
 
         assert render_mode is None or render_mode in self.metadata["render_modes"]
         self.render_mode = render_mode
@@ -124,7 +123,7 @@ class GraphWrapper(gym.Env):
             self.fig, self.axis = plt.subplots(1, 2)
             self._node_positions = plot_feasible_connections(self)
 
-    def build_dict_obs_space(self):
+    def _build_dict_obs_space(self):
         # host_properties[host] = [subnet, num_local_ports, malware]
         host_props = gym.spaces.Dict(
             {
@@ -427,7 +426,7 @@ class GraphWrapper(gym.Env):
             x=tensor(node_matrix, dtype=torch.float),
             edge_index=tensor(edge_index, dtype=torch.long),
             edge_attr=tensor(edge_attr, dtype=torch.float),
-            global_attr=tensor(self.previous_action_encoding),
+            global_attr=tensor(self.previous_action_encoding, dtype=torch.float),
         )
 
     # def graph_to_gym_observation(self) TODO method to adapt graph to gymnasium space
