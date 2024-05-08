@@ -186,5 +186,6 @@ cython_debug/
 # example scripts
 _*.py
 
-# outputs
+# Hydra outputs
 outputs/
+multirun/

@@ -18,6 +18,7 @@ test-cyborg = "pytest CybORG/CybORG/Tests/test_sim"
 eval-cardiff = "python cardiff-cage-2/evaluation.py"
 train-cardiff = "python cardiff-cage-2/train.py"
 train-flat-sb3-ppo = "python -m scripts.train-sb3-cyborg"
+train-flat-sb3-ppo-all-scenarios = "python -m scripts.train-sb3-cyborg -m scenario=Scenario2_+_User5,Scenario2_+_User5_User6,Scenario2_+_User6,Scenario2_-_User2,Scenario2_-_User2_User4,Scenario2_-_User4"
 train-gnn-reinforce = "python -m blueskynet.training.reinforce"
 
 [dependencies]
