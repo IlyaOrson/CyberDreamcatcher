@@ -40,7 +40,7 @@ Voila!
 There are other predefined tasks that can be run to make sure everything is working:
 
 ```bash
-# pixi run <TAB>  # displays options
+# pixi task list  # displays available tasks
 
 pixi run test-cyborg  # run gymnasium-based cyborg tests
 

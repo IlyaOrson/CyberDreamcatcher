@@ -40,7 +40,7 @@ def script(cfg: Config) -> None:
     cyborg = CybORG(scenario_path, "sim", agents={'Red': RedMeanderAgent})
     env = ChallengeWrapper(agent_name="Blue", env=cyborg, max_steps=cfg.max_episode_steps)
 
-    model = PPO("MlpPolicy", env, verbose=cfg.policy_verbosity, device=cfg.policy_device)
+    model = PPO("MlpPolicy", env, verbose=cfg.policy_verbosity, device=cfg.policy_device, tensorboard_log=output_dir)
     model.learn(total_timesteps=cfg.total_policy_steps, progress_bar=cfg.progress_bar)
 
     # store trained policy
