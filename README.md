@@ -53,8 +53,10 @@ Quickly visualize the graph layout setup in the cage 2 challenge scenario file,
 and the graph observations received by a random GNN policy.
 
 ```bash
-python -m blueskynet
+pixi run plot-network scenario=Scenario2
 ```
+
+NOTE: This is the layout we expect to observe from the configuration... BUT this is not strictly enforced in CybORG v2.1!
 
 ## Training
 

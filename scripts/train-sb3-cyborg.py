@@ -15,7 +15,7 @@ from blueskynet.utils import get_scenario
 
 @dataclass
 class Config:
-    scenario: str = "Scenario2_-_User2_User4"  # "Scenario2_+_User5_User6"
+    scenario: str = "Scenario2"  # "Scenario2_-_User2_User4"  # "Scenario2_+_User5_User6"
     max_episode_steps: int = 30
     total_policy_steps: int = 1_000_000  # 1_000_000 produces competitive results
     progress_bar: bool = True
@@ -35,7 +35,6 @@ def script(cfg: Config) -> None:
     output_dir = hydra.core.hydra_config.HydraConfig.get().runtime.output_dir
     print(f"Output directory  : {output_dir}")
 
-    # scenario_path = get_scenario(name="Scenario2", from_cyborg=True)
     scenario_path = get_scenario(name=cfg.scenario, from_cyborg=False)
     cyborg = CybORG(scenario_path, "sim", agents={'Red': RedMeanderAgent})
     env = ChallengeWrapper(agent_name="Blue", env=cyborg, max_steps=cfg.max_episode_steps)
