@@ -4,7 +4,7 @@ GNN as network-aware policies for cyber-defence RL environments.
 
 ## Setup
 
-Clone this repo recursevely to clone the environments (CybORG, YawningTitan) as submodules simultaneously.
+Clone this repo recursevely to clone the custom CybORG v2.1 environment and Cage 2 reference submissions as submodules simultaneously.
 
 ```bash
 git clone https://github.com/IlyaOrson/GNN-cyber-defence.git --recurse-submodules -j3
@@ -24,7 +24,7 @@ Afterwards a shell within this environment will have all dependencies available.
 pixi shell
 ```
 
-From the activated shell, install the local submodules and troublesome pip dependencies .
+From the activated shell, install the local submodules and troublesome pip dependencies.
 
 ```bash
 # install environments from git submodule as a local packages
@@ -71,12 +71,4 @@ To get a comparison for optimality and performance with a standard flat observat
 
 ```bash
 pixi run train-flat-sb3-ppo
-```
-
-## Notes
-
-To see the notes on the project locally you will need [quarto](https://quarto.org):
-
-```bash
-quarto render notes/
 ```
