@@ -22,12 +22,12 @@ print(env.get_blue_table())
 print("Voila!")
 
 obs, info = env.reset()
-env.render()
+# env.render()
 
 policy = Police(env, latent_node_dim=env.host_embedding_size)
 # policy = ConditionalPolice(env, latent_node_dim=env.host_embedding_size)
 
-for step in trange(30):
+for step in trange(10):
     # action = env.action_space.sample()
 
     action, log_prob = policy(obs)
@@ -42,7 +42,7 @@ for step in trange(30):
     print(f"action_name = {env.action_names[action[1]]}")
 
     obs, reward, terminated, truncated, info = env.step(action)
-    env.render()
+    # env.render()
 
     print(env.get_true_table())
     print(env.get_blue_table())

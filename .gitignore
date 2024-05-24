@@ -183,8 +183,8 @@ cython_debug/
 # iOS
 .DS_Store
 
-# example scripts
-_*.py
+# examples
+_*
 
 # Hydra outputs
 outputs/
