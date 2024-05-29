@@ -1,11 +1,13 @@
 # adapted from https://github.com/OptiMaL-PSE-Lab/REINFORCE-PSE
 
+from pathlib import Path
 from dataclasses import dataclass
 # from itertools import accumulate
 
 import numpy as np
 from tqdm import trange
 import torch
+from torch.utils.tensorboard import SummaryWriter
 
 
 EPS = np.finfo(np.float32).eps.item()
@@ -15,17 +17,30 @@ EPS = np.finfo(np.float32).eps.item()
 class Config:
     scenario: str = "Scenario2_-_User2_User4"  # "Scenario2_+_User5_User6"
     episode_length: int = 30
-    num_episodes_sample: int = 2000
+    num_episodes_sample: int = 1000
     seed: int = 0
-    learning_rate: float = 1e-2
-    optimizer_iterations: int = 200
+    learning_rate: float = 5e-3
+    optimizer_iterations: int = 300
 
 
 class REINFORCE:
-    def __init__(self, env, policy, conf) -> None:
+    def __init__(self, env, policy, conf, log_dir=None) -> None:
         self.env = env
         self.policy = policy
         self.conf = conf
+        self.log_dir = log_dir
+
+        self.optimizer_step = 0
+        self.writer = SummaryWriter(log_dir=Path(log_dir) / f"{conf.scenario}")
+        self.writer.add_text(
+            "hyperparameters",
+            "|param|value|\n|-|-|\n%s"
+            % (
+                "\n".join(
+                    [f"|{key}|{value}|" for key, value in vars(self.conf).items()]
+                )
+            ),
+        )
 
         torch.manual_seed(conf.seed)
         np.random.seed(conf.seed)
@@ -57,7 +72,7 @@ class REINFORCE:
 
         return rewards_to_go, log_probs
 
-    def sample_episodes(self):
+    def sample_episodes(self, counter=None):
         """
         Executes multiple episodes under the current stochastic policy,
         gets an average of the reward and the summed log probabilities
@@ -72,6 +87,19 @@ class REINFORCE:
             rewards_to_go, log_probs = self.run_episode()
             batch_rewards_to_go[epi] = rewards_to_go
             batch_log_probs[epi] = log_probs
+
+        if counter:
+            stacked_rewards_to_go = np.vstack(batch_rewards_to_go)
+            self.writer.add_histogram(
+                "reward-to-go distribution",
+                stacked_rewards_to_go[:, 0],
+                global_step=counter,
+            )
+            self.writer.add_histogram(
+                "final reward distribution",
+                stacked_rewards_to_go[:, -1],
+                global_step=counter,
+            )
 
         reward_mean = np.mean(batch_rewards_to_go)
         reward_std = np.std(batch_rewards_to_go)
@@ -104,12 +132,15 @@ class REINFORCE:
         )
 
         pbar = trange(self.conf.optimizer_iterations, desc="Optimizer iteration")
-        for _ in pbar:
-            mean_log_prob_R, reward_mean, reward_std = self.sample_episodes()
+        for it in pbar:
+            mean_log_prob_R, reward_mean, reward_std = self.sample_episodes(counter=it)
 
             mean_log_prob_R.backward()
             optimizer.step()
             optimizer.zero_grad()
+
+            self.writer.add_scalar("mean reward", reward_mean, global_step=it)
+            self.writer.add_scalar("mean std", reward_std, global_step=it)
 
             pbar.write(f"Roll-out mean reward: {reward_mean:.3} +- {reward_std:.2}")
 
@@ -133,7 +164,7 @@ if __name__ == "__main__":
     cs.store(name="config", node=Config)
 
     @hydra.main(version_base=None, config_name="config")
-    def app(cfg: Config) -> None:
+    def main(cfg: Config) -> None:
         # https://hydra.cc/docs/tutorials/basic/running_your_app/working_directory/
         print(f"Working directory : {os.getcwd()}")
         output_dir = hydra.core.hydra_config.HydraConfig.get().runtime.output_dir
@@ -143,16 +174,15 @@ if __name__ == "__main__":
 
         policy = Police(env, latent_node_dim=env.host_embedding_size)
 
-        trainer = REINFORCE(env, policy, cfg)
-
-        # test sampling
-        mean_log_prob_R, reward_mean, reward_std = trainer.sample_episodes()
+        trainer = REINFORCE(env, policy, cfg, log_dir=output_dir)
 
         params_dict = trainer.learn()
 
         # store trained policy
         file_path = Path(output_dir) / "trained_params.pt"
         torch.save(policy.state_dict(), file_path)
+
+        trainer.writer.close()
 
         # policy.load_state_dict(params_dict)
         # policy.load_state_dict(torch.load(file_path))
@@ -163,4 +193,4 @@ if __name__ == "__main__":
 
         print("Voila!")
 
-    app()
+    main()

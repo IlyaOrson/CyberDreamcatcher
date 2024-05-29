@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 import hydra
 from hydra.core.config_store import ConfigStore
-from stable_baselines3 import PPO # A2C
+from stable_baselines3 import PPO  # A2C
 
 from CybORG import CybORG
 from CybORG.Agents import RedMeanderAgent
@@ -15,18 +15,21 @@ from blueskynet.utils import get_scenario
 
 @dataclass
 class Config:
-    scenario: str = "Scenario2"  # "Scenario2_-_User2_User4"  # "Scenario2_+_User5_User6"
+    # "Scenario2_-_User2_User4"  # "Scenario2_+_User5_User6"
+    scenario: str = "Scenario2"
     max_episode_steps: int = 30
     total_policy_steps: int = 1_000_000  # 1_000_000 produces competitive results
     progress_bar: bool = True
     policy_device: str = "cpu"
     policy_verbosity: int = 1
 
+
 # https://hydra.cc/docs/tutorials/structured_config/minimal_example/
 cs = ConfigStore.instance()
 
 # Registering the Config class with the name 'config'.
 cs.store(name="config", node=Config)
+
 
 @hydra.main(version_base=None, config_name="config")
 def script(cfg: Config) -> None:
@@ -36,10 +39,18 @@ def script(cfg: Config) -> None:
     print(f"Output directory  : {output_dir}")
 
     scenario_path = get_scenario(name=cfg.scenario, from_cyborg=False)
-    cyborg = CybORG(scenario_path, "sim", agents={'Red': RedMeanderAgent})
-    env = ChallengeWrapper(agent_name="Blue", env=cyborg, max_steps=cfg.max_episode_steps)
+    cyborg = CybORG(scenario_path, "sim", agents={"Red": RedMeanderAgent})
+    env = ChallengeWrapper(
+        agent_name="Blue", env=cyborg, max_steps=cfg.max_episode_steps
+    )
 
-    model = PPO("MlpPolicy", env, verbose=cfg.policy_verbosity, device=cfg.policy_device, tensorboard_log=output_dir)
+    model = PPO(
+        "MlpPolicy",
+        env,
+        verbose=cfg.policy_verbosity,
+        device=cfg.policy_device,
+        tensorboard_log=output_dir,
+    )
     model.learn(total_timesteps=cfg.total_policy_steps, progress_bar=cfg.progress_bar)
 
     # store trained policy

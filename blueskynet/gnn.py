@@ -325,7 +325,6 @@ class GATGlobalConv(NoTemplateMessagePassing):
         ptr: OptTensor,
         dim_size: Optional[int],
     ) -> Tensor:
-
         x = x_i + x_j
 
         if edge_attr is not None:

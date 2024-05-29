@@ -1,6 +1,5 @@
 # NOTE  Patch to avoid automatic module generation from templates
 #       used for torchscript optimization in pytorch geometric
-#       This is required to 
 
 # import os.path as osp
 from typing import (
@@ -25,11 +24,13 @@ from torch_geometric.nn.conv import MessagePassing
 FUSE_AGGRS = {"add", "sum", "mean", "min", "max"}
 HookDict = OrderedDict[int, Callable]
 
-# overkill but oh well
+
+# overkill but oh well
 class BlindInspector(Inspector):
     @property
     def can_read_source(self):
         return False
+
 
 class NoTemplateMessagePassing(MessagePassing):
     def __init__(
@@ -105,7 +106,6 @@ class NoTemplateMessagePassing(MessagePassing):
         # root_dir = osp.dirname(osp.realpath(__file__))
         jinja_prefix = f"{self.__module__}_{self.__class__.__name__}"
         # # Optimize `propagate()` via `*.jinja` templates:
-        if not self.propagate.__module__.startswith(jinja_prefix):
         # if not self.propagate.__module__.startswith(jinja_prefix):
         #     if self.inspector.can_read_source:
         #         module = module_from_template(
@@ -137,6 +137,7 @@ class NoTemplateMessagePassing(MessagePassing):
         #     else:
         #         self.__class__._orig_propagate = self.__class__.propagate
         #         self.__class__._jinja_propagate = self.__class__.propagate
+        if not self.propagate.__module__.startswith(jinja_prefix):
             self.__class__._orig_propagate = self.__class__.propagate
             self.__class__._jinja_propagate = self.__class__.propagate
 
