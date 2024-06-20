@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from matplotlib.cm import get_cmap
 import matplotlib.pyplot as plt
 import networkx as nx
@@ -7,7 +9,7 @@ from torch.nn.functional import softmax
 
 
 def plot_feasible_connections(
-    env, axis=None, multipartite=False, show=False, block=False
+    env, axis=None, multipartite=False, show=False, block=False, filepath=None
 ):
     # Simplest version
     # graph = nx.DiGraph()
@@ -21,6 +23,7 @@ def plot_feasible_connections(
 
     n_colors = len(env.subnet_names)
     cmap = plt.cm.Set2
+    # cmap = plt.cm.get_cmap("gnuplot")
     colors = cmap(np.linspace(0, 1, n_colors))
     subnet_color_map = {
         subnet: colors[idx] for idx, subnet in enumerate(env.subnet_names)
@@ -42,6 +45,8 @@ def plot_feasible_connections(
     else:
         axis.cla()
 
+    axis.axis("off")
+
     for subnet, hostnames in env.subnet_hostnames_map.items():
         color = subnet_color_map[subnet]
         node_colors = len(hostnames) * [color]
@@ -52,21 +57,32 @@ def plot_feasible_connections(
             ax=axis,
             nodelist=hostnames,
             node_color=node_colors,
-            # node_size=1000,
+            alpha=0.5,
+            node_shape="D",
+            node_size=400,
             label=subnet,
+            linewidths=2,
+            # edgecolors="grey",
             # cmap=cmap
         )
 
     nx.draw_networkx_edges(
-        graph, pos=node_positions, ax=axis, connectionstyle="Arc3, rad = 0.2", alpha=0.3
+        graph,
+        pos=node_positions,
+        ax=axis,
+        alpha=0.25,
+        connectionstyle="Arc3, rad = 0.3",
     )
     nx.draw_networkx_labels(graph, pos=node_positions, ax=axis, font_size=8, alpha=0.5)
 
-    plt.title(f"Layout from {env.scenario_name}")
-    plt.legend()
+    plt.title(f"{env.scenario_name}")
+    plt.legend(markerscale=0.5)
     plt.tight_layout()
     if show:
         plt.show(block=block)
+
+    if filepath:
+        plt.savefig(Path(filepath), dpi=600)
 
     return node_positions
 
