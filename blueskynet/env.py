@@ -13,9 +13,10 @@ import torch
 from CybORG import CybORG
 from CybORG.Agents import RedMeanderAgent  # , TestAgent
 from CybORG.Agents.Wrappers import ChallengeWrapper  # , BaseWrapper
+
+# NOTE not sure if this limits are actually enforced in CybORG
 from CybORG.Shared.ActionSpace import MAX_PORTS
 from CybORG.Shared.AgentInterface import MAX_CONNECTIONS
-# NOTE not sure if this limits are actually enforced in CybORG
 
 from torch import tensor
 from torch_geometric.data import Data
@@ -62,6 +63,7 @@ class GraphWrapper(gym.Env):
         self.action_names = self.scenario._scenario["Agents"][self.agent_name][
             "actions"
         ]
+        self.global_actions_names = ("Sleep", "Monitor")
 
         # Form enumeration mappings
         self.subnet_enumeration = enumerate_bidict(self.subnet_names)
@@ -72,6 +74,7 @@ class GraphWrapper(gym.Env):
         self.num_subnets = len(self.subnet_names)
         self.num_hosts = len(self.host_names)
         self.num_actions = len(self.action_names)
+        self.num_actions_per_node = self.num_actions - len(self.global_actions_names)
 
         # Extract possible actions from cyborg
         # action_space = self.env_controller.agent_interfaces[self.agent_name].action_space
@@ -104,15 +107,16 @@ class GraphWrapper(gym.Env):
         }
 
         self.previous_action = None
-        self.previous_action_encoding = [0, 0]  # always "slept" in the first move
+        self.previous_action_encoding = [0, 0]  # always "sleep" in the first move
         assert str(self.gym_to_cyborg_action(self.previous_action_encoding)) == "Sleep"
 
         # Set gymnasium properties
         self.reward_range = (float("-inf"), float("inf"))
         self.action_space = gym.spaces.MultiDiscrete([self.num_hosts, self.num_actions])
 
-        # NOTE not very useful since unexpected connecitons appear regardless of layout constraints...
-        self.observation_space = self._build_dict_obs_space()
+        # NOTE not very useful since unexpected connections appear regardless of layout constraints...
+        # self.observation_space = self._build_dict_obs_space()
+        self.observation_space = None
 
         assert render_mode is None or render_mode in self.metadata["render_modes"]
         self.render_mode = render_mode
@@ -218,7 +222,6 @@ class GraphWrapper(gym.Env):
         with the parameters available in the action space which match their signature.
         """
 
-        self.global_actions_names = ("Sleep", "Monitor")
         global_signatures = [(action, None) for action in self.global_actions_names]
 
         host_actions = (

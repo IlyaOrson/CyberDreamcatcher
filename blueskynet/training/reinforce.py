@@ -1,6 +1,6 @@
 # adapted from https://github.com/OptiMaL-PSE-Lab/REINFORCE-PSE
 
-from pathlib import Path
+import random
 from dataclasses import dataclass
 # from itertools import accumulate
 
@@ -19,7 +19,7 @@ class Config:
     episode_length: int = 30
     num_episodes_sample: int = 1000
     seed: int = 0
-    learning_rate: float = 5e-3
+    learning_rate: float = 1e-2
     optimizer_iterations: int = 300
 
 
@@ -31,17 +31,14 @@ class REINFORCE:
         self.log_dir = log_dir
 
         self.optimizer_step = 0
-        self.writer = SummaryWriter(log_dir=Path(log_dir) / f"{conf.scenario}")
+        self.writer = SummaryWriter(log_dir=log_dir)
         self.writer.add_text(
             "hyperparameters",
             "|param|value|\n|-|-|\n%s"
-            % (
-                "\n".join(
-                    [f"|{key}|{value}|" for key, value in vars(self.conf).items()]
-                )
-            ),
+            % ("\n".join([f"|{key}|{value}|" for key, value in self.conf.items()])),
         )
 
+        random.seed(conf.seed)
         torch.manual_seed(conf.seed)
         np.random.seed(conf.seed)
 
@@ -55,7 +52,7 @@ class REINFORCE:
         rewards = []
         done = False
         while not done:
-            action, log_prob = self.policy(obs)
+            action, log_prob, entropy, value = self.policy(obs)
 
             obs, reward, terminated, truncated, info = self.env.step(action)
 
@@ -143,6 +140,10 @@ class REINFORCE:
             self.writer.add_scalar("mean std", reward_std, global_step=it)
 
             pbar.write(f"Roll-out mean reward: {reward_mean:.3} +- {reward_std:.2}")
+
+            if it % 20 == 0:
+                file_path = Path(self.log_dir) / f"trained_params_iter_{it}.pt"
+                torch.save(self.policy.state_dict(), file_path)
 
         return self.policy.state_dict()
 

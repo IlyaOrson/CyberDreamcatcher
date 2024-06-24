@@ -2,9 +2,11 @@ from pathlib import Path
 
 from matplotlib.cm import get_cmap
 import matplotlib.pyplot as plt
+from matplotlib.ticker import LogitFormatter
 import networkx as nx
 import numpy as np
 
+import torch
 from torch.nn.functional import softmax
 
 
@@ -247,23 +249,42 @@ def plot_observation_encoded(
 
 
 def plot_action_probabilities(
-    logits, host_names, action_names, show=False, block=False
+    action_logits, host_names, action_names, show=False, block=False
 ):
-    probs = softmax(logits.flatten(), dim=-1).reshape(logits.shape).detach()
+    probs = softmax(action_logits.flat_logits, dim=-1)
+    min_prob = torch.min(probs).item()
+    max_prob = torch.max(probs).item()
+    global_probs = probs[:2].unsqueeze(0).detach()
+    node_probs = probs[2:].reshape(action_logits.node_logits.shape).detach()
 
-    fig, ax = plt.subplots()
+    global_action_names = action_names[:2]
+    node_action_names = action_names[2:]
 
-    mat = ax.matshow(probs)
-    cbar = fig.colorbar(mat, fraction=0.05, pad=0.05)
-    # cbar = fig.colorbar(mat, orientation="horizontal")
-    cbar.set_label("Probability")
+    fig, axs = plt.subplots(
+        2, 1, gridspec_kw={"height_ratios": [action_logits.node_logits.shape[0], 1]}
+    )
+
+    node_ax = axs[0]
+    global_ax = axs[1]
+
+    mat_node = node_ax.matshow(node_probs, vmin=min_prob, vmax=max_prob)
+    mat_global = global_ax.imshow(global_probs, vmin=min_prob, vmax=max_prob)
 
     # Show all ticks and label them with the respective list entries
-    ax.set_yticks(np.arange(len(host_names)), labels=host_names)
-    ax.set_xticks(np.arange(len(action_names)), labels=action_names)
+    node_ax.set_yticks(np.arange(len(host_names)), labels=host_names)
+    node_ax.set_xticks(np.arange(len(node_action_names)), labels=node_action_names)
+    global_ax.set_yticks([0], labels=["Global"])
+    global_ax.set_xticks(np.arange(len(global_action_names)), labels=global_action_names)
 
     # Rotate the tick labels and set their alignment.
-    plt.setp(ax.get_xticklabels(), rotation=45, ha="left", rotation_mode="anchor")
+    plt.setp(node_ax.get_xticklabels(), rotation=45, ha="left", rotation_mode="anchor")
+    plt.setp(
+        global_ax.get_xticklabels(), rotation=315, ha="left", rotation_mode="anchor"
+    )
+
+    cbar = fig.colorbar(mat_node, fraction=0.05, pad=0.05, format=LogitFormatter())
+    # cbar = fig.colorbar(axs, orientation="horizontal")
+    cbar.set_label("Probability")
 
     fig.set_tight_layout(True)
     if show:
