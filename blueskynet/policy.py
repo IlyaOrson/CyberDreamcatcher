@@ -17,8 +17,8 @@ class ActionLogits:
 
         self.node_logits = action_logits[:, :-2]
 
-        self.sleep_logit = torch.sum(action_logits[:, -1]).unsqueeze(-1)
-        self.monitor_logit = torch.sum(action_logits[:, -2]).unsqueeze(-1)
+        self.sleep_logit = torch.mean(action_logits[:, -1]).unsqueeze(-1)
+        self.monitor_logit = torch.mean(action_logits[:, -2]).unsqueeze(-1)
 
         self.flat_logits = torch.cat(
             (self.sleep_logit, self.monitor_logit, self.node_logits.flatten())
@@ -89,7 +89,7 @@ class Police(torch.nn.Module):
             global_channels=env.global_embedding_size,
             edge_dim=env.edge_embedding_size,
             heads=1,
-            share_weights=False,
+            share_weights=True,
         )
         self.critic_layer = GATGlobalConv(
             in_channels=latent_node_dim,
