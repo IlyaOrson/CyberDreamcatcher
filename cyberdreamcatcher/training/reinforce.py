@@ -155,8 +155,8 @@ if __name__ == "__main__":
     import hydra
     from hydra.core.config_store import ConfigStore
 
-    from blueskynet.env import GraphWrapper
-    from blueskynet.policy import Police
+    from cyberdreamcatcher.env import GraphWrapper
+    from cyberdreamcatcher.policy import Police
 
     # https://hydra.cc/docs/tutorials/structured_config/minimal_example/
     cs = ConfigStore.instance()

@@ -3,8 +3,8 @@ from collections import namedtuple
 import torch
 from torch.distributions import Categorical
 
-from blueskynet.utils import ravel_multi_index
-from blueskynet.gnn import GATGlobalConv
+from cyberdreamcatcher.utils import ravel_multi_index
+from cyberdreamcatcher.gnn import GATGlobalConv
 
 
 class ActionLogits:

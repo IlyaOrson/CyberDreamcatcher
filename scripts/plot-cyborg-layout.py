@@ -4,8 +4,8 @@ import hydra
 from hydra.core.config_store import ConfigStore
 # import matplotlib.pyplot as plt
 
-from blueskynet.env import GraphWrapper
-from blueskynet.plots import plot_feasible_connections
+from cyberdreamcatcher.env import GraphWrapper
+from cyberdreamcatcher.plots import plot_feasible_connections
 
 
 @dataclass

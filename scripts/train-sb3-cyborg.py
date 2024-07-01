@@ -10,7 +10,7 @@ from CybORG import CybORG
 from CybORG.Agents import RedMeanderAgent
 from CybORG.Agents.Wrappers import ChallengeWrapper
 
-from blueskynet.utils import get_scenario
+from cyberdreamcatcher.utils import get_scenario
 
 
 @dataclass

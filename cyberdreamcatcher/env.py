@@ -21,8 +21,8 @@ from CybORG.Shared.AgentInterface import MAX_CONNECTIONS
 from torch import tensor
 from torch_geometric.data import Data
 
-from blueskynet.utils import get_scenario, enumerate_bidict
-from blueskynet.plots import (
+from cyberdreamcatcher.utils import get_scenario, enumerate_bidict
+from cyberdreamcatcher.plots import (
     plot_observation,
     plot_observation_encoded,
     plot_feasible_connections,

@@ -27,7 +27,7 @@ from torch_geometric.utils.sparse import set_sparse_value
 
 # NOTE custom version to avoid automatic template generation
 # from torch_geometric.nn.conv import MessagePassing
-from blueskynet.message_passing import NoTemplateMessagePassing
+from cyberdreamcatcher.message_passing import NoTemplateMessagePassing
 
 
 class GATGlobalConv(NoTemplateMessagePassing):

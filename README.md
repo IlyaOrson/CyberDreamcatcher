@@ -1,20 +1,20 @@
-# GNN-cyber-defence
+# Cyber Dreamcatcher
 
-GNN as network-aware policies for cyber-defence RL environments.
+GNNs as network-aware policies for cyber-defence in RL environments.
 
 ## Setup
 
 Clone this repo recursevely to clone the custom CybORG v2.1 environment and Cage 2 reference submissions as submodules simultaneously.
 
 ```bash
-git clone https://github.com/IlyaOrson/GNN-cyber-defence.git --recurse-submodules -j3
+git clone https://github.com/IlyaOrson/CyberDreamcatcher.git --recurse-submodules -j3
 ```
 
 We use [pixi](https://github.com/prefix-dev/pixi) to setup a reproducible environment.
 First one needs to install the dependencies in a local environment, activate a shell within it and afterwards install the submodules as local packages as well as troublesome dependencies.
 
 ```bash
-cd GNN-cyber-defence
+cd CyberDreamcatcher
 pixi install  # setup from pixi.toml file
 ```
 
@@ -31,11 +31,11 @@ From the activated shell, install the local submodules and troublesome pip depen
 pixi run install-cyborg  # CybORG 2.1 + update to gymnasium API
 
 # install troublesome dependencies without using pip to track their requirements
-pixi run install-custom-sb3  # stable baselines 3 + adaptation to GNN policies and graph environment
+pixi run install-sb3  # stable baselines 3
+# pixi run install-custom-sb3  # stable baselines 3 + adaptation to GNN policies and graph environment (not working yet)
 ```
 
 Voila!
-
 
 There are other predefined tasks that can be run to make sure everything is working:
 

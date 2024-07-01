@@ -3,9 +3,9 @@ from tqdm import trange
 import matplotlib.pyplot as plt
 import torch
 
-from blueskynet.env import GraphWrapper
-from blueskynet.policy import Police  # , ConditionalPolice
-from blueskynet.plots import plot_action_probabilities
+from cyberdreamcatcher.env import GraphWrapper
+from cyberdreamcatcher.policy import Police  # , ConditionalPolice
+from cyberdreamcatcher.plots import plot_action_probabilities
 
 # plt.show(block=False)
 
