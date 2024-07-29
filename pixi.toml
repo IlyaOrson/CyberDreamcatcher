@@ -4,7 +4,7 @@ version = "0.0.0"
 description = "GNNs as blue agents in RL cyber-defence environments."
 authors = ["Ilya Orson Sandoval <ilya.orson@gmail.com>"]
 channels = ["pytorch", "conda-forge", "pyg"]
-platforms = ["osx-arm64"]
+platforms = ["osx-arm64", "win-64"]
 
 [host-dependencies]
 python = "~=3.11.8"
