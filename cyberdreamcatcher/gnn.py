@@ -30,6 +30,7 @@ from torch_geometric.utils.sparse import set_sparse_value
 from cyberdreamcatcher.message_passing import NoTemplateMessagePassing
 
 
+# class GATGlobalConv(MessagePassing):
 class GATGlobalConv(NoTemplateMessagePassing):
     r"""The GATv2 operator from the `"How Attentive are Graph Attention
     Networks?" <https://arxiv.org/abs/2105.14491>`_ paper,

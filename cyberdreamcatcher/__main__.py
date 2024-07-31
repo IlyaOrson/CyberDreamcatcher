@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import torch
 
 from cyberdreamcatcher.env import GraphWrapper
-from cyberdreamcatcher.policy import Police  # , ConditionalPolice
+from cyberdreamcatcher.policy import Police
 from cyberdreamcatcher.plots import plot_action_probabilities
 
 # plt.show(block=False)

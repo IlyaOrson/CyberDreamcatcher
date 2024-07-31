@@ -114,7 +114,8 @@ class GraphWrapper(gym.Env):
         self.reward_range = (float("-inf"), float("inf"))
         self.action_space = gym.spaces.MultiDiscrete([self.num_hosts, self.num_actions])
 
-        # NOTE not very useful since unexpected connections appear regardless of layout constraints...
+        # NOTE  not very useful since unexpected connections appear regardless of layout constraints... and
+        #       nested dict observations are not really supported by stable baselines 3, only super siple plain dicts
         # self.observation_space = self._build_dict_obs_space()
         self.observation_space = None
 

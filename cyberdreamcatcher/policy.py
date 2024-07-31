@@ -36,20 +36,20 @@ class ActionLogits:
             # action = torch.unravel_index(action_flat, action_logits.shape)
             action = torch.unravel_index(action_flat - 2, self.node_logits.shape)
 
-        return action
+        return torch.tensor(action)
 
     def multidim_to_flat(self, action_multi):
         # Convert multidimensional action to the corresponding flat action
         assert len(action_multi) == self.node_logits.dim()
         if action_multi[-1] == 0:  # Sleep
-            action_flat = 0
+            action_flat = torch.tensor(0)
         elif action_multi[-1] == 1:  # Monitor
-            action_flat = 1
+            action_flat = torch.tensor(1)
         else:
-            action_multi[-1] -= 2
-            action_flat = ravel_multi_index(
-                torch.tensor(action_multi), self.node_logits.shape
-            )
+            # This mutation is problematic when an action is provided and only its log_prob is of interest to be calculated
+            # action_multi[-1] -= 2
+            shifted_action = torch.tensor([action_multi[0], action_multi[-1] - 2])
+            action_flat = ravel_multi_index(shifted_action, self.node_logits.shape)
 
         return action_flat
 
@@ -57,8 +57,8 @@ class ActionLogits:
 class Police(torch.nn.Module):
     "Defensive blue agent - TacticsAI GAT"
 
-    PoliceAction = namedtuple(
-        "PoliceAction", ["action", "log_prob", "entropy", "value"]
+    PoliceReport = namedtuple(
+        "PoliceReport", ["action", "log_prob", "entropy", "value"]
     )
 
     def __init__(self, env, latent_node_dim, train_critic=False, *args, **kwargs):
@@ -153,4 +153,4 @@ class Police(torch.nn.Module):
 
         action_log_prob = distribution.log_prob(action_flat)
 
-        return self.PoliceAction(action, action_log_prob, entropy, value)
+        return self.PoliceReport(action, action_log_prob, entropy, value)
