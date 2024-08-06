@@ -274,7 +274,9 @@ def plot_action_probabilities(
     node_ax.set_yticks(np.arange(len(host_names)), labels=host_names)
     node_ax.set_xticks(np.arange(len(node_action_names)), labels=node_action_names)
     global_ax.set_yticks([0], labels=["Global"])
-    global_ax.set_xticks(np.arange(len(global_action_names)), labels=global_action_names)
+    global_ax.set_xticks(
+        np.arange(len(global_action_names)), labels=global_action_names
+    )
 
     # Rotate the tick labels and set their alignment.
     plt.setp(node_ax.get_xticklabels(), rotation=45, ha="left", rotation_mode="anchor")

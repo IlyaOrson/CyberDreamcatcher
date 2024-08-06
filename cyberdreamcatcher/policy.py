@@ -46,7 +46,8 @@ class ActionLogits:
         elif action_multi[-1] == 1:  # Monitor
             action_flat = torch.tensor(1)
         else:
-            # This mutation is problematic when an action is provided and only its log_prob is of interest to be calculated
+            # This mutation is problematic when an action is provided and
+            # only its log_prob is of interest to be calculated
             # action_multi[-1] -= 2
             shifted_action = torch.tensor([action_multi[0], action_multi[-1] - 2])
             action_flat = ravel_multi_index(shifted_action, self.node_logits.shape)
@@ -124,11 +125,11 @@ class Police(torch.nn.Module):
             latent_nodes, edge_index, global_vector, edges_matrix
         )
 
-        with torch.no_grad():
-            node_values = self.critic_layer(
-                latent_nodes, edge_index, global_vector, edges_matrix
-            )
-            value = torch.sum(node_values)
+        # with torch.no_grad():
+        node_values = self.critic_layer(
+            latent_nodes, edge_index, global_vector, edges_matrix
+        )
+        value = torch.sum(node_values)
 
         return ActionLogits(action_logits), value
 

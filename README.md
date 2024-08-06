@@ -60,6 +60,16 @@ NOTE: This is the layout we expect to observe from the configuration... BUT this
 
 ## Training
 
+### PPO
+
+We adapted the CleanRL implementation of PPO to handle our graph observation space, which is not compatible with gymnasium restrictions.
+
+```bash
+pixi run train-gnn-ppo  # see --help for hyperparameters
+```
+
+### REINFORCE
+
 Train a GNN policy with a REINFORCE algorithm with a normalized rewards-to-go baseline.
 This is very slow since it samples a lot of episodes with a fixed policy to estimate the gradient before taking an optimization step.
 
@@ -67,8 +77,13 @@ This is very slow since it samples a lot of episodes with a fixed policy to esti
 pixi run train-gnn-reinforce  # see --help for hyperparameters
 ```
 
-To get a comparison for optimality and performance with a standard flat observation space and a MLP policy we use SB3 with PPO:
+### Flat observation space + MLP + SB3-PPO
+
+This trains the canonical flat observation space and a MLP policy we use SB3 with PPO:
 
 ```bash
 pixi run train-flat-sb3-ppo
 ```
+
+NOTE: A direct performance comparison is not possible because the observation space is different.
+

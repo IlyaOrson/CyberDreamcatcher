@@ -107,8 +107,9 @@ class GraphWrapper(gym.Env):
         }
 
         self.previous_action = None
-        self.previous_action_encoding = [0, 0]  # always "sleep" in the first move
-        assert str(self.gym_to_cyborg_action(self.previous_action_encoding)) == "Sleep"
+        assert str(self.gym_to_cyborg_action([0, 0])) == "Sleep"
+        # always "sleep" in the first move
+        self.previous_action_encoding = torch.tensor([0, 0], dtype=torch.float)
 
         # Set gymnasium properties
         self.reward_range = (float("-inf"), float("inf"))
@@ -430,7 +431,7 @@ class GraphWrapper(gym.Env):
             x=tensor(node_matrix, dtype=torch.float),
             edge_index=tensor(edge_index, dtype=torch.long),
             edge_attr=tensor(edge_attr, dtype=torch.float),
-            global_attr=tensor(self.previous_action_encoding, dtype=torch.float),
+            global_attr=self.previous_action_encoding.clone().detach(),
         )
 
     # def graph_to_gym_observation(self) TODO method to adapt graph to gymnasium space
@@ -486,7 +487,7 @@ class GraphWrapper(gym.Env):
         info = vars(cyborg_result)
         info.update(graph_info)
 
-        self.previous_action_encoding = action
+        self.previous_action_encoding = action.float()
         self.previous_action = action_instance
 
         return observation, reward, terminated, truncated, info
