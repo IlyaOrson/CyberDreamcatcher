@@ -1,9 +1,10 @@
 # Cyber Dreamcatcher
 
-GNNs as network-aware policies for cyber-defence in RL environments.
+GNNs as network-aware policies for cyber-defence in RL environments!
 
-![gnn-cyber-defence-logo_cleanup](https://github.com/user-attachments/assets/a3e01634-875a-4dfe-ba46-6c5840153ff6)
-
+<p align="center">
+  <img width="460" src="https://github.com/user-attachments/assets/73b01258-609d-4d07-b369-df323f360177">
+</p>
 
 ## Setup
 
