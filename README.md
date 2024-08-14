@@ -2,6 +2,9 @@
 
 GNNs as network-aware policies for cyber-defence in RL environments.
 
+![gnn-cyber-defence-logo_cleanup](https://github.com/user-attachments/assets/a3e01634-875a-4dfe-ba46-6c5840153ff6)
+
+
 ## Setup
 
 Clone this repo recursevely to clone the custom CybORG v2.1 environment and Cage 2 reference submissions as submodules simultaneously.
