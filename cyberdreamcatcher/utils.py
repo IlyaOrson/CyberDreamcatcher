@@ -2,7 +2,7 @@ import inspect
 from pathlib import Path
 from bidict import bidict
 
-from torch import Tensor, Size
+import torch
 
 import CybORG
 
@@ -30,7 +30,7 @@ def enumerate_bidict(iterable):
 
 # taken from https://github.com/francois-rozet/torchist/
 # https://github.com/pytorch/pytorch/issues/35674#issuecomment-1741608630
-def ravel_multi_index(coords: Tensor, shape: Size) -> Tensor:
+def ravel_multi_index(coords: torch.Tensor, shape: torch.Size) -> torch.Tensor:
     r"""Converts a tensor of coordinate vectors into a tensor of flat indices.
 
     This is a `torch` implementation of `numpy.ravel_multi_index`.

@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from typing import Optional
 from pathlib import Path
 
+from tqdm import trange
 import numpy as np
 import hydra
 from hydra.core.config_store import ConfigStore
@@ -44,11 +45,11 @@ class Args:
     scenario: str = "Scenario2_-_User2_User4"
 
     # Algorithm specific arguments
-    
+
     # the id of the environment
     # env_id: str = "CartPole-v1"
     # total timesteps of the experiments
-    total_timesteps: int = 10000  # 500000
+    total_timesteps: int = 30000  # 500000
     # the learning rate of the optimizer
     learning_rate: float = 2.5e-4
     # the number of parallel game environments
@@ -147,7 +148,7 @@ if __name__ == "__main__":
     cs.store(name="config", node=Args)
 
     @hydra.main(version_base=None, config_name="config")
-    def main(args: Args):
+    def main(args: Args) -> None:
         # https://hydra.cc/docs/tutorials/basic/running_your_app/working_directory/
         print(f"Working directory : {os.getcwd()}")
         output_dir = hydra.core.hydra_config.HydraConfig.get().runtime.output_dir
@@ -228,7 +229,8 @@ if __name__ == "__main__":
         # next_obs = torch.Tensor(next_obs).to(device)
         next_done = torch.zeros(args.num_envs).to(device)
 
-        for iteration in range(1, args.num_iterations + 1):
+        pbar = trange(1, args.num_iterations + 1, desc="Optimizer iteration")
+        for iteration in pbar:
             # Annealing the rate if instructed to do so.
             if args.anneal_lr:
                 frac = 1.0 - (iteration - 1.0) / args.num_iterations
@@ -248,6 +250,7 @@ if __name__ == "__main__":
                     action, logprob, _, value = agent(next_obs)
                     values[step] = value.flatten()
                     # values.append(value)
+
                 actions[step] = action
                 logprobs[step] = logprob
                 # actions.append(action)
@@ -401,7 +404,6 @@ if __name__ == "__main__":
             )
 
             # TRY NOT TO MODIFY: record rewards for plotting purposes
-            print("step:", global_step)
             writer.add_scalar(
                 "charts/learning_rate", optimizer.param_groups[0]["lr"], global_step
             )
@@ -419,7 +421,16 @@ if __name__ == "__main__":
                 "charts/SPS", int(global_step / (time.time() - start_time)), global_step
             )
 
+            pbar.write(f"value_loss: {v_loss:.3}")  #  +- {reward_std:.2}
+            pbar.write(f"policy_loss: {pg_loss:.3}")
+            pbar.write(f"entropy_loss: {entropy_loss:.3}")
+            pbar.write(f"explained_variance: {explained_var:.3}")
+
         # envs.close()
         writer.close()
+
+        # store trained policy
+        file_path = Path(output_dir) / "trained_params.pt"
+        torch.save(agent.state_dict(), file_path)
 
     main()

@@ -29,6 +29,7 @@ from cyberdreamcatcher.plots import (
 )
 
 
+# NOTE does not comply with the gym observation space restrictions
 class GraphWrapper(gym.Env):
     agent_name = "Blue"
 
