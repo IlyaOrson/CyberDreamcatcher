@@ -14,7 +14,9 @@ Clone this repo recursevely to clone the custom CybORG v2.1 environment and Cage
 git clone https://github.com/IlyaOrson/CyberDreamcatcher.git --recurse-submodules -j3
 ```
 
-We use [pixi](https://github.com/prefix-dev/pixi) to setup a reproducible environment.
+We use [pixi](https://github.com/prefix-dev/pixi) to setup a reproducible environment with predefined tasks.
+If you would like to use other project management tool, the list of dependencies with versions is available in [pixi.toml](pixi.toml).
+
 First we need to install the dependencies of the project in a local environment.
 
 ```bash
