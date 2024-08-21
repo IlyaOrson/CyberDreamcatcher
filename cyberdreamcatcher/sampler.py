@@ -10,7 +10,6 @@ EPS = np.finfo(np.float32).eps.item()
 
 class EpisodeSampler:
     def __init__(self, env, policy, seed=0, writer=None) -> None:
-
         self.env = env
         self.policy = policy
 
