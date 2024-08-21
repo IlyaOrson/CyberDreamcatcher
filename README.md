@@ -2,9 +2,7 @@
 
 GNNs as network-aware policies for cyber-defence in RL environments!
 
-<p align="center">
-  <img width="460" src="https://github.com/user-attachments/assets/73b01258-609d-4d07-b369-df323f360177">
-</p>
+![Logo](https://github.com/user-attachments/assets/73b01258-609d-4d07-b369-df323f360177)
 
 ## Setup
 
