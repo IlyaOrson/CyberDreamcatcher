@@ -23,26 +23,28 @@ from torch.utils.tensorboard import SummaryWriter
 
 from cyberdreamcatcher.env import GraphWrapper
 from cyberdreamcatcher.policy import Police
+from cyberdreamcatcher.sampler import EpisodeSampler
 
-
-def index_by_array(lst, indices):
-    return [lst[i] for i in indices]
 
 @dataclass
 class Args:
     exp_name: str = os.path.basename(__file__)[: -len(".py")]
-    # """the name of this experiment"""
+    # the name of this experiment
     seed: int = 1
-    # """seed of the experiment"""
+    # seed of the experiment
     torch_deterministic: bool = True
-    # """if toggled, `torch.backends.cudnn.deterministic=False`"""
+    # if toggled, `torch.backends.cudnn.deterministic=False`
     cuda: bool = True
-    # """if toggled, cuda will be enabled by default"""
+    # if toggled, cuda will be enabled by default
     capture_video: bool = False
-    # """whether to capture videos of the agent performances (check out `videos` folder)"""
+    # whether to capture videos of the agent performances (check out `videos` folder)
 
     # Graph wrapper stuff
     scenario: str = "Scenario2_-_User2_User4"
+    # how many episodes to sample with a fixed policy to estimate the reward distribution
+    num_ep_reward_sample: int = 100
+    # how many opt steps to wait between reward sampling
+    sample_frequency: int = 100
 
     # Algorithm specific arguments
 
@@ -201,6 +203,9 @@ if __name__ == "__main__":
         env = GraphWrapper(scenario=args.scenario, max_steps=args.num_steps)
         agent = Police(env, train_critic=True, latent_node_dim=env.host_embedding_size).to(device)
         optimizer = optim.Adam(agent.parameters(), lr=args.learning_rate, eps=1e-5)
+
+        sampler = EpisodeSampler(env, agent, seed=args.seed, writer=writer)
+        sampler.sample_episodes(args.num_ep_reward_sample, counter=0)
 
         # ALGO Logic: Storage setup
         # obs = torch.zeros(
@@ -407,24 +412,26 @@ if __name__ == "__main__":
             writer.add_scalar(
                 "charts/learning_rate", optimizer.param_groups[0]["lr"], global_step
             )
+            writer.add_scalar("losses/loss", loss.item(), global_step)
             writer.add_scalar("losses/value_loss", v_loss.item(), global_step)
-            print("value_loss:", v_loss.item())
             writer.add_scalar("losses/policy_loss", pg_loss.item(), global_step)
-            print("policy_loss:", pg_loss.item())
             writer.add_scalar("losses/entropy", entropy_loss.item(), global_step)
             writer.add_scalar("losses/old_approx_kl", old_approx_kl.item(), global_step)
             writer.add_scalar("losses/approx_kl", approx_kl.item(), global_step)
             writer.add_scalar("losses/clipfrac", np.mean(clipfracs), global_step)
             writer.add_scalar("losses/explained_variance", explained_var, global_step)
             # print("SPS:", int(global_step / (time.time() - start_time)))
-            writer.add_scalar(
-                "charts/SPS", int(global_step / (time.time() - start_time)), global_step
-            )
+            writer.add_scalar("charts/SPS", int(global_step / (time.time() - start_time)), global_step)
 
-            pbar.write(f"value_loss: {v_loss:.3}")  #  +- {reward_std:.2}
+            pbar.write("-"*20)
+            pbar.write(f"loss: {loss:.3}")
+            pbar.write(f"value_loss: {v_loss:.3}")
             pbar.write(f"policy_loss: {pg_loss:.3}")
             pbar.write(f"entropy_loss: {entropy_loss:.3}")
-            pbar.write(f"explained_variance: {explained_var:.3}")
+
+            # sample reward distribution
+            if iteration % args.sample_frequency == 0:
+                sampler.sample_episodes(args.num_ep_reward_sample, counter=iteration)
 
         # envs.close()
         writer.close()
@@ -432,5 +439,6 @@ if __name__ == "__main__":
         # store trained policy
         file_path = Path(output_dir) / "trained_params.pt"
         torch.save(agent.state_dict(), file_path)
+        print(f"Trained agent weights stored in {file_path}")
 
     main()

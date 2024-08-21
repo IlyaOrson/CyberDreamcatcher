@@ -63,23 +63,23 @@ class EpisodeSampler:
             stacked_rewards_to_go = np.vstack(batch_rewards_to_go)
             if counter:
                 self.writer.add_histogram(
-                    "reward-to-go distribution",
+                    "distributions/reward-to-go",
                     stacked_rewards_to_go[:, 0],
                     global_step=counter,
                 )
                 self.writer.add_histogram(
-                    "final reward distribution",
+                    "distributions/final-reward",
                     stacked_rewards_to_go[:, -1],
                     global_step=counter,
                 )
             else:
                 self.writer.add_histogram(
-                    "reward-to-go distribution",
+                    "distributions/reward-to-go",
                     stacked_rewards_to_go[:, 0],
                     # global_step=counter,
                 )
                 self.writer.add_histogram(
-                    "final reward distribution",
+                    "distributions/final-reward",
                     stacked_rewards_to_go[:, -1],
                     # global_step=counter,
                 )
