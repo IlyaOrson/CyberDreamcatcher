@@ -248,8 +248,8 @@ def plot_observation_encoded(
     axis.set_title("Encoded observation", y=-0.1)
 
 
-def plot_action_probabilities(
-    action_logits, host_names, action_names, show=False, block=False
+def _plot_action_probabilities(
+    action_logits, host_names, action_names, value=None, show=False, block=False
 ):
     probs = softmax(action_logits.flat_logits, dim=-1)
     min_prob = torch.min(probs).item()
@@ -278,6 +278,24 @@ def plot_action_probabilities(
         np.arange(len(global_action_names)), labels=global_action_names
     )
 
+    if value:
+        global_ax.text(
+            len(node_action_names),
+            1,
+            f"Value: {value:.2f}",
+            verticalalignment="bottom",
+            horizontalalignment="right",
+            # color="dimgrey",
+            fontsize=12,
+            fontweight="bold",
+            bbox={
+                "facecolor": "skyblue",
+                "alpha": 0.3,
+                "pad": 1,
+                "boxstyle": "round",
+            },
+        )
+
     # Rotate the tick labels and set their alignment.
     plt.setp(node_ax.get_xticklabels(), rotation=45, ha="left", rotation_mode="anchor")
     plt.setp(
@@ -291,3 +309,16 @@ def plot_action_probabilities(
     fig.set_tight_layout(True)
     if show:
         plt.show(block=block)
+
+
+def plot_action_probabilities(env, policy, obs, show=False, block=False):
+    with torch.no_grad():
+        action_logits, value = policy.get_action_logits(obs)
+        _plot_action_probabilities(
+            action_logits,
+            host_names=env.host_names,
+            action_names=env.action_names,
+            value=value,
+            show=show,
+            block=block,
+        )

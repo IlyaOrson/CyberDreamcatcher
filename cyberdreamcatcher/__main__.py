@@ -31,11 +31,7 @@ for step in trange(10):
     action, log_prob, entropy, value = policy(obs)
 
     # visualise action probability distribution
-    with torch.no_grad():
-        action_logits, value = policy.get_action_logits(obs)
-        plot_action_probabilities(
-            action_logits, host_names=env.host_names, action_names=env.action_names
-        )
+    plot_action_probabilities(env, policy, obs)
 
     print(f"host_name = {env.host_names[action[0]]}")
     print(f"action_name = {env.action_names[action[1]]}")
