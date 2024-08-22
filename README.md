@@ -100,7 +100,7 @@ pixi run train-flat-sb3-ppo
 
 ## Generalization to different networks
 
-It is possible (:‼) to test the performance of a policy under different network layouts.
+It is possible (‼️) to test the performance of a policy under different network layouts.
 You can specify the path to trained policy weights to be loaded as well as the name of a specific scenario in `scenarios/` to sample the performance on.
 The default behaviour is to use a random policy and test it over all the available predefined scenarios.
 
