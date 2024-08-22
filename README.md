@@ -49,6 +49,13 @@ pixi run test-cyborg  # run gymnasium-based cyborg tests
 pixi run eval-cardiff  # cage 2 winner policy inference (simplified and flattened observation space)
 ```
 
+> [!TIP]
+> [Hydra](https://hydra.cc/docs/tutorials/basic/running_your_app/working_directory/) is used to handle the inputs and outputs of every script.
+> The available options for each script are accessible with the `--help` flag.
+> The content generated per script execution is stored in the `outputs/` directory with subdirectories per timestamp of execution.
+> The hyperparameters used in each run are registered in a hidden subfolder `.hydra/` within the generated output folder.
+> Tensorboard is used to track interesting metrics, just specify the correct hydra output folder as the logdir: `tensorboard --logdir=outputs/...`
+
 ## Graph layout
 
 Quickly visualize the graph layout setup in the cage 2 challenge scenario file,
@@ -90,3 +97,14 @@ pixi run train-flat-sb3-ppo
 
 > [!NOTE]
 > A direct performance comparison is not possible because the observation space is different due to the graph inductive bias.
+
+## Generalization to different networks
+
+It is possible (:‼) to test the performance of a policy under different network layouts.
+You can specify the path to trained policy weights to be loaded as well as the name of a specific scenario in `scenarios/` to sample the performance on.
+The default behaviour is to use a random policy and test it over all the available predefined scenarios.
+
+```bash
+# try pixi run plot-generalization --help for the available options
+pixi run plot-generalization policy_path="outputs/2024-08-20/11-24-15/trained_params.pt"
+```

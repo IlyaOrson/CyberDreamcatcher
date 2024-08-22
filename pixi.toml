@@ -23,6 +23,7 @@ train-flat-sb3-ppo-all-scenarios = "python -m scripts.train-sb3-cyborg --multiru
 plot-network = "python -m scripts.plot-cyborg-layout"
 train-gnn-reinforce = "python -m scripts.train-gnn-reinforce"
 train-gnn-ppo = "python -m scripts.train-gnn-ppo"
+plot-generalization = "python -m scripts.plot-policy-performance"
 
 [dependencies]
 captum = "~=0.7"
