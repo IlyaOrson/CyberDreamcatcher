@@ -1,10 +1,17 @@
 # Cyber Dreamcatcher
 
-GNNs as network-aware policies for cyber-defence in RL environments!
+Graph Attention Networks (GATs) as network-aware reinforcement learning policies for cyber-defence!
 
 ![Logo](https://github.com/user-attachments/assets/73b01258-609d-4d07-b369-df323f360177)
 
+> [!IMPORTANT]
+> This is a research project that serves as a proof-of-concept towards realistic network environments in cyber defence.
+> Our implementation is based on the low-level structure of the CybORGv2.1 simulator but the approach is applicable to other simulators of similar complexity.
+
 ## Setup
+
+We use [pixi](https://github.com/prefix-dev/pixi) to setup a reproducible environment with predefined tasks.
+If you would like to use other project management tool, the list of dependencies and tasks are available in [pixi.toml](pixi.toml).
 
 Clone this repo recursevely to clone the custom CybORG v2.1 environment and Cage 2 reference submissions as submodules.
 
@@ -12,17 +19,14 @@ Clone this repo recursevely to clone the custom CybORG v2.1 environment and Cage
 git clone https://github.com/IlyaOrson/CyberDreamcatcher.git --recurse-submodules -j3
 ```
 
-We use [pixi](https://github.com/prefix-dev/pixi) to setup a reproducible environment with predefined tasks.
-If you would like to use other project management tool, the list of dependencies with versions is available in [pixi.toml](pixi.toml).
-
-First we need to install the dependencies of the project in a local environment.
+We need to install the dependencies of the project in a local environment.
 
 ```bash
 cd CyberDreamcatcher
 pixi install  # setup from pixi.toml file
 ```
 
-Afterwards, install the submodules as local packages avoiding using pip to deal with dependencies.
+Then install the submodules as local packages avoiding using pip to deal with dependencies.
 
 ```bash
 # install environments from git submodule as a local packages
@@ -39,6 +43,8 @@ pixi shell  # activate shell
 python -m cyberdreamcatcher  # try out environment simulation
 ```
 
+## Functionality
+
 We include predefined tasks that can be run to make sure everything is working:
 
 ```bash
@@ -51,12 +57,12 @@ pixi run eval-cardiff  # cage 2 winner policy inference (simplified and flattene
 
 > [!TIP]
 > [Hydra](https://hydra.cc/docs/tutorials/basic/running_your_app/working_directory/) is used to handle the inputs and outputs of every script.
-> The available options for each script are accessible with the `--help` flag.
-> The content generated per script execution is stored in the `outputs/` directory with subdirectories per timestamp of execution.
+> All the available parameters for each task are accessible with the `--help` flag.
+> The content generated per execution is stored in the `outputs/` directory with subdirectories per timestamp of execution.
 > The hyperparameters used in each run are registered in a hidden subfolder `.hydra/` within the generated output folder.
 > Tensorboard is used to track interesting metrics, just specify the correct hydra output folder as the logdir: `tensorboard --logdir=outputs/...`
 
-## Graph layout
+### Graph layout
 
 Quickly visualize the graph layout setup in the cage 2 challenge scenario file,
 and the graph observations received by a random GAT policy.
@@ -65,12 +71,12 @@ and the graph observations received by a random GAT policy.
 pixi run plot-network scenario=Scenario2
 ```
 
-> [!IMPORTANT]
+> [!WARNING]
 > This is the layout we expect to observe from the configuration... BUT this is not strictly enforced in CybORG v2.1!
 
-## Training
+### Training
 
-### PPO
+#### PPO
 
 We adapted the CleanRL implementation of PPO to handle our graph observation space, which is not compatible with gymnasium restrictions.
 
@@ -78,7 +84,7 @@ We adapted the CleanRL implementation of PPO to handle our graph observation spa
 pixi run train-gnn-ppo  # see --help for hyperparameters
 ```
 
-### REINFORCE
+#### REINFORCE
 
 We also include an implementation of the REINFORCE algorithm with a normalized rewards-to-go baseline for sanity check.
 This is slow since it samples a lot of episodes with a fixed policy to estimate the gradient before taking an optimization step.
@@ -98,13 +104,13 @@ pixi run train-flat-sb3-ppo
 > [!NOTE]
 > A direct performance comparison is not possible because the observation space is different due to the graph inductive bias.
 
-## Generalization to different networks
+### Generalization to different networks
 
-It is possible (‼️) to test the performance of a policy under different network layouts.
+It is possible (❗) to extrapolate the performance of a trained policy under different network layouts.
 You can specify the path to trained policy weights to be loaded as well as the name of a specific scenario in `scenarios/` to sample the performance on.
 The default behaviour is to use a random policy and test it over all the available predefined scenarios.
 
 ```bash
-# try pixi run plot-generalization --help for the available options
+# add --help to see the available options
 pixi run plot-generalization policy_path="outputs/2024-08-20/11-24-15/trained_params.pt"
 ```
