@@ -4,9 +4,10 @@ Graph Attention Networks (GATs) as network-aware reinforcement learning policies
 
 ![Logo](https://github.com/user-attachments/assets/73b01258-609d-4d07-b369-df323f360177)
 
-> [!IMPORTANT]
+> [!NOTE]
 > This is a research project that serves as a proof-of-concept towards realistic network environments in cyber defence.
-> Our implementation is based on the low-level structure of the CybORGv2.1 simulator but the approach is applicable to other simulators of similar complexity.
+> Our implementation is based on the low-level structure of the CybORG v2.1 simulator, which is unfortunately very gimmicky.
+> Our technique is applicable to other simulators of similar complexity and realism.
 
 ## Setup
 
@@ -72,7 +73,7 @@ pixi run plot-network scenario=Scenario2
 ```
 
 > [!WARNING]
-> This is the layout we expect to observe from the configuration... BUT this is not strictly enforced in CybORG v2.1!
+> This is the layout we expect from the simulator configuration... BUT unfortunately this is not respected by CybORG.
 
 ### Training
 
@@ -101,7 +102,7 @@ This trains the canonical flat observation space and a MLP policy we use SB3 wit
 pixi run train-flat-sb3-ppo
 ```
 
-> [!NOTE]
+> [!IMPORTANT]
 > A direct performance comparison is not possible because the observation space is different due to the graph inductive bias.
 
 ### Generalization to different networks
