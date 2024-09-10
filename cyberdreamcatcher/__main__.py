@@ -1,7 +1,6 @@
 from rich.pretty import pprint
 from tqdm import trange
 import matplotlib.pyplot as plt
-import torch
 
 from cyberdreamcatcher.env import GraphWrapper
 from cyberdreamcatcher.policy import Police
@@ -22,11 +21,11 @@ print(env.get_blue_table())
 print("Voila!")
 
 obs, info = env.reset()
-# env.render()
+env.render()
 
 policy = Police(env, latent_node_dim=env.host_embedding_size)
 
-for step in trange(10):
+for step in trange(3):
 
     action, log_prob, entropy, value = policy(obs)
 

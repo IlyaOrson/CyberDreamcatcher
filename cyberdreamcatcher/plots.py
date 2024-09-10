@@ -2,7 +2,7 @@ from pathlib import Path
 
 from matplotlib.cm import get_cmap
 import matplotlib.pyplot as plt
-from matplotlib.ticker import LogitFormatter
+from matplotlib.ticker import StrMethodFormatter
 import networkx as nx
 import numpy as np
 
@@ -280,18 +280,19 @@ def _plot_action_probabilities(
 
     if value:
         global_ax.text(
-            len(node_action_names),
-            1,
+            len(node_action_names)+1,
+            0,
             f"Value: {value:.2f}",
-            verticalalignment="bottom",
+            verticalalignment="center",
             horizontalalignment="right",
+            in_layout=True,
             # color="dimgrey",
-            fontsize=12,
+            fontsize=10,
             fontweight="bold",
             bbox={
-                "facecolor": "skyblue",
+                "facecolor": "gold",
                 "alpha": 0.3,
-                "pad": 1,
+                "pad": 0.5,
                 "boxstyle": "round",
             },
         )
@@ -302,11 +303,12 @@ def _plot_action_probabilities(
         global_ax.get_xticklabels(), rotation=315, ha="left", rotation_mode="anchor"
     )
 
-    cbar = fig.colorbar(mat_node, fraction=0.05, pad=0.05, format=LogitFormatter())
+    cbar = fig.colorbar(mat_node, fraction=0.05, pad=0.05, format=StrMethodFormatter("{x:.0%}"))
     # cbar = fig.colorbar(axs, orientation="horizontal")
     cbar.set_label("Probability")
 
-    fig.set_tight_layout(True)
+    # fig.set_tight_layout(True)
+    plt.tight_layout()
     if show:
         plt.show(block=block)
 
