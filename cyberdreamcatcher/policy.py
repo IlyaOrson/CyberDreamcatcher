@@ -1,6 +1,7 @@
 from collections import namedtuple
 
 import torch
+from torch.nn import ModuleDict
 from torch.distributions import Categorical
 
 from cyberdreamcatcher.utils import ravel_multi_index
@@ -62,11 +63,11 @@ class Police(torch.nn.Module):
         "PoliceReport", ["action", "log_prob", "entropy", "value"]
     )
 
-    def __init__(self, env, latent_node_dim, train_critic=False, *args, **kwargs):
+    def __init__(self, env, latent_node_dim, train_critic=True, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         # Latent layers (typically 1-4 in gnns due to oversmoothing)
-        self.gnn_layer_0 = GATGlobalConv(
+        self.actor_latent_0 = GATGlobalConv(
             in_channels=env.host_embedding_size,
             out_channels=latent_node_dim,
             global_channels=env.global_embedding_size,
@@ -74,7 +75,7 @@ class Police(torch.nn.Module):
             heads=1,
             share_weights=False,
         )
-        self.gnn_layer_1 = GATGlobalConv(
+        self.actor_latent_1 = GATGlobalConv(
             in_channels=latent_node_dim,
             out_channels=latent_node_dim,
             global_channels=env.global_embedding_size,
@@ -82,17 +83,38 @@ class Police(torch.nn.Module):
             heads=1,
             share_weights=False,
         )
-
         # Returns logits in a matrix of shape (nodes x actions)
-        self.action_layer = GATGlobalConv(
+        self.actor_head = GATGlobalConv(
             in_channels=latent_node_dim,
             out_channels=env.num_actions,  # one score per host/node and per action
             global_channels=env.global_embedding_size,
             edge_dim=env.edge_embedding_size,
             heads=1,
-            share_weights=True,
+            share_weights=False,
         )
-        self.critic_layer = GATGlobalConv(
+        self.actor_layers = ModuleDict({
+            "latent_0": self.actor_latent_0,
+            "latent_1": self.actor_latent_1,
+            "head": self.actor_head,
+        })
+
+        self.critic_latent_0 = GATGlobalConv(
+            in_channels=env.host_embedding_size,
+            out_channels=latent_node_dim,
+            global_channels=env.global_embedding_size,
+            edge_dim=env.edge_embedding_size,
+            heads=1,
+            share_weights=False,
+        )
+        self.critic_latent_1 = GATGlobalConv(
+            in_channels=latent_node_dim,
+            out_channels=latent_node_dim,
+            global_channels=env.global_embedding_size,
+            edge_dim=env.edge_embedding_size,
+            heads=1,
+            share_weights=False,
+        )
+        self.critic_head = GATGlobalConv(
             in_channels=latent_node_dim,
             out_channels=1,  # one score per node
             global_channels=env.global_embedding_size,
@@ -100,10 +122,53 @@ class Police(torch.nn.Module):
             heads=1,
             share_weights=False,
         )
+
+        self.critic_layers = ModuleDict({
+            # "latent_0": self.actor_latent_0,
+            # "latent_1": self.actor_latent_1,
+            "latent_0": self.critic_latent_0,
+            "latent_1": self.critic_latent_1,
+            "head": self.critic_head,
+        })
+
         # To train the critic only makes sense in actor-critic methods
         if not train_critic:
-            for param in self.critic_layer.parameters():
+            # for param in (*self.critic_latent_0.parameters(), *self.critic_latent_1.parameters(), *self.critic_head.parameters()):
+            for param in self.critic_layers.parameters():
                 param.requires_grad = False
+    
+    def count_parameters(self, submodule=None):
+        if submodule:
+            assert isinstance(submodule, str), "Please provide the name of the submodule."
+            return sum(p.numel() for p in self.get_submodule(submodule).parameters())
+        return sum(p.numel() for p in self.parameters())
+
+    def actor(self, nodes_matrix, edge_index, global_vector, edges_matrix):
+        # Score each node to select actions
+        actor_latent_nodes = self.actor_latent_0(
+            nodes_matrix, edge_index, global_vector, edges_matrix
+        )
+        actor_latent_nodes = self.actor_latent_1(
+            actor_latent_nodes, edge_index, global_vector, edges_matrix
+        )
+        action_logits = self.actor_head(
+            actor_latent_nodes, edge_index, global_vector, edges_matrix
+        )
+        return action_logits
+
+    def critic(self, nodes_matrix, edge_index, global_vector, edges_matrix):
+        # Score each node to value state
+        critic_latent_nodes = self.critic_latent_0(
+            nodes_matrix, edge_index, global_vector, edges_matrix
+        )
+        critic_latent_nodes = self.critic_latent_1(
+            critic_latent_nodes, edge_index, global_vector, edges_matrix
+        )
+        node_values = self.critic_head(
+            critic_latent_nodes, edge_index, global_vector, edges_matrix
+        )
+        value = torch.sum(node_values)
+        return value
 
     def get_action_logits(self, graph):
         # Destructure Data() object from pytorch geometric
@@ -112,24 +177,10 @@ class Police(torch.nn.Module):
         edges_matrix = graph.edge_attr
         global_vector = graph.global_attr
 
-        # A few gnn layers to pass messages around the graph
-        latent_nodes = self.gnn_layer_0(
-            nodes_matrix, edge_index, global_vector, edges_matrix
-        )
-        latent_nodes = self.gnn_layer_1(
-            latent_nodes, edge_index, global_vector, edges_matrix
-        )
-
-        # Use gnn to score each node to select actions
-        action_logits = self.action_layer(
-            latent_nodes, edge_index, global_vector, edges_matrix
-        )
+        action_logits = self.actor(nodes_matrix, edge_index, global_vector, edges_matrix)
 
         # with torch.no_grad():
-        node_values = self.critic_layer(
-            latent_nodes, edge_index, global_vector, edges_matrix
-        )
-        value = torch.sum(node_values)
+        value = self.critic(nodes_matrix, edge_index, global_vector, edges_matrix)
 
         return ActionLogits(action_logits), value
 
