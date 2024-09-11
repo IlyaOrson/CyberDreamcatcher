@@ -7,7 +7,7 @@ Graph Attention Networks (GATs) as network-aware reinforcement learning policies
 > [!NOTE]
 > This is a research project that serves as a proof-of-concept towards realistic network environments in cyber defence.
 > Our implementation is based on the low-level structure of the CybORG v2.1 simulator, which is unfortunately very gimmicky.
-> Our technique is applicable to other simulators of similar complexity and realism.
+> Our technique is applicable to other simulators of similar complexity.
 
 ## Setup
 
@@ -17,7 +17,7 @@ If you would like to use other project management tool, the list of dependencies
 Clone this repo recursevely to clone the custom CybORG v2.1 environment and Cage 2 reference submissions as submodules.
 
 ```bash
-git clone https://github.com/IlyaOrson/CyberDreamcatcher.git --recurse-submodules -j3
+git clone https://github.com/IlyaOrson/CyberDreamcatcher.git --recurse-submodules -j4
 ```
 
 We need to install the dependencies of the project in a local environment.

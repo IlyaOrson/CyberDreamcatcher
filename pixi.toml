@@ -11,8 +11,9 @@ python = "~=3.11.8"
 
 [tasks]
 install-cyborg = "pip install --no-build-isolation --no-deps --disable-pip-version-check -e ./CybORG"
+install-cyborg-debugged = "pip install --no-build-isolation --no-deps --disable-pip-version-check -e ./CAGE_2_Fixed/Debugged_CybORG/CybORG"
 install-sb3 = "pip install --no-build-isolation --no-deps --disable-pip-version-check --force-reinstall stable-baselines3==2.3.2"
-install-custom-sb3 = "pip install --no-build-isolation --no-deps --disable-pip-version-check --force-reinstall -e ./stable-baselines3"
+install-sb3-custom = "pip install --no-build-isolation --no-deps --disable-pip-version-check --force-reinstall -e ./stable-baselines3"
 format = "ruff format cyberdreamcatcher"
 tutorial-cyborg = "jupyter-lab CybORG/CybORG/Tutorial/"
 test-cyborg = "pytest CybORG/CybORG/Tests/test_sim"

@@ -12,3 +12,6 @@
 [submodule "stable-baselines3"]
 	path = stable-baselines3
 	url = https://github.com/IlyaOrson/stable-baselines3.git
+[submodule "CAGE_2_Fixed"]
+	path = CAGE_2_Fixed
+	url = https://github.com/IlyaOrson/CAGE_2_Fixed.git
