@@ -11,6 +11,7 @@ from rich.pretty import pprint
 import torch
 
 from CybORG import CybORG
+from CybORG.Shared.Enums import TrinaryEnum
 from CybORG.Agents import RedMeanderAgent  # , TestAgent
 from CybORG.Agents.Wrappers import ChallengeWrapper  # , BaseWrapper
 
@@ -30,14 +31,15 @@ from cyberdreamcatcher.plots import (
 
 
 # NOTE does not comply with the gym observation space restrictions
-class GraphWrapper(gym.Env):
+# class GraphWrapper(gym.Env):
+class GraphWrapper():
     agent_name = "Blue"
 
     HostProperties = namedtuple("Host", ("subnet", "num_local_ports", "malware"))
 
     host_embedding_size = 3
     edge_embedding_size = 1
-    global_embedding_size = 2
+    global_embedding_size = 3
 
     metadata = {"render_modes": ["human"]}
 
@@ -275,11 +277,14 @@ class GraphWrapper(gym.Env):
 
         host_properties = {}
         connections_between_hosts = defaultdict(int)
+        success_enum = None
         for host, properties in observation.items():
             if host == "success":
-                # FIXME what is done if the environment fails normally?
-                if properties.name == "FALSE":
-                    return self.host_properties_baseline, self.connections_baseline
+                success_enum = properties
+                # NOTE The observation can be valuable even if the previous action failed
+                # if properties.name == "FALSE":
+                #     pass
+                #     return self.host_properties_baseline, self.connections_baseline, success_enum
                 continue
 
             num_local_ports = 0
@@ -360,9 +365,9 @@ class GraphWrapper(gym.Env):
                 pprint(host_properties)
                 pprint(connections_between_hosts)
 
-        return host_properties, connections_between_hosts
+        return host_properties, connections_between_hosts, success_enum
 
-    def encode_graph_observation(self, host_properties, connections_between_hosts):
+    def encode_graph_observation(self, host_properties, connections_between_hosts, success_enum):
         """Transform the human understandable graph representation to a matrix encoding.
         Categorical values are not one-hot-encoded for now.
         """
@@ -428,11 +433,18 @@ class GraphWrapper(gym.Env):
         # edge weights are expected as a matrix of shape num_edges x num_attrs_per_edge
         edge_attr = np.array(edge_weights).reshape((-1, 1))
 
+        if success_enum is None:
+            success_value = TrinaryEnum.UNKNOWN.value
+        else:
+            success_value = success_enum.value
+        prev_action_encoding = self.previous_action_encoding.clone().detach()
+        success_encoding = torch.tensor([success_value], dtype=torch.float)
+
         return Data(
             x=tensor(node_matrix, dtype=torch.float),
             edge_index=tensor(edge_index, dtype=torch.long),
             edge_attr=tensor(edge_attr, dtype=torch.float),
-            global_attr=self.previous_action_encoding.clone().detach(),
+            global_attr=torch.cat((prev_action_encoding, success_encoding)),
         )
 
     # def graph_to_gym_observation(self) TODO method to adapt graph to gymnasium space
@@ -449,11 +461,11 @@ class GraphWrapper(gym.Env):
         self.set_feasible_connections()
 
         # Extract graph represention of blue the initial observation of the blue agent
-        self.host_properties_baseline, self.connections_baseline = (
+        self.host_properties_baseline, self.connections_baseline, self.success_enum = (
             self.distill_graph_observation(self.blue_baseline)
         )
         observation = self.encode_graph_observation(
-            self.host_properties_baseline, self.connections_baseline
+            self.host_properties_baseline, self.connections_baseline, self.success_enum,
         )
 
         # return np.array(result.observation), vars(result)
@@ -472,8 +484,8 @@ class GraphWrapper(gym.Env):
         cyborg_result = self.cyborg.step(agent=self.agent_name, action=action_instance)
 
         # cyborg_observation = cyborg_result.observation
-        host_properties, connections = self.get_graph_observation()
-        observation = self.encode_graph_observation(host_properties, connections)
+        host_properties, connections, success = self.get_graph_observation()
+        observation = self.encode_graph_observation(host_properties, connections, success)
 
         reward = cyborg_result.reward
         terminated = cyborg_result.done
@@ -494,8 +506,9 @@ class GraphWrapper(gym.Env):
         return observation, reward, terminated, truncated, info
 
     def render(self):
-        host_properties, connections = self.get_graph_observation()
-        observation = self.encode_graph_observation(host_properties, connections)
+        # TODO add success status to plot
+        host_properties, connections, success = self.get_graph_observation()
+        observation = self.encode_graph_observation(host_properties, connections, success)
         if self.render_mode == "human":
             plot_observation(
                 host_properties,
@@ -518,8 +531,8 @@ class GraphWrapper(gym.Env):
             self.fig.set_tight_layout(True)
 
     def get_encoded_observation(self):
-        host_properties, connections = self.get_graph_observation()
-        return self.encode_graph_observation(host_properties, connections)
+        host_properties, connections, success = self.get_graph_observation()
+        return self.encode_graph_observation(host_properties, connections, success)
 
     def get_graph_observation(self):
         raw_observation = self.get_raw_observation()
