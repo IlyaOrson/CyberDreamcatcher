@@ -267,9 +267,9 @@ if __name__ == "__main__":
                     action
                 )
                 next_done = np.logical_or(terminations, truncations)
-                rewards[step] = torch.tensor(reward).to(device).view(-1)
+                rewards[step] = torch.tensor(np.array([reward])).to(device).view(-1)
                 # rewards.append(torch.tensor(reward).to(device).view(-1))
-                next_done = torch.Tensor(np.array(next_done)).to(device)
+                next_done = torch.Tensor(np.array([next_done])).to(device)
                 # next_obs, next_done = (
                 #     torch.Tensor(next_obs).to(device),
                 #     torch.Tensor(next_done).to(device),
@@ -295,6 +295,7 @@ if __name__ == "__main__":
             # bootstrap value if not done
             with torch.no_grad():
                 _, next_value = agent.get_action_logits(next_obs)
+                next_value = next_value.reshape(1, -1)
                 # next_value = agent.critic(next_obs).reshape(1, -1)
                 advantages = torch.zeros_like(rewards).to(device)
                 lastgaelam = 0
@@ -315,6 +316,9 @@ if __name__ == "__main__":
                         + args.gamma * args.gae_lambda * nextnonterminal * lastgaelam
                     )
                 returns = advantages + values
+
+            # for _obs in obs:
+            #     plot_observation_encoded(env, _obs, show=True, block=True)
 
             # flatten the batch
             b_obs = obs

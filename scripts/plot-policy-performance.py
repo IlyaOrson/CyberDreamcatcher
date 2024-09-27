@@ -1,13 +1,18 @@
 import os
 from pathlib import Path
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, List
+
 
 import hydra
 from hydra.core.config_store import ConfigStore
+from omegaconf import OmegaConf
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+import pandas as pd
 import torch
 from torch.utils.tensorboard import SummaryWriter
-# import matplotlib.pyplot as plt
 
 from cyberdreamcatcher.env import GraphWrapper
 from cyberdreamcatcher.policy import Police
@@ -18,6 +23,7 @@ from cyberdreamcatcher.sampler import EpisodeSampler
 class Config:
     policy_path: Optional[str] = None
     scenario: Optional[str] = None
+    specialised_policies_dirs: Optional[List[str]] = None
     seed: int = 31415
     episode_length: int = 30
     num_episodes: int = 100
@@ -34,11 +40,27 @@ def main(cfg: Config):
     output_dir = hydra.core.hydra_config.HydraConfig.get().runtime.output_dir
     print(f"Output directory  : {output_dir}")
 
+    assert any((cfg.policy_dir, cfg.policy_path, cfg.specialised_policies_dirs))
+
+    policy_path = Path(cfg.policy_path)
+    assert policy_path.is_file()
+    policy_weights = torch.load(policy_path)
+    
+    policy_dir = policy_path.parent
+    conf_path = policy_dir / ".hydra" / "config.yaml"
+    assert conf_path.is_file()
+    conf = OmegaConf.load(conf_path)
+    print("Configuration of main loaded policy.")
+    print(OmegaConf.to_yaml(conf))
+    scenario = conf.scenario
+
     if cfg.policy_path is None:
         print("No policy given, random weights will be used.")
     else:
         # TODO print details used to train the policy weights
         print(f"Loading policy from {cfg.policy_path}")
+        policy_path = Path(cfg.policy_path)
+        assert policy_path.is_file()
 
     if not cfg.scenario:
         scenarios_dir = Path.cwd() / "scenarios"
@@ -47,7 +69,7 @@ def main(cfg: Config):
         scenarios = [cfg.scenario]
 
     for scenario in scenarios:
-        
+
         run_name = f"PPO_{scenario}_seed_{cfg.seed}"
         log_dir = Path(output_dir) / run_name
 

@@ -69,7 +69,7 @@ Quickly visualize the graph layout setup in the cage 2 challenge scenario file,
 and the graph observations received by a random GAT policy.
 
 ```bash
-pixi run plot-network scenario=Scenario2
+pixi run plot-network scenario=Scenario2  # see --help for hyperparameters
 ```
 
 > [!WARNING]
@@ -99,7 +99,7 @@ pixi run train-gnn-reinforce  # see --help for hyperparameters
 This trains the canonical flat observation space and a MLP policy we use SB3 with PPO:
 
 ```bash
-pixi run train-flat-sb3-ppo
+pixi run train-flat-sb3-ppo  # see --help for hyperparameters
 ```
 
 > [!IMPORTANT]
@@ -108,10 +108,17 @@ pixi run train-flat-sb3-ppo
 ### Generalization to different networks
 
 It is possible (❗) to extrapolate the performance of a trained policy under different network layouts.
-You can specify the path to trained policy weights to be loaded as well as the name of a specific scenario in `scenarios/` to sample the performance on.
+One can specify the path to a trained policy to be loaded, as well as the name of a specific scenario in `scenarios/` to sample the performance on.
 The default behaviour is to use a random policy and test it over all the available predefined scenarios.
 
 ```bash
 # add --help to see the available options
-pixi run plot-generalization policy_path="outputs/2024-08-20/11-24-15/trained_params.pt"
+pixi run plot-generalization policy_path="path/to/trained_params.pt"
+```
+
+It is possible to provide the directory to other trained policies specialized per scenario, in order to compare the optimality gap trade-off between the extrapolation of a policy and a specialized policy per scenario.
+
+```bash
+# add --help to see the available options
+pixi run plot-generalization policy_path="path/to/trained_params.pt specialized_policies=[/path/to/dir1,/path/to/dir2,/path/to/dir3]"
 ```
