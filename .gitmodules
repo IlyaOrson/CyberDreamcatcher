@@ -9,9 +9,6 @@
 	path = turing-cage-2
 	url = https://github.com/IlyaOrson/turing-cage-2.git
 	branch = submission-final
-[submodule "stable-baselines3"]
-	path = stable-baselines3
-	url = https://github.com/IlyaOrson/stable-baselines3.git
 [submodule "CybORG_plus_plus"]
 	path = CybORG_plus_plus
 	url = https://github.com/alan-turing-institute/CybORG_plus_plus.git
