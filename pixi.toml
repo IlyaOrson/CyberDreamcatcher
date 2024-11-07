@@ -10,8 +10,8 @@ platforms = ["osx-arm64", "win-64", "linux-aarch64", "linux-64"]
 python = "~=3.11"
 
 [tasks]
-install-cyborg = "pip install --no-build-isolation --no-deps --disable-pip-version-check -e ./CybORG"
-install-cyborg-debugged = "pip install --no-build-isolation --no-deps --disable-pip-version-check -e ./CybORG_plus_plus/Debugged_CybORG/CybORG"
+install-cyborg = "pip install --no-build-isolation --no-deps --disable-pip-version-check --force-reinstall -e ./CybORG"
+install-cyborg-debugged = "pip install --no-build-isolation --no-deps --disable-pip-version-check --force-reinstall -e ./CybORG_plus_plus/Debugged_CybORG/CybORG"
 install-sb3 = "pip install --no-build-isolation --no-deps --disable-pip-version-check --force-reinstall stable-baselines3==2.3.2"
 format = "ruff format cyberdreamcatcher"
 tutorial-cyborg = "jupyter-lab CybORG/CybORG/Tutorial/"
@@ -22,6 +22,7 @@ train-flat-sb3-ppo = "python -m scripts.train-sb3-cyborg"
 train-flat-sb3-ppo-all-scenarios = "python -m scripts.train-sb3-cyborg --multirun scenario=Scenario2,Scenario2_+_User5,Scenario2_+_User5_User6,Scenario2_+_User6,Scenario2_-_User2,Scenario2_-_User2_User4,Scenario2_-_User4"
 plot-network = "python -m scripts.plot-cyborg-layout"
 train-gnn-reinforce = "python -m scripts.train-gnn-reinforce"
+train-gnn-reinforce-all-scenarios = "python -m scripts.train-gnn-reinforce --multirun scenario=Scenario2,Scenario2_+_User5,Scenario2_+_User5_User6,Scenario2_+_User6,Scenario2_-_User2,Scenario2_-_User2_User4,Scenario2_-_User4"
 train-gnn-ppo = "python -m scripts.train-gnn-ppo"
 plot-generalization = "python -m scripts.plot-policy-performance"
 
