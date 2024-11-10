@@ -31,7 +31,7 @@ cs = ConfigStore.instance()
 cs.store(name="config", node=Config)
 
 
-@hydra.main(version_base=None, config_name="config")
+@hydra.main(version_base=None, config_name="config", config_path=".")
 def script(cfg: Config) -> None:
     # https://hydra.cc/docs/tutorials/basic/running_your_app/working_directory/
     print(f"Working directory : {os.getcwd()}")

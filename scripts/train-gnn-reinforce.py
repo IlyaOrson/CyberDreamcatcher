@@ -22,7 +22,6 @@ class Config:
     learning_rate: float = 1e-2
     optimizer_iterations: int = 300
 
-
 class REINFORCE:
     def __init__(self, env, policy, conf, log_dir=None) -> None:
         self.env = env
@@ -164,7 +163,7 @@ if __name__ == "__main__":
     # Registering the Config class with the name 'config'.
     cs.store(name="config", node=Config)
 
-    @hydra.main(version_base=None, config_name="config")
+    @hydra.main(version_base=None, config_name="config", config_path=".")
     def main(cfg: Config) -> None:
         # https://hydra.cc/docs/tutorials/basic/running_your_app/working_directory/
         print(f"Working directory : {os.getcwd()}")

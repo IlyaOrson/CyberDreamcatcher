@@ -56,3 +56,4 @@ plotille = ">=5.0.0,<6"
 
 [pypi-dependencies]
 gymnasium = "~=0.28.1"
+hydra-joblib-launcher = ">=1.2.0, <2"
