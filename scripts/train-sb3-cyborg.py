@@ -14,7 +14,7 @@ from cyberdreamcatcher.utils import get_scenario
 
 
 @dataclass
-class Config:
+class Cfg:
     # "Scenario2_-_User2_User4"  # "Scenario2_+_User5_User6"
     scenario: str = "Scenario2"
     max_episode_steps: int = 30
@@ -23,16 +23,14 @@ class Config:
     policy_device: str = "cpu"
     policy_verbosity: int = 1
 
-
+# Registering the Config class with the expected name 'args'.
 # https://hydra.cc/docs/tutorials/structured_config/minimal_example/
 cs = ConfigStore.instance()
-
-# Registering the Config class with the name 'config'.
-cs.store(name="config", node=Config)
+cs.store(name="args", node=Cfg)
 
 
-@hydra.main(version_base=None, config_name="config", config_path=".")
-def script(cfg: Config) -> None:
+@hydra.main(version_base=None, config_name="hydra", config_path="conf")
+def script(cfg: Cfg) -> None:
     # https://hydra.cc/docs/tutorials/basic/running_your_app/working_directory/
     print(f"Working directory : {os.getcwd()}")
     output_dir = hydra.core.hydra_config.HydraConfig.get().runtime.output_dir

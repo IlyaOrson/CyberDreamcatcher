@@ -92,11 +92,13 @@ class Police(torch.nn.Module):
             heads=1,
             share_weights=False,
         )
-        self.actor_layers = ModuleDict({
-            "latent_0": self.actor_latent_0,
-            "latent_1": self.actor_latent_1,
-            "head": self.actor_head,
-        })
+        self.actor_layers = ModuleDict(
+            {
+                "latent_0": self.actor_latent_0,
+                "latent_1": self.actor_latent_1,
+                "head": self.actor_head,
+            }
+        )
 
         self.critic_latent_0 = GATGlobalConv(
             in_channels=env.host_embedding_size,
@@ -123,23 +125,27 @@ class Police(torch.nn.Module):
             share_weights=False,
         )
 
-        self.critic_layers = ModuleDict({
-            # "latent_0": self.actor_latent_0,
-            # "latent_1": self.actor_latent_1,
-            "latent_0": self.critic_latent_0,
-            "latent_1": self.critic_latent_1,
-            "head": self.critic_head,
-        })
+        self.critic_layers = ModuleDict(
+            {
+                # "latent_0": self.actor_latent_0,
+                # "latent_1": self.actor_latent_1,
+                "latent_0": self.critic_latent_0,
+                "latent_1": self.critic_latent_1,
+                "head": self.critic_head,
+            }
+        )
 
         # To train the critic only makes sense in actor-critic methods
         if not train_critic:
             # for param in (*self.critic_latent_0.parameters(), *self.critic_latent_1.parameters(), *self.critic_head.parameters()):
             for param in self.critic_layers.parameters():
                 param.requires_grad = False
-    
+
     def count_parameters(self, submodule=None):
         if submodule:
-            assert isinstance(submodule, str), "Please provide the name of the submodule."
+            assert isinstance(
+                submodule, str
+            ), "Please provide the name of the submodule."
             return sum(p.numel() for p in self.get_submodule(submodule).parameters())
         return sum(p.numel() for p in self.parameters())
 
@@ -177,7 +183,9 @@ class Police(torch.nn.Module):
         edges_matrix = graph.edge_attr
         global_vector = graph.global_attr
 
-        action_logits = self.actor(nodes_matrix, edge_index, global_vector, edges_matrix)
+        action_logits = self.actor(
+            nodes_matrix, edge_index, global_vector, edges_matrix
+        )
 
         # with torch.no_grad():
         value = self.critic(nodes_matrix, edge_index, global_vector, edges_matrix)

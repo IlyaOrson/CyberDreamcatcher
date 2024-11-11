@@ -32,7 +32,7 @@ from cyberdreamcatcher.plots import (
 
 # NOTE does not comply with the gym observation space restrictions
 # class GraphWrapper(gym.Env):
-class GraphWrapper():
+class GraphWrapper:
     agent_name = "Blue"
 
     HostProperties = namedtuple("Host", ("subnet", "num_local_ports", "malware"))
@@ -367,7 +367,9 @@ class GraphWrapper():
 
         return host_properties, connections_between_hosts, success_enum
 
-    def encode_graph_observation(self, host_properties, connections_between_hosts, success_enum):
+    def encode_graph_observation(
+        self, host_properties, connections_between_hosts, success_enum
+    ):
         """Transform the human understandable graph representation to a matrix encoding.
         Categorical values are not one-hot-encoded for now.
         """
@@ -465,7 +467,9 @@ class GraphWrapper():
             self.distill_graph_observation(self.blue_baseline)
         )
         observation = self.encode_graph_observation(
-            self.host_properties_baseline, self.connections_baseline, self.success_enum,
+            self.host_properties_baseline,
+            self.connections_baseline,
+            self.success_enum,
         )
 
         # return np.array(result.observation), vars(result)
@@ -485,7 +489,9 @@ class GraphWrapper():
 
         # cyborg_observation = cyborg_result.observation
         host_properties, connections, success = self.get_graph_observation()
-        observation = self.encode_graph_observation(host_properties, connections, success)
+        observation = self.encode_graph_observation(
+            host_properties, connections, success
+        )
 
         reward = cyborg_result.reward
         terminated = cyborg_result.done
@@ -508,7 +514,9 @@ class GraphWrapper():
     def render(self):
         # TODO add success status to plot
         host_properties, connections, success = self.get_graph_observation()
-        observation = self.encode_graph_observation(host_properties, connections, success)
+        observation = self.encode_graph_observation(
+            host_properties, connections, success
+        )
         if self.render_mode == "human":
             plot_observation(
                 host_properties,

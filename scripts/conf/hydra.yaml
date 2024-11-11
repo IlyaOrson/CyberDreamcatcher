@@ -1,0 +1,5 @@
+defaults:
+  # scripts define their own parameters @dataclass
+  # and register it as "args" in the ConfigStore
+  - args
+  - override hydra/launcher: joblib

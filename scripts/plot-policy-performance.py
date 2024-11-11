@@ -20,7 +20,7 @@ from cyberdreamcatcher.sampler import EpisodeSampler
 
 
 @dataclass
-class Config:
+class Cfg:
     policy_path: Optional[str] = None
     scenario: Optional[str] = None
     specialised_policies_dirs: Optional[List[str]] = None
@@ -28,13 +28,13 @@ class Config:
     episode_length: int = 30
     num_episodes: int = 100
 
+# Registering the Config class with the expected name 'args'.
 # https://hydra.cc/docs/tutorials/structured_config/minimal_example/
 cs = ConfigStore.instance()
-# Registering the Config class with the name 'config'.
-cs.store(name="config", node=Config)
+cs.store(name="args", node=Cfg)
 
-@hydra.main(version_base=None, config_name="config")
-def main(cfg: Config):
+@hydra.main(version_base=None, config_name="args", config_path=None)
+def main(cfg: Cfg):
     # https://hydra.cc/docs/tutorials/basic/running_your_app/working_directory/
     print(f"Working directory : {os.getcwd()}")
     output_dir = hydra.core.hydra_config.HydraConfig.get().runtime.output_dir
@@ -45,7 +45,7 @@ def main(cfg: Config):
     policy_path = Path(cfg.policy_path)
     assert policy_path.is_file()
     policy_weights = torch.load(policy_path)
-    
+
     policy_dir = policy_path.parent
     conf_path = policy_dir / ".hydra" / "config.yaml"
     assert conf_path.is_file()

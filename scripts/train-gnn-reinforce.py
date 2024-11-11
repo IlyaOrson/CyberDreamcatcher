@@ -1,7 +1,7 @@
 # adapted from https://github.com/OptiMaL-PSE-Lab/REINFORCE-PSE
 
 import random
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 # from itertools import accumulate
 
 import numpy as np
@@ -14,7 +14,7 @@ EPS = np.finfo(np.float32).eps.item()
 
 
 @dataclass
-class Config:
+class Cfg:
     scenario: str = "Scenario2_-_User2_User4"  # "Scenario2_+_User5_User6"
     episode_length: int = 30
     num_episodes_sample: int = 1000
@@ -157,14 +157,13 @@ if __name__ == "__main__":
     from cyberdreamcatcher.env import GraphWrapper
     from cyberdreamcatcher.policy import Police
 
+    # Registering the Config class with the expected name 'args'.
     # https://hydra.cc/docs/tutorials/structured_config/minimal_example/
     cs = ConfigStore.instance()
+    cs.store(name="args", node=Cfg)
 
-    # Registering the Config class with the name 'config'.
-    cs.store(name="config", node=Config)
-
-    @hydra.main(version_base=None, config_name="config", config_path=".")
-    def main(cfg: Config) -> None:
+    @hydra.main(version_base=None, config_name="hydra", config_path="conf")
+    def main(cfg: Cfg) -> None:
         # https://hydra.cc/docs/tutorials/basic/running_your_app/working_directory/
         print(f"Working directory : {os.getcwd()}")
         output_dir = hydra.core.hydra_config.HydraConfig.get().runtime.output_dir

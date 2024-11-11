@@ -280,7 +280,7 @@ def _plot_action_probabilities(
 
     if value:
         global_ax.text(
-            len(node_action_names)+1,
+            len(node_action_names) + 1,
             0,
             f"Value: {value:.2f}",
             verticalalignment="center",
@@ -303,7 +303,9 @@ def _plot_action_probabilities(
         global_ax.get_xticklabels(), rotation=315, ha="left", rotation_mode="anchor"
     )
 
-    cbar = fig.colorbar(mat_node, fraction=0.05, pad=0.05, format=StrMethodFormatter("{x:.1%}"))
+    cbar = fig.colorbar(
+        mat_node, fraction=0.05, pad=0.05, format=StrMethodFormatter("{x:.1%}")
+    )
     # cbar = fig.colorbar(axs, orientation="horizontal")
     cbar.set_label("Probability")
 

@@ -27,7 +27,7 @@ from cyberdreamcatcher.sampler import EpisodeSampler
 
 
 @dataclass
-class Args:
+class Cfg:
     exp_name: str = os.path.basename(__file__)[: -len(".py")]
     # the name of this experiment
     seed: int = 1
@@ -145,12 +145,14 @@ class Args:
 
 
 if __name__ == "__main__":
+
+    # Registering the Config class with the expected name 'args'.
     # https://hydra.cc/docs/tutorials/structured_config/minimal_example/
     cs = ConfigStore.instance()
-    cs.store(name="config", node=Args)
+    cs.store(name="args", node=Cfg)
 
-    @hydra.main(version_base=None, config_name="config")
-    def main(args: Args) -> None:
+    @hydra.main(version_base=None, config_name="hydra", config_path="conf")
+    def main(args: Cfg) -> None:
         # https://hydra.cc/docs/tutorials/basic/running_your_app/working_directory/
         print(f"Working directory : {os.getcwd()}")
         output_dir = hydra.core.hydra_config.HydraConfig.get().runtime.output_dir

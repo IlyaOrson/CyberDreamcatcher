@@ -9,16 +9,16 @@ from cyberdreamcatcher.plots import plot_feasible_connections
 
 
 @dataclass
-class Config:
+class Cfg:
     scenario: str = "Scenario2"
 
-
+# Registering the Config class with the expected name 'args'.
+# https://hydra.cc/docs/tutorials/structured_config/minimal_example/
 cs = ConfigStore.instance()
-cs.store(name="config", node=Config)
+cs.store(name="args", node=Cfg)
 
-
-@hydra.main(version_base=None, config_name="config")
-def main(cfg: Config):
+@hydra.main(version_base=None, config_name="args", config_path=None)
+def main(cfg: Cfg):
     env = GraphWrapper(scenario=cfg.scenario, render_mode=None)
     # with plt.xkcd():
     plot_feasible_connections(env, show=True, block=True)
