@@ -12,10 +12,12 @@ from cyberdreamcatcher.plots import plot_feasible_connections
 class Cfg:
     scenario: str = "Scenario2"
 
+
 # Registering the Config class with the expected name 'args'.
 # https://hydra.cc/docs/tutorials/structured_config/minimal_example/
 cs = ConfigStore.instance()
 cs.store(name="args", node=Cfg)
+
 
 @hydra.main(version_base=None, config_name="args", config_path=None)
 def main(cfg: Cfg):

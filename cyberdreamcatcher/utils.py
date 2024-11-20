@@ -1,10 +1,13 @@
 import inspect
 from pathlib import Path
 from bidict import bidict
+import logging
 
 import torch
 
 import CybORG
+
+LOGGER = logging.getLogger(__name__)
 
 
 def get_scenario(name="Scenario2", from_cyborg=True):
@@ -18,7 +21,7 @@ def get_scenario(name="Scenario2", from_cyborg=True):
     scenario_path = scenario_dir / Path(name).with_suffix(".yaml")
 
     assert scenario_path.exists()
-    print(f"Loaded scenario file from {scenario_path}")
+    LOGGER.info(f"Loaded scenario file from {scenario_path}")
 
     return scenario_path
 

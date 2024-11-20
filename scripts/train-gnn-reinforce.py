@@ -1,7 +1,7 @@
 # adapted from https://github.com/OptiMaL-PSE-Lab/REINFORCE-PSE
 
 import random
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 # from itertools import accumulate
 
 import numpy as np
@@ -21,6 +21,7 @@ class Cfg:
     seed: int = 0
     learning_rate: float = 1e-2
     optimizer_iterations: int = 300
+
 
 class REINFORCE:
     def __init__(self, env, policy, conf, log_dir=None) -> None:

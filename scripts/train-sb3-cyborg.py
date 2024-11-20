@@ -23,6 +23,7 @@ class Cfg:
     policy_device: str = "cpu"
     policy_verbosity: int = 1
 
+
 # Registering the Config class with the expected name 'args'.
 # https://hydra.cc/docs/tutorials/structured_config/minimal_example/
 cs = ConfigStore.instance()

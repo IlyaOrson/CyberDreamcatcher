@@ -145,7 +145,6 @@ class Cfg:
 
 
 if __name__ == "__main__":
-
     # Registering the Config class with the expected name 'args'.
     # https://hydra.cc/docs/tutorials/structured_config/minimal_example/
     cs = ConfigStore.instance()
@@ -203,10 +202,12 @@ if __name__ == "__main__":
         # )
 
         env = GraphWrapper(scenario=args.scenario, max_steps=args.num_steps)
-        agent = Police(env, train_critic=True, latent_node_dim=env.host_embedding_size).to(device)
+        agent = Police(
+            env, train_critic=True, latent_node_dim=env.host_embedding_size
+        ).to(device)
         optimizer = optim.Adam(agent.parameters(), lr=args.learning_rate, eps=1e-5)
 
-        sampler = EpisodeSampler(env, agent, seed=args.seed, writer=writer)
+        sampler = EpisodeSampler(env, agent, seed=args.seed, writer=writer)  # FIXME
         sampler.sample_episodes(args.num_ep_reward_sample, counter=0)
 
         # ALGO Logic: Storage setup
@@ -347,7 +348,9 @@ if __name__ == "__main__":
 
                     newlogprob, entropies, newvalue = [], [], []
                     for idx in mb_inds:
-                        _action, action_log_prob, entropy, value = agent(b_obs[idx], b_actions[idx])
+                        _action, action_log_prob, entropy, value = agent(
+                            b_obs[idx], b_actions[idx]
+                        )
                         newlogprob.append(action_log_prob)
                         entropies.append(entropy)
                         newvalue.append(value)
@@ -427,9 +430,11 @@ if __name__ == "__main__":
             writer.add_scalar("losses/clipfrac", np.mean(clipfracs), global_step)
             writer.add_scalar("losses/explained_variance", explained_var, global_step)
             # print("SPS:", int(global_step / (time.time() - start_time)))
-            writer.add_scalar("charts/SPS", int(global_step / (time.time() - start_time)), global_step)
+            writer.add_scalar(
+                "charts/SPS", int(global_step / (time.time() - start_time)), global_step
+            )
 
-            pbar.write("-"*20)
+            pbar.write("-" * 20)
             pbar.write(f"loss: {loss:.3}")
             pbar.write(f"value_loss: {v_loss:.3}")
             pbar.write(f"policy_loss: {pg_loss:.3}")
