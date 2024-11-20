@@ -1,37 +1,50 @@
 import os
 from pathlib import Path
 from dataclasses import dataclass
-from typing import Optional, List
+from typing import Optional
+import logging
 
 
 import hydra
 from hydra.core.config_store import ConfigStore
 from omegaconf import OmegaConf
-import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
-import pandas as pd
 import torch
 from torch.utils.tensorboard import SummaryWriter
 
-from cyberdreamcatcher.env import GraphWrapper
-from cyberdreamcatcher.policy import Police
 from cyberdreamcatcher.sampler import EpisodeSampler
+
+
+# Disable specific loggers
+logging.getLogger("CybORGLog-Process").setLevel(logging.CRITICAL)
+logging.getLogger("cyberdreamcatcher.utils").setLevel(logging.CRITICAL)
 
 
 @dataclass
 class Cfg:
-    policy_path: Optional[str] = None
-    scenario: Optional[str] = None
-    specialised_policies_dirs: Optional[List[str]] = None
+    policy_weights: Optional[str] = None
+    scenario: Optional[str] = "Scenario2"
     seed: int = 31415
     episode_length: int = 30
     num_episodes: int = 100
+    num_jobs: int = 1
+
+
+# TODO adapt to generalization plot
+# if not cfg.scenario:
+#     scenarios_dir = Path.cwd() / "scenarios"
+#     scenarios = [file.name for file in scenarios_dir.iterdir() if file.is_file()]
+# else:
+#     scenarios = [cfg.scenario]
+
+# for scenario in scenarios:
+#     pass
+
 
 # Registering the Config class with the expected name 'args'.
 # https://hydra.cc/docs/tutorials/structured_config/minimal_example/
 cs = ConfigStore.instance()
 cs.store(name="args", node=Cfg)
+
 
 @hydra.main(version_base=None, config_name="args", config_path=None)
 def main(cfg: Cfg):
@@ -40,60 +53,47 @@ def main(cfg: Cfg):
     output_dir = hydra.core.hydra_config.HydraConfig.get().runtime.output_dir
     print(f"Output directory  : {output_dir}")
 
-    assert any((cfg.policy_dir, cfg.policy_path, cfg.specialised_policies_dirs))
-
-    policy_path = Path(cfg.policy_path)
-    assert policy_path.is_file()
-    policy_weights = torch.load(policy_path)
-
-    policy_dir = policy_path.parent
-    conf_path = policy_dir / ".hydra" / "config.yaml"
-    assert conf_path.is_file()
-    conf = OmegaConf.load(conf_path)
-    print("Configuration of main loaded policy.")
-    print(OmegaConf.to_yaml(conf))
-    scenario = conf.scenario
-
-    if cfg.policy_path is None:
+    if cfg.policy_weights is None:
         print("No policy given, random weights will be used.")
+        run_name = f"Performance_random_on_{cfg.scenario}_seed_{cfg.seed}"
+        policy_weights = None
     else:
-        # TODO print details used to train the policy weights
-        print(f"Loading policy from {cfg.policy_path}")
-        policy_path = Path(cfg.policy_path)
+        policy_path = Path(cfg.policy_weights)
         assert policy_path.is_file()
 
-    if not cfg.scenario:
-        scenarios_dir = Path.cwd() / "scenarios"
-        scenarios = [file.name for file in scenarios_dir.iterdir() if file.is_file()]
-    else:
-        scenarios = [cfg.scenario]
+        policy_dir = policy_path.parent
+        logged_cfg_path = policy_dir / ".hydra" / "config.yaml"
+        assert logged_cfg_path.is_file()
+        logged_cfg = OmegaConf.load(logged_cfg_path)
+        print("Configuration used to train loaded policy.")
+        print(OmegaConf.to_yaml(logged_cfg))
+        trained_scenario = logged_cfg.scenario
+        policy_weights = torch.load(policy_path, weights_only=True)
 
-    for scenario in scenarios:
+        run_name = f"Performance_on_{cfg.scenario}_trained_on_{trained_scenario}_seed_{cfg.seed}"
 
-        run_name = f"PPO_{scenario}_seed_{cfg.seed}"
-        log_dir = Path(output_dir) / run_name
+    log_dir = Path(output_dir) / run_name
 
-        writer = SummaryWriter(log_dir=log_dir)
-        writer.add_text(
-            "hyperparameters",
-            "|param|value|\n|-|-|\n%s"
-            % ("\n".join([f"|{key}|{value}|" for key, value in cfg.items()])),
-        )
+    writer = SummaryWriter(log_dir=log_dir)
+    writer.add_text(
+        "hyperparameters",
+        "|param|value|\n|-|-|\n%s"
+        % ("\n".join([f"|{key}|{value}|" for key, value in cfg.items()])),
+    )
 
-        env = GraphWrapper(scenario=scenario, max_steps=cfg.episode_length, render_mode=None)
-        policy = Police(env, latent_node_dim=env.host_embedding_size)
+    # Initialize with number of parallel jobs (-1 uses all available cores)
+    sampler = EpisodeSampler(
+        cfg.seed,
+        cfg.scenario,
+        cfg.episode_length,
+        policy_weights=policy_weights,
+        writer=writer,
+        num_jobs=cfg.num_jobs,
+    )
 
-        # load trained policy
-        if cfg.policy_path:
-            file_path = Path(cfg.policy_path)
-            policy.load_state_dict(torch.load(file_path))
+    # Sample episodes in parallel
+    reward_mean, reward_std = sampler.sample_episodes(num_episodes=cfg.num_episodes)
 
-        # NOTE Call model.eval() to set dropout and batch normalization layers
-        # to evaluation mode before running inference.
-        # Failing to do this will yield inconsistent inference results.
-        policy.eval()
-
-        sampler = EpisodeSampler(env, policy, seed=cfg.seed, writer=writer)
-        sampler.sample_episodes(cfg.num_episodes, counter=-1)
+    #TODOviolin plots!
 
 main()
