@@ -1,7 +1,6 @@
 import random
 import numpy as np
-from tqdm import tqdm
-from copy import deepcopy
+from tqdm import trange
 
 import torch
 from joblib import Parallel, delayed
@@ -75,44 +74,35 @@ class EpisodeSampler:
         gets an average of the reward and the summed log probabilities
         and use them to form the baselined loss function to optimize.
         """
-        # Generate unique seeds for each episode
-        seeds = [self.seed + i for i in range(num_episodes)]
 
-        envs = [
-            GraphWrapper(
-                scenario=self.scenario,
-                max_steps=self.episode_length,
+        def _run_episode(seed, scenario, episode_length, policy_weights):
+            "Create an independent environment and policy"
+            env = GraphWrapper(
+                scenario=scenario,
+                max_steps=episode_length,
                 render_mode=None,
             )
-            for _ in range(num_episodes)
-        ]
+            policy = Police(env, latent_node_dim=env.host_embedding_size)
 
-        # from itertools import repeat
-        # repeat(policy, times=num_episodes)
+            # load trained policy
+            if policy_weights:
+                policy.load_state_dict(policy_weights)
 
-        # model_copy = type(mymodel)() # get a new instance
-        # model_copy.load_state_dict(mymodel.state_dict()) # copy weights and stuff
+                # NOTE Call model.eval() to set dropout and batch normalization layers
+                # to evaluation mode before running inference.
+                # Failing to do this will yield inconsistent inference results.
+                policy.eval()
 
-        policy = Police(envs[0], latent_node_dim=envs[0].host_embedding_size)
-
-        # load trained policy
-        if self.policy_weights:
-            policy.load_state_dict(self.policy_weights)
-
-            # NOTE Call model.eval() to set dropout and batch normalization layers
-            # to evaluation mode before running inference.
-            # Failing to do this will yield inconsistent inference results.
-            policy.eval()
-
-        policies = [deepcopy(policy) for _ in range(num_episodes)]
+            return run_episode(env, policy, seed)
 
         # Run episodes in parallel
         batch_rewards_to_go = Parallel(n_jobs=self.num_jobs, verbose=10)(
-            delayed(run_episode)(env, policy, seed)
-            for env, policy, seed in tqdm(
-                zip(envs, policies, seeds), desc="Sampling episodes", total=num_episodes
+            delayed(_run_episode)(
+                self.seed + i, self.scenario, self.episode_length, self.policy_weights
             )
+            for i in trange(num_episodes, desc="Sampling episodes")
         )
+
 
         if self.writer:
             stacked_rewards_to_go = np.vstack(batch_rewards_to_go)
