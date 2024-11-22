@@ -9,8 +9,6 @@ from cyberdreamcatcher.env import GraphWrapper
 from cyberdreamcatcher.policy import Police
 
 
-EPS = np.finfo(np.float32).eps.item()
-
 # Set unique seeds
 # random.seed(episode_seed)
 # torch.manual_seed(episode_seed)
@@ -53,7 +51,6 @@ class EpisodeSampler:
         scenario,
         episode_length,
         policy_weights=None,
-        writer=None,
         num_jobs=1,
     ):
         self.seed = seed
@@ -61,14 +58,13 @@ class EpisodeSampler:
         self.episode_length = episode_length
 
         self.policy_weights = policy_weights
-        self.writer = writer
         self.num_jobs = num_jobs  # Number of parallel jobs (-1 means use all cores)
 
         random.seed(self.seed)
         torch.manual_seed(self.seed)
         np.random.seed(self.seed)
 
-    def sample_episodes(self, num_episodes, counter=None):
+    def sample_episodes(self, num_episodes):
         """
         Executes multiple episodes in parallel under the current stochastic policy,
         gets an average of the reward and the summed log probabilities
@@ -103,31 +99,6 @@ class EpisodeSampler:
             for i in trange(num_episodes, desc="Sampling episodes")
         )
 
+        stacked_rewards_to_go = np.vstack(batch_rewards_to_go)
 
-        if self.writer:
-            stacked_rewards_to_go = np.vstack(batch_rewards_to_go)
-            if counter:
-                self.writer.add_histogram(
-                    "distributions/reward-to-go",
-                    stacked_rewards_to_go[:, 0],
-                    global_step=counter,
-                )
-                self.writer.add_histogram(
-                    "distributions/final-reward",
-                    stacked_rewards_to_go[:, -1],
-                    global_step=counter,
-                )
-            else:
-                self.writer.add_histogram(
-                    "distributions/reward-to-go",
-                    stacked_rewards_to_go[:, 0],
-                )
-                self.writer.add_histogram(
-                    "distributions/final-reward",
-                    stacked_rewards_to_go[:, -1],
-                )
-
-        reward_mean = np.mean(batch_rewards_to_go, axis=0)
-        reward_std = np.std(batch_rewards_to_go, axis=0)
-
-        return reward_mean, reward_std
+        return stacked_rewards_to_go  # a row per episode

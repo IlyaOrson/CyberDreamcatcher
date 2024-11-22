@@ -5,6 +5,8 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import StrMethodFormatter
 import networkx as nx
 import numpy as np
+import pandas as pd
+import seaborn as sns
 
 import torch
 from torch.nn.functional import softmax
@@ -326,3 +328,94 @@ def plot_action_probabilities(env, policy, obs, show=False, block=False):
             show=show,
             block=block,
         )
+
+
+def plot_ridgelines(stacked_rewards_to_go, step=3):
+    df = pd.DataFrame(stacked_rewards_to_go)
+    df_long = df.melt(var_name="timestep", value_name="reward_to_go")
+    df_long = df_long.query(f"timestep % {step} == 0")
+
+    # Create color palette
+    pal = sns.cubehelix_palette(
+        n_colors=df_long["timestep"].nunique(), rot=-0.25, light=0.7
+    )
+
+    # Initialize the FacetGrid object
+    # hue could be used to distinguish local and extrapolated policies
+    g = sns.FacetGrid(
+        df_long, row="timestep", hue="timestep", aspect=10, height=0.5, palette=pal
+    )
+
+    # Draw the densities
+    g.map(
+        sns.kdeplot,
+        "reward_to_go",
+        bw_adjust=0.5,
+        clip_on=False,
+        fill=True,
+        alpha=1,
+        linewidth=1.5,
+    )
+
+    # Add white lines for density contours
+    g.map(sns.kdeplot, "reward_to_go", clip_on=False, color="w", lw=2, bw_adjust=0.5)
+
+    # Add a horizontal line for each plot
+    # passing color=None to refline() uses the hue mapping
+    g.refline(y=0, linewidth=2, linestyle="-", color=None, clip_on=False)
+
+    def label(x, color, label):
+        ax = plt.gca()
+        ax.text(
+            0,
+            0.2,
+            label,
+            fontweight="bold",
+            color=color,
+            ha="left",
+            va="center",
+            transform=ax.transAxes,
+        )
+
+    g.map(label, "reward_to_go")
+
+    # Set the subplots to overlap
+    g.figure.subplots_adjust(hspace=-0.25)
+
+    # Remove axes details
+    g.set_titles("")
+    g.set(yticks=[], ylabel="")
+    g.despine(bottom=True, left=True)
+
+    plt.xlabel("Reward to go")
+
+    # FIXME
+    # plt.ylabel("Step")
+    # plt.title("Distribution across Episodes per Timestep")
+
+    return g
+
+
+# TODO adapt to our data
+# def plot_split_violins():
+
+#     # Load the example tips dataset
+#     tips = sns.load_dataset("tips")
+
+#     # Draw a nested violinplot and split the violins for easier comparison
+#     sns.violinplot(
+#         data=tips,
+#         x="day",
+#         y="total_bill",
+#         hue="smoker",
+#         split=True,
+#         inner="quart",
+#         fill=False,
+#         palette={"Yes": "g", "No": ".35"},
+#     )
+
+#     # Draw a nested boxplot to show bills by day and time
+#     sns.boxplot(x="day", y="total_bill",
+#                 hue="smoker", palette=["m", "g"],
+#                 data=tips)
+#     sns.despine(offset=10, trim=True)

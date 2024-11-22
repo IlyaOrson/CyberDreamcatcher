@@ -10,9 +10,14 @@ from hydra.core.config_store import ConfigStore
 from omegaconf import OmegaConf
 import torch
 from torch.utils.tensorboard import SummaryWriter
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 from cyberdreamcatcher.sampler import EpisodeSampler
+from cyberdreamcatcher.plots import plot_ridgelines
 
+# sns.set_theme(style="dark")
+sns.set_theme(style="white", rc={"axes.facecolor": (0, 0, 0, 0)})
 
 # Disable specific loggers
 logging.getLogger("CybORGLog-Process").setLevel(logging.CRITICAL)
@@ -87,13 +92,33 @@ def main(cfg: Cfg):
         cfg.scenario,
         cfg.episode_length,
         policy_weights=policy_weights,
-        writer=writer,
         num_jobs=cfg.num_jobs,
     )
 
     # Sample episodes in parallel
-    reward_mean, reward_std = sampler.sample_episodes(num_episodes=cfg.num_episodes)
+    stacked_rewards_to_go = sampler.sample_episodes(num_episodes=cfg.num_episodes)
 
-    #TODOviolin plots!
+    writer.add_histogram(
+        "distributions/reward-to-go",
+        stacked_rewards_to_go[:, 0],
+    )
+    writer.add_histogram(
+        "distributions/final-reward",
+        stacked_rewards_to_go[:, -1],
+    )
+
+    g = plot_ridgelines(stacked_rewards_to_go)
+
+    plot_filename = Path(output_dir) / "ridgeplot.pdf"
+    plt.savefig(
+        plot_filename,
+        dpi=300,
+        bbox_inches="tight",
+        # pad_inches=0.1,
+    )
+
+    # reward_mean = np.mean(batch_rewards_to_go, axis=0)
+    # reward_std = np.std(batch_rewards_to_go, axis=0)
+
 
 main()
