@@ -119,6 +119,7 @@ pixi run plot-performance
 
 pixi run plot-performance policy_weights="path/to/trained_params.pt" scenario="Scenario2_+_User6"
 ```
+![joyplot](https://github.com/user-attachments/assets/ad6b7ef0-7ebc-4d92-9281-c2c48337a01e)
 
 #### Generalization to different networks
 
