@@ -24,7 +24,7 @@ plot-network = "python -m scripts.plot-cyborg-layout"
 train-gnn-reinforce = "python -m scripts.train-gnn-reinforce"
 train-gnn-reinforce-all-scenarios = "python -m scripts.train-gnn-reinforce --multirun scenario=Scenario2,Scenario2_+_User5,Scenario2_+_User5_User6,Scenario2_+_User6,Scenario2_-_User2,Scenario2_-_User2_User4,Scenario2_-_User4"
 train-gnn-ppo = "python -m scripts.train-gnn-ppo"
-plot-generalisation = "python -m scripts.plot-policy-performance"
+plot-performance = "python -m scripts.plot-policy-performance"
 
 [dependencies]
 captum = "~=0.7"

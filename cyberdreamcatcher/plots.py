@@ -434,19 +434,18 @@ def plot_ridgelines(
     )
 
     # Add labels manually
-    g.figure.text(0.5, 0.03, xlabel, va="center", rotation="horizontal")
+    g.figure.text(0.45, 0.03, xlabel, va="center", rotation="horizontal")
     g.figure.text(0.04, 0.5, ylabel, va="center", rotation="vertical")
 
     # g.figure.subplots_adjust(top=1.1)
     # g.figure.suptitle(title)
 
-    g.despine(bottom=True, left=True)
+    g.despine(bottom=True, left=True, trim=True)
 
     # Set the subplots to overlap
     g.figure.subplots_adjust(hspace=-0.5)
 
     return g
-
 
 # TODO adapt to our data
 # def plot_split_violins():

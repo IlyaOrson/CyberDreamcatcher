@@ -105,11 +105,24 @@ pixi run train-flat-sb3-ppo  # see --help for hyperparameters
 > [!IMPORTANT]
 > A direct performance comparison is not possible because the observation space is different due to the graph inductive bias.
 
-### Generalization to different networks
+### Performance
 
 It is possible (❗) to extrapolate the performance of a trained policy under different network layouts.
-One can specify the path to a trained policy to be loaded, as well as the name of a specific scenario in `scenarios/` to sample the performance on.
-The default behaviour is to use a random policy and test it over all the available predefined scenarios.
+
+#### Visualize reward to go at each timestep
+
+Specify a scenario to sample episodes from and optionally the weights of a pretrained policy (potentially trained on a different scenario).
+
+```bash
+# The default behaviour is to use a random policy on "Scenario2".
+pixi run plot-performance
+
+pixi run plot-performance policy_weights="path/to/trained_params.pt" scenario="Scenario2_+_User6"
+```
+
+#### Generalization to different networks
+
+Specify the path to a trained policy to be loaded, as well as the name of a specific scenario in `scenarios/` to sample the performance on.
 
 ```bash
 # add --help to see the available options

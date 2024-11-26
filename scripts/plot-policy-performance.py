@@ -16,7 +16,7 @@ import seaborn as sns
 from cyberdreamcatcher.sampler import EpisodeSampler
 from cyberdreamcatcher.plots import plot_ridgelines
 
-# sns.set_theme(style="dark")
+# sns.set_theme(style="ticks")
 sns.set_theme(style="white", rc={"axes.facecolor": (0, 0, 0, 0)})
 
 # Disable specific loggers
@@ -86,6 +86,8 @@ def main(cfg: Cfg):
         % ("\n".join([f"|{key}|{value}|" for key, value in cfg.items()])),
     )
 
+    print(f"Plotting performance on scenario {cfg.scenario}.")
+
     # Initialize with number of parallel jobs (-1 uses all available cores)
     sampler = EpisodeSampler(
         cfg.seed,
@@ -116,9 +118,5 @@ def main(cfg: Cfg):
         bbox_inches="tight",
         # pad_inches=0.1,
     )
-
-    # reward_mean = np.mean(batch_rewards_to_go, axis=0)
-    # reward_std = np.std(batch_rewards_to_go, axis=0)
-
 
 main()
