@@ -330,48 +330,94 @@ def plot_action_probabilities(env, policy, obs, show=False, block=False):
         )
 
 
-def plot_ridgelines(stacked_rewards_to_go, step=3):
+def plot_ridgelines(
+    stacked_rewards_to_go,
+    step=5,
+    smoothness=0.4,  # default is 1, higher = smooth
+    trim=(-60, 10),
+    xlabel="Reward to go",
+    ylabel="Timesteps",
+    # title="Reward distribution per timestep",
+):
+    "Input matrix has the shape (num_episodes) x (num_steps)"
+
     df = pd.DataFrame(stacked_rewards_to_go)
+
     df_long = df.melt(var_name="timestep", value_name="reward_to_go")
-    df_long = df_long.query(f"timestep % {step} == 0")
+
+    last_timestep = df_long["timestep"].max()
+
+    df_down_sample = df_long.query(f"timestep % {step} == 0")
+    df_last_timestep = df_long.query(f"timestep == {last_timestep}")
+    df_long = pd.concat([df_down_sample, df_last_timestep])
+
+    # Adaptation to the case with 2 distributions per subplot
+    # df_long["policy"] = np.random.choice(
+    #     ["local", "extrapolated"], size=len(df_long)
+    # )
+    # df_long["reward_to_go"] = np.where(
+    #     df_long["policy"] == "extrapolated",
+    #     df_long["reward_to_go"] + 10,
+    #     df_long["reward_to_go"],
+    # )
 
     # Create color palette
-    pal = sns.cubehelix_palette(
-        n_colors=df_long["timestep"].nunique(), rot=-0.25, light=0.7
-    )
+    # pal = sns.cubehelix_palette(
+    #     n_colors=df_long["timestep"].nunique(), rot=0.25, light=0.7
+    # )
 
     # Initialize the FacetGrid object
-    # hue could be used to distinguish local and extrapolated policies
     g = sns.FacetGrid(
-        df_long, row="timestep", hue="timestep", aspect=10, height=0.5, palette=pal
+        df_long,
+        row="timestep",
+        hue="timestep",
+        aspect=10,
+        height=1,
+        palette="crest",  # pal
+        # margin_titles=True,
     )
+
+    # ... adaptation ...
+    # hue could be used to distinguish local and extrapolated policies
+    # g = sns.FacetGrid(
+    #     df_long, row="timestep", hue="policy", aspect=10, height=0.5, palette=pal
+    # )
 
     # Draw the densities
     g.map(
         sns.kdeplot,
         "reward_to_go",
-        bw_adjust=0.5,
+        clip=trim,
         clip_on=False,
         fill=True,
         alpha=1,
         linewidth=1.5,
+        bw_adjust=smoothness,
     )
 
     # Add white lines for density contours
-    g.map(sns.kdeplot, "reward_to_go", clip_on=False, color="w", lw=2, bw_adjust=0.5)
+    g.map(
+        sns.kdeplot,
+        "reward_to_go",
+        clip=trim,
+        clip_on=False,
+        color="w",
+        lw=3,
+        bw_adjust=smoothness,
+    )
 
     # Add a horizontal line for each plot
     # passing color=None to refline() uses the hue mapping
-    g.refline(y=0, linewidth=2, linestyle="-", color=None, clip_on=False)
+    g.refline(y=0, linewidth=1.5, linestyle="solid", color=None, clip_on=False)
 
     def label(x, color, label):
         ax = plt.gca()
         ax.text(
             0,
-            0.2,
+            0.1,
             label,
             fontweight="bold",
-            color=color,
+            color=color,  # "black"
             ha="left",
             va="center",
             transform=ax.transAxes,
@@ -379,19 +425,25 @@ def plot_ridgelines(stacked_rewards_to_go, step=3):
 
     g.map(label, "reward_to_go")
 
-    # Set the subplots to overlap
-    g.figure.subplots_adjust(hspace=-0.25)
-
     # Remove axes details
     g.set_titles("")
-    g.set(yticks=[], ylabel="")
+    g.set(
+        yticks=[],
+        ylabel="",
+        xlabel="",
+    )
+
+    # Add labels manually
+    g.figure.text(0.5, 0.03, xlabel, va="center", rotation="horizontal")
+    g.figure.text(0.04, 0.5, ylabel, va="center", rotation="vertical")
+
+    # g.figure.subplots_adjust(top=1.1)
+    # g.figure.suptitle(title)
+
     g.despine(bottom=True, left=True)
 
-    plt.xlabel("Reward to go")
-
-    # FIXME
-    # plt.ylabel("Step")
-    # plt.title("Distribution across Episodes per Timestep")
+    # Set the subplots to overlap
+    g.figure.subplots_adjust(hspace=-0.5)
 
     return g
 

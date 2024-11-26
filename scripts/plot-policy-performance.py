@@ -30,7 +30,7 @@ class Cfg:
     scenario: Optional[str] = "Scenario2"
     seed: int = 31415
     episode_length: int = 30
-    num_episodes: int = 100
+    num_episodes: int = 20
     num_jobs: int = 1
 
 
@@ -107,9 +107,9 @@ def main(cfg: Cfg):
         stacked_rewards_to_go[:, -1],
     )
 
-    g = plot_ridgelines(stacked_rewards_to_go)
+    plot_ridgelines(stacked_rewards_to_go)
 
-    plot_filename = Path(output_dir) / "ridgeplot.pdf"
+    plot_filename = Path(output_dir) / "ridgeplot.png"
     plt.savefig(
         plot_filename,
         dpi=300,
