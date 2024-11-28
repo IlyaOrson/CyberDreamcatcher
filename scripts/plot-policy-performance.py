@@ -11,7 +11,11 @@ from torch.utils.tensorboard import SummaryWriter
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-from cyberdreamcatcher.utils import load_trained_weights
+from cyberdreamcatcher.utils import (
+    load_trained_weights,
+    long_format_dataframe,
+    downsample_dataframe,
+)
 from cyberdreamcatcher.sampler import EpisodeSampler
 from cyberdreamcatcher.plots import plot_joyplot
 
@@ -87,7 +91,13 @@ def main(cfg: Cfg):
         stacked_rewards_to_go[:, -1],
     )
 
-    plot_joyplot(stacked_rewards_to_go)
+    df = long_format_dataframe(stacked_rewards_to_go)
+
+    data_filename = Path(output_dir) / "rewards_to_go.csv"
+    df.to_csv(data_filename, index=False)
+
+    df = downsample_dataframe(df, step=5)
+    plot_joyplot(df)
 
     plot_filename = Path(output_dir) / "joyplot.png"
     plt.savefig(

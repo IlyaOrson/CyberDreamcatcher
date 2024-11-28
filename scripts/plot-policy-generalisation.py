@@ -9,12 +9,17 @@ import hydra
 from hydra.core.config_store import ConfigStore
 from omegaconf import OmegaConf
 import torch
+import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-from cyberdreamcatcher.utils import load_trained_weights
+from cyberdreamcatcher.utils import (
+    load_trained_weights,
+    long_format_dataframe,
+    downsample_dataframe,
+)
 from cyberdreamcatcher.sampler import EpisodeSampler
-from cyberdreamcatcher.plots import plot_split_violins
+from cyberdreamcatcher.plots import plot_split_distributions
 
 # sns.set_theme(style="ticks")
 sns.set_theme(style="white", rc={"axes.facecolor": (0, 0, 0, 0)})
@@ -69,7 +74,6 @@ def main(cfg: Cfg):
     foreign_results = {}  # scenario --> loaded policy performance samples
     local_results = {}  # scenario --> locally trained policy performance samples
     for local_policy_path in cfg.local_policies:
-
         policy_weights, trained_scenario = load_trained_weights(local_policy_path)
 
         specialised_policy_sampler = EpisodeSampler(
@@ -99,15 +103,32 @@ def main(cfg: Cfg):
 
     print(f"Generalisation_policy_trained_on_{trained_scenario}_seed_{cfg.seed}")
 
-    plot_split_violins(local_results, foreign_results)
+    dfs = []
+    for scenario, reward_array in local_results.items():
+        df_long = long_format_dataframe(reward_array)
+        df_long["Scenario"] = scenario
+        df_long["Policy"] = "Local"
+        dfs.append(df_long)
+    for scenario, reward_array in foreign_results.items():
+        df_long = long_format_dataframe(reward_array)
+        df_long["Scenario"] = scenario
+        df_long["Policy"] = "Foreign"
+        dfs.append(df_long)
+
+    df = pd.concat(dfs)
+
+    data_filename = Path(output_dir) / "rewards_to_go.csv"
+    df.to_csv(data_filename, index=False)
+    print(f"Stored results in {data_filename}")
+
+    last_timestep = df["timestep"].max()
+    final_rewards = df.query(f"timestep == {last_timestep}")
+
+    plot_split_distributions(final_rewards)
 
     plot_filename = Path(output_dir) / "generalisation.png"
-    plt.savefig(
-        plot_filename,
-        dpi=300,
-        bbox_inches="tight",
-        # pad_inches=0.1,
-    )
+    # Save figure with high DPI for publication
+    plt.savefig(plot_filename, dpi=300, bbox_inches="tight", pad_inches=0.2)
 
 
 main()

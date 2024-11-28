@@ -330,32 +330,17 @@ def plot_action_probabilities(env, policy, obs, show=False, block=False):
         )
 
 
-def _long_downsampled_long_table(stacked_rewards_to_go, step):
-    "Input matrix has the shape (num_episodes) x (num_steps)"
-
-    df = pd.DataFrame(stacked_rewards_to_go)
-
-    df_long = df.melt(var_name="timestep", value_name="reward_to_go")
-
-    last_timestep = df_long["timestep"].max()
-
-    df_down_sample = df_long.query(f"timestep % {step} == 0")
-    df_last_timestep = df_long.query(f"timestep == {last_timestep}")
-
-    return pd.concat([df_down_sample, df_last_timestep])
-
 def plot_joyplot(
-    stacked_rewards_to_go,
-    step=5,
+    # input needs to be in long format, where
+    # each row represents a single observation
+    # and values that can repeat appear in the first column
+    df_long,
     smoothness=0.4,  # default is 1, higher = smooth
     trim=(-60, 10),
     xlabel="Reward to go",
     ylabel="Timesteps",
     # title="Reward distribution per timestep",
 ):
-    "Input matrix has the shape (num_episodes) x (num_steps)"
-    df_long = _long_downsampled_long_table(stacked_rewards_to_go, step)
-
     # Adaptation to the case with 2 distributions per subplot
     # df_long["policy"] = np.random.choice(
     #     ["local", "extrapolated"], size=len(df_long)
@@ -453,40 +438,61 @@ def plot_joyplot(
     return g
 
 
-def plot_split_violins(local_results, foreign_results, downsample=5):
+def plot_split_distributions(df_long):
+    # Function to clean labels with special case for empty string
+    def format_label(label):
+        return label.replace("Scenario2_", "").replace("_", " ").capitalize().strip()
 
-    dfs = []
-    for scenario, reward_array in local_results.items():
-        df_long = _long_downsampled_long_table(reward_array, downsample)
-        df_long["Scenario"] = scenario
-        df_long["Policy"] = "Local"
-        dfs.append(df_long)
-    for scenario, reward_array in foreign_results.items():
-        df_long = _long_downsampled_long_table(reward_array, downsample)
-        df_long["Scenario"] = scenario
-        df_long["Policy"] = "Foreign"
-        dfs.append(df_long)
+    df_long["Scenario"] = df_long["Scenario"].apply(format_label)
 
-    df = pd.concat(dfs)
+    # Set style
+    sns.set_style("whitegrid")
+    plt.figure(figsize=(12, 6))
 
-    last_timestep = df_long["timestep"].max()
-    data = df.query(f"timestep == {last_timestep}")
+    # Create custom color palette
+    colors = {"Local": "#2ecc71", "Foreign": "#9b59b6"}
 
-    # Draw a nested violinplot and split the violins for easier comparison
-    sns.violinplot(
-        data=data,
+    # Create the plot
+    sns.boxenplot(
+        data=df_long,
         x="Scenario",
         y="reward_to_go",
         hue="Policy",
-        split=True,
-        inner="quart",
-        fill=False,
-        palette={"Foreign": "orange", "Local": "purple"},
+        k_depth="full",
+        palette=colors,
     )
-    sns.despine(offset=10, trim=True)
-    # import os
-    # print(os.getcwd())
-    # plt.savefig("_test.png", dpi=300)
 
-    # Draw a nested boxplot to show bills by day and time
-    # sns.boxplot(data=df, x="Scenario", y="reward_to_go", hue="Policy", palette=["m", "g"])
+    # # Draw a violinplot with split distributions
+    # sns.violinplot(
+    #     data=df_long,
+    #     x="Scenario",
+    #     y="reward_to_go",
+    #     hue="Policy",
+    #     split=True,
+    #     inner="quart",
+    #     fill=False,
+    #     palette={"Foreign": "orange", "Local": "purple"},
+    # )
+
+    # Customize the plot
+    # Comparison between extrapolated and specialized policies
+    # on final reward distribution per scenario
+    # plt.title(
+    #     "Final reward distribution for each policy per scenario",
+    #     pad=20,
+    #     fontsize=12,
+    #     fontweight="bold",
+    # )
+    plt.xlabel("Scenarios", fontsize=10)
+    plt.ylabel("Final reward", fontsize=10)
+
+    # Move legend to bottom center inside the plot
+    plt.legend(title="Policy", loc="lower center", ncol=2)
+
+    # Apply despine with offset
+    sns.despine(offset=10, trim=True)
+
+    # Adjust layout to prevent legend cutoff
+    plt.tight_layout()
+
+    # plt.show()

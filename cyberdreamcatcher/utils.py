@@ -5,6 +5,7 @@ import logging
 
 import torch
 from omegaconf import OmegaConf
+import pandas as pd
 
 import CybORG
 
@@ -86,3 +87,15 @@ def load_trained_weights(policy_weights_path, trained_scenario=None):
         trained_scenario = logged_cfg.scenario
 
     return policy_weights, trained_scenario
+
+
+def long_format_dataframe(stacked_rewards_to_go):
+    df = pd.DataFrame(stacked_rewards_to_go)
+    return df.melt(var_name="timestep", value_name="reward_to_go")
+
+
+def downsample_dataframe(df_long, step):
+    last_timestep = df_long["timestep"].max()
+    df_down_sample = df_long.query(f"timestep % {step} == 0")
+    df_last_timestep = df_long.query(f"timestep == {last_timestep}")
+    return pd.concat([df_down_sample, df_last_timestep])

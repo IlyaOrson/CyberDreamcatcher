@@ -129,5 +129,5 @@ Specify the path to the trained policy to be tested and array of paths of the sp
 
 ```bash
 # add --help to see the available options
-pixi run plot-generalisation policy_weights=path/to/trained_params.pt local_policies=[path/to/trained_params_1.pt,path/to/trained_params_2.pt,path/to/trained_params_3.pt, ...]
+pixi run plot-generalisation policy_weights=path/to/trained_params.pt local_policies=[path/to/0/trained_params.pt,path/to/1/trained_params.pt,path/to/3/trained_params.pt, ...]
 ```
