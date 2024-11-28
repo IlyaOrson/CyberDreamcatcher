@@ -330,15 +330,7 @@ def plot_action_probabilities(env, policy, obs, show=False, block=False):
         )
 
 
-def plot_ridgelines(
-    stacked_rewards_to_go,
-    step=5,
-    smoothness=0.4,  # default is 1, higher = smooth
-    trim=(-60, 10),
-    xlabel="Reward to go",
-    ylabel="Timesteps",
-    # title="Reward distribution per timestep",
-):
+def _long_downsampled_long_table(stacked_rewards_to_go, step):
     "Input matrix has the shape (num_episodes) x (num_steps)"
 
     df = pd.DataFrame(stacked_rewards_to_go)
@@ -349,7 +341,20 @@ def plot_ridgelines(
 
     df_down_sample = df_long.query(f"timestep % {step} == 0")
     df_last_timestep = df_long.query(f"timestep == {last_timestep}")
-    df_long = pd.concat([df_down_sample, df_last_timestep])
+
+    return pd.concat([df_down_sample, df_last_timestep])
+
+def plot_joyplot(
+    stacked_rewards_to_go,
+    step=5,
+    smoothness=0.4,  # default is 1, higher = smooth
+    trim=(-60, 10),
+    xlabel="Reward to go",
+    ylabel="Timesteps",
+    # title="Reward distribution per timestep",
+):
+    "Input matrix has the shape (num_episodes) x (num_steps)"
+    df_long = _long_downsampled_long_table(stacked_rewards_to_go, step)
 
     # Adaptation to the case with 2 distributions per subplot
     # df_long["policy"] = np.random.choice(
@@ -447,26 +452,41 @@ def plot_ridgelines(
 
     return g
 
-# TODO adapt to our data
-# def plot_split_violins():
 
-#     # Load the example tips dataset
-#     tips = sns.load_dataset("tips")
+def plot_split_violins(local_results, foreign_results, downsample=5):
 
-#     # Draw a nested violinplot and split the violins for easier comparison
-#     sns.violinplot(
-#         data=tips,
-#         x="day",
-#         y="total_bill",
-#         hue="smoker",
-#         split=True,
-#         inner="quart",
-#         fill=False,
-#         palette={"Yes": "g", "No": ".35"},
-#     )
+    dfs = []
+    for scenario, reward_array in local_results.items():
+        df_long = _long_downsampled_long_table(reward_array, downsample)
+        df_long["Scenario"] = scenario
+        df_long["Policy"] = "Local"
+        dfs.append(df_long)
+    for scenario, reward_array in foreign_results.items():
+        df_long = _long_downsampled_long_table(reward_array, downsample)
+        df_long["Scenario"] = scenario
+        df_long["Policy"] = "Foreign"
+        dfs.append(df_long)
 
-#     # Draw a nested boxplot to show bills by day and time
-#     sns.boxplot(x="day", y="total_bill",
-#                 hue="smoker", palette=["m", "g"],
-#                 data=tips)
-#     sns.despine(offset=10, trim=True)
+    df = pd.concat(dfs)
+
+    last_timestep = df_long["timestep"].max()
+    data = df.query(f"timestep == {last_timestep}")
+
+    # Draw a nested violinplot and split the violins for easier comparison
+    sns.violinplot(
+        data=data,
+        x="Scenario",
+        y="reward_to_go",
+        hue="Policy",
+        split=True,
+        inner="quart",
+        fill=False,
+        palette={"Foreign": "orange", "Local": "purple"},
+    )
+    sns.despine(offset=10, trim=True)
+    # import os
+    # print(os.getcwd())
+    # plt.savefig("_test.png", dpi=300)
+
+    # Draw a nested boxplot to show bills by day and time
+    # sns.boxplot(data=df, x="Scenario", y="reward_to_go", hue="Policy", palette=["m", "g"])

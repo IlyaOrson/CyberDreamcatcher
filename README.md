@@ -14,7 +14,7 @@ Graph Attention Networks (GATs) as network-aware reinforcement learning policies
 We use [pixi](https://github.com/prefix-dev/pixi) to setup a reproducible environment with predefined tasks.
 If you would like to use other project management tool, the list of dependencies and tasks are available in [pixi.toml](pixi.toml).
 
-Clone this repo recursevely to clone the custom CybORG v2.1 environment and Cage 2 reference submissions as submodules.
+Clone this repo recursevely to clone the CybORG v2.1 simulator and Cage 2 reference submissions as submodules.
 
 ```bash
 git clone https://github.com/IlyaOrson/CyberDreamcatcher.git --recurse-submodules -j4
@@ -41,7 +41,7 @@ Voila! An activated shell within this environment will have all dependencies wor
 
 ```bash
 pixi shell  # activate shell
-python -m cyberdreamcatcher  # try out environment simulation
+python -m cyberdreamcatcher  # try out a single environment simulation
 ```
 
 ## Functionality
@@ -73,7 +73,7 @@ pixi run plot-network scenario=Scenario2  # see --help for hyperparameters
 ```
 
 > [!WARNING]
-> This is the layout we expect from the simulator configuration... BUT unfortunately this is not respected by CybORG.
+> This is the layout we expect from the simulator configuration... BUT this is not actually enforced by CybORG.
 
 ### Training
 
@@ -117,22 +117,17 @@ Specify a scenario to sample episodes from and optionally the weights of a pretr
 # The default behaviour is to use a random policy on "Scenario2".
 pixi run plot-performance
 
+# add --help to see the available options
 pixi run plot-performance policy_weights="path/to/trained_params.pt" scenario="Scenario2_+_User6"
 ```
 ![joyplot](https://github.com/user-attachments/assets/ad6b7ef0-7ebc-4d92-9281-c2c48337a01e)
 
 #### Generalization to different networks
 
-Specify the path to a trained policy to be loaded, as well as the name of a specific scenario in `scenarios/` to sample the performance on.
+The objective is to compare the optimality gap trade-off between the extrapolation of a policy against a policy trained from scratch in each scenario.
+Specify the path to the trained policy to be tested and array of paths of the specialised policies to compare it to; the corresponding scenarios are loaded from the logged configuration.
 
 ```bash
 # add --help to see the available options
-pixi run plot-generalization policy_path="path/to/trained_params.pt"
-```
-
-It is possible to provide the directory to other trained policies specialized per scenario, in order to compare the optimality gap trade-off between the extrapolation of a policy and a specialized policy per scenario.
-
-```bash
-# add --help to see the available options
-pixi run plot-generalization policy_path="path/to/trained_params.pt specialized_policies=[/path/to/dir1,/path/to/dir2,/path/to/dir3]"
+pixi run plot-generalisation policy_weights=path/to/trained_params.pt local_policies=[path/to/trained_params_1.pt,path/to/trained_params_2.pt,path/to/trained_params_3.pt, ...]
 ```

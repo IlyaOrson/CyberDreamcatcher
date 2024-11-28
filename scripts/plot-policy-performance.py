@@ -7,14 +7,13 @@ import logging
 
 import hydra
 from hydra.core.config_store import ConfigStore
-from omegaconf import OmegaConf
-import torch
 from torch.utils.tensorboard import SummaryWriter
 import matplotlib.pyplot as plt
 import seaborn as sns
 
+from cyberdreamcatcher.utils import load_trained_weights
 from cyberdreamcatcher.sampler import EpisodeSampler
-from cyberdreamcatcher.plots import plot_ridgelines
+from cyberdreamcatcher.plots import plot_joyplot
 
 # sns.set_theme(style="ticks")
 sns.set_theme(style="white", rc={"axes.facecolor": (0, 0, 0, 0)})
@@ -30,19 +29,8 @@ class Cfg:
     scenario: Optional[str] = "Scenario2"
     seed: int = 31415
     episode_length: int = 30
-    num_episodes: int = 20
-    num_jobs: int = 1
-
-
-# TODO adapt to generalization plot
-# if not cfg.scenario:
-#     scenarios_dir = Path.cwd() / "scenarios"
-#     scenarios = [file.name for file in scenarios_dir.iterdir() if file.is_file()]
-# else:
-#     scenarios = [cfg.scenario]
-
-# for scenario in scenarios:
-#     pass
+    num_episodes: int = 1000
+    num_jobs: int = -1
 
 
 # Registering the Config class with the expected name 'args'.
@@ -63,17 +51,7 @@ def main(cfg: Cfg):
         run_name = f"Performance_random_on_{cfg.scenario}_seed_{cfg.seed}"
         policy_weights = None
     else:
-        policy_path = Path(cfg.policy_weights)
-        assert policy_path.is_file()
-
-        policy_dir = policy_path.parent
-        logged_cfg_path = policy_dir / ".hydra" / "config.yaml"
-        assert logged_cfg_path.is_file()
-        logged_cfg = OmegaConf.load(logged_cfg_path)
-        print("Configuration used to train loaded policy.")
-        print(OmegaConf.to_yaml(logged_cfg))
-        trained_scenario = logged_cfg.scenario
-        policy_weights = torch.load(policy_path, weights_only=True)
+        policy_weights, trained_scenario = load_trained_weights(cfg.policy_weights)
 
         run_name = f"Performance_on_{cfg.scenario}_trained_on_{trained_scenario}_seed_{cfg.seed}"
 
@@ -109,14 +87,16 @@ def main(cfg: Cfg):
         stacked_rewards_to_go[:, -1],
     )
 
-    plot_ridgelines(stacked_rewards_to_go)
+    plot_joyplot(stacked_rewards_to_go)
 
-    plot_filename = Path(output_dir) / "ridgeplot.png"
+    plot_filename = Path(output_dir) / "joyplot.png"
     plt.savefig(
         plot_filename,
         dpi=300,
         bbox_inches="tight",
         # pad_inches=0.1,
     )
+    print(f"Saved figure at {plot_filename}")
+
 
 main()

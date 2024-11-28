@@ -4,6 +4,7 @@ from bidict import bidict
 import logging
 
 import torch
+from omegaconf import OmegaConf
 
 import CybORG
 
@@ -50,3 +51,38 @@ def ravel_multi_index(coords: torch.Tensor, shape: torch.Size) -> torch.Tensor:
     coefs = shape[1:].flipud().cumprod(dim=0).flipud()
 
     return (coords * coefs).sum(dim=-1)
+
+
+def available_scenarios():
+    # expects the scenarios to be defined at the top level of the project
+    module_dir = Path(__file__).parent.absolute()
+    project_dir = module_dir.parent
+    scenarios_dir = project_dir / "scenarios"
+    scenarios = [file.name for file in scenarios_dir.iterdir() if file.is_file()]
+    return scenarios
+
+
+def load_trained_weights(policy_weights_path, trained_scenario=None):
+    """Load trained weights safely and extract scenario
+    from logged training file if not specified"""
+
+    policy_path = Path(policy_weights_path)
+    assert policy_path.is_file()
+
+    policy_weights = torch.load(policy_path, weights_only=True)
+
+    if trained_scenario:
+        assert (
+            trained_scenario in available_scenarios()
+        ), "Provided scenario is not predefined in scenarios/"
+    else:
+        # load scenario from configuration file
+        policy_dir = policy_path.parent
+        logged_cfg_path = policy_dir / ".hydra" / "config.yaml"
+        assert logged_cfg_path.is_file()
+        logged_cfg = OmegaConf.load(logged_cfg_path)
+        print("Configuration used to train loaded policy.")
+        print(OmegaConf.to_yaml(logged_cfg))
+        trained_scenario = logged_cfg.scenario
+
+    return policy_weights, trained_scenario
