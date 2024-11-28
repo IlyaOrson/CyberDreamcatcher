@@ -131,3 +131,4 @@ Specify the path to the trained policy to be tested and array of paths of the sp
 # add --help to see the available options
 pixi run plot-generalisation policy_weights=path/to/trained_params.pt local_policies=[path/to/0/trained_params.pt,path/to/1/trained_params.pt,path/to/3/trained_params.pt, ...]
 ```
+![generalisation](https://github.com/user-attachments/assets/cce8ca1a-7061-4b1b-9a93-cfae0c7dec8a)
