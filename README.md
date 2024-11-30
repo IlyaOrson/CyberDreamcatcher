@@ -121,7 +121,7 @@ pixi run plot-performance
 # with a random policy on the scenario used for training
 pixi run plot-performance policy_weights="path/to/trained_params.pt"
 ```
-![joyplot](https://github.com/user-attachments/assets/ad6b7ef0-7ebc-4d92-9281-c2c48337a01e)
+![joyplot](https://github.com/user-attachments/assets/9c9f0351-25cc-4eb9-98fe-2b1350c5a56a)
 
 #### Generalization to different networks
 
