@@ -14,7 +14,7 @@ Graph Attention Networks (GATs) as network-aware reinforcement learning policies
 We use [pixi](https://github.com/prefix-dev/pixi) to setup a reproducible environment with predefined tasks.
 If you would like to use other project management tool, the list of dependencies and tasks are available in [pixi.toml](pixi.toml).
 
-Clone this repo recursevely to clone the CybORG v2.1 simulator and Cage 2 reference submissions as submodules.
+Clone this repo recursively to clone the CybORG v2.1 simulator and Cage 2 reference submissions as submodules.
 
 ```bash
 git clone https://github.com/IlyaOrson/CyberDreamcatcher.git --recurse-submodules -j4
@@ -58,7 +58,7 @@ pixi run eval-cardiff  # cage 2 winner policy inference (simplified and flattene
 
 > [!TIP]
 > [Hydra](https://hydra.cc/docs/tutorials/basic/running_your_app/working_directory/) is used to handle the inputs and outputs of every script.
-> All the available parameters for each task are accessible with the `--help` flag.
+> The available parameters for each task are accessible with the `--help` flag.
 > The content generated per execution is stored in the `outputs/` directory with subdirectories per timestamp of execution.
 > The hyperparameters used in each run are registered in a hidden subfolder `.hydra/` within the generated output folder.
 > Tensorboard is used to track interesting metrics, just specify the correct hydra output folder as the logdir: `tensorboard --logdir=outputs/...`
@@ -117,8 +117,9 @@ Specify a scenario to sample episodes from and optionally the weights of a pretr
 # The default behaviour is to use a random policy on "Scenario2".
 pixi run plot-performance
 
-# add --help to see the available options
-pixi run plot-performance policy_weights="path/to/trained_params.pt" scenario="Scenario2_+_User6"
+# This will compare the performance of a trained policy
+# with a random policy on the scenario used for training
+pixi run plot-performance policy_weights="path/to/trained_params.pt"
 ```
 ![joyplot](https://github.com/user-attachments/assets/ad6b7ef0-7ebc-4d92-9281-c2c48337a01e)
 

@@ -336,84 +336,70 @@ def plot_joyplot(
     # and values that can repeat appear in the first column
     df_long,
     smoothness=0.4,  # default is 1, higher = smooth
-    trim=(-60, 10),
+    trim=(-50, 10),
     xlabel="Reward to go",
     ylabel="Timesteps",
     # title="Reward distribution per timestep",
 ):
-    # Adaptation to the case with 2 distributions per subplot
-    # df_long["policy"] = np.random.choice(
-    #     ["local", "extrapolated"], size=len(df_long)
-    # )
-    # df_long["reward_to_go"] = np.where(
-    #     df_long["policy"] == "extrapolated",
-    #     df_long["reward_to_go"] + 10,
-    #     df_long["reward_to_go"],
-    # )
 
     # Create color palette
-    # pal = sns.cubehelix_palette(
-    #     n_colors=df_long["timestep"].nunique(), rot=0.25, light=0.7
-    # )
+    # num_timesteps = df_long["timestep"].nunique()
+    # num_policies = df_long["Policy"].nunique()
+    # palette = sns.color_palette("PRGn", n_colors=num_policies)
+    # palette = "PuOr"
+    # palette = "PRGn"
+    # palette = "PiYG"
+    palette = "BrBG"
 
     # Initialize the FacetGrid object
     g = sns.FacetGrid(
         df_long,
         row="timestep",
-        hue="timestep",
-        aspect=10,
-        height=1,
-        palette="crest",  # pal
+        hue="Policy",
+        aspect=5,
+        height=2,
+        palette=palette,
         # margin_titles=True,
+        hue_order=["Random", "Trained"],
     )
 
-    # ... adaptation ...
-    # hue could be used to distinguish local and extrapolated policies
-    # g = sns.FacetGrid(
-    #     df_long, row="timestep", hue="policy", aspect=10, height=0.5, palette=pal
-    # )
-
     # Draw the densities
-    g.map(
+    g.map_dataframe(
         sns.kdeplot,
         "reward_to_go",
+        # hue="Policy",
+        # common_norm=False,
         clip=trim,
         clip_on=False,
         fill=True,
-        alpha=1,
-        linewidth=1.5,
+        alpha=0.6,
+        linewidth=2,
         bw_adjust=smoothness,
     )
 
-    # Add white lines for density contours
-    g.map(
-        sns.kdeplot,
-        "reward_to_go",
-        clip=trim,
-        clip_on=False,
-        color="w",
-        lw=3,
-        bw_adjust=smoothness,
-    )
+    g.add_legend(loc="upper center", ncol=2, bbox_to_anchor=(0.4, 0.8))
 
     # Add a horizontal line for each plot
     # passing color=None to refline() uses the hue mapping
     g.refline(y=0, linewidth=1.5, linestyle="solid", color=None, clip_on=False)
 
-    def label(x, color, label):
+    def labeller(x, color, label):
         ax = plt.gca()
         ax.text(
             0,
             0.1,
-            label,
-            fontweight="bold",
-            color=color,  # "black"
+            x.unique()[0],
+            # label,  # this is the unique feature of each plot (the hue variable)
+            # fontweight="bold",
+            # color=color,  #  color of last hue plotted
+            color="black",
             ha="left",
             va="center",
             transform=ax.transAxes,
         )
 
-    g.map(label, "reward_to_go")
+    # g.map_dataframe adds the table as a data keyword
+    g.map(labeller, "timestep")
 
     # Remove axes details
     g.set_titles("")
@@ -423,17 +409,20 @@ def plot_joyplot(
         xlabel="",
     )
 
-    # Add labels manually
-    g.figure.text(0.45, 0.03, xlabel, va="center", rotation="horizontal")
-    g.figure.text(0.04, 0.5, ylabel, va="center", rotation="vertical")
-
     # g.figure.subplots_adjust(top=1.1)
     # g.figure.suptitle(title)
 
-    g.despine(bottom=True, left=True, trim=True)
+    g.despine(bottom=True, left=True)
+
+    # Add labels manually
+    g.figure.text(0.4, 0.03, xlabel, va="center", rotation="horizontal")
+    g.figure.text(0.03, 0.4, ylabel, va="center", rotation="vertical")
+    # sns.move_legend(g, loc="upper center", bbox_to_anchor=(0.5,0.8))
 
     # Set the subplots to overlap
     g.figure.subplots_adjust(hspace=-0.5)
+
+    # g.tight_layout()
 
     return g
 
@@ -443,6 +432,7 @@ def plot_split_distributions(df_long):
     def format_label(label):
         return label.replace("Scenario2_", "").replace("_", " ").capitalize().strip()
 
+    df_long = df_long.query("Scenario != 'Scenario2'")
     df_long["Scenario"] = df_long["Scenario"].apply(format_label)
 
     # Set style
@@ -483,14 +473,14 @@ def plot_split_distributions(df_long):
     #     fontsize=12,
     #     fontweight="bold",
     # )
-    plt.xlabel("Scenarios", fontsize=10)
+    plt.xlabel("Scenario2 variants", fontsize=10)
     plt.ylabel("Final reward", fontsize=10)
 
     # Move legend to bottom center inside the plot
     plt.legend(title="Policy", loc="lower center", ncol=2)
 
     # Apply despine with offset
-    sns.despine(offset=10, trim=True)
+    sns.despine(bottom=True, left=True)
 
     # Adjust layout to prevent legend cutoff
     plt.tight_layout()

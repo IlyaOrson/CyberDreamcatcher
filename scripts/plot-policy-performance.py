@@ -7,9 +7,9 @@ import logging
 
 import hydra
 from hydra.core.config_store import ConfigStore
-from torch.utils.tensorboard import SummaryWriter
 import matplotlib.pyplot as plt
 import seaborn as sns
+import pandas as pd
 
 from cyberdreamcatcher.utils import (
     load_trained_weights,
@@ -50,53 +50,57 @@ def main(cfg: Cfg):
     output_dir = hydra.core.hydra_config.HydraConfig.get().runtime.output_dir
     print(f"Output directory  : {output_dir}")
 
-    if cfg.policy_weights is None:
-        print("No policy given, random weights will be used.")
-        run_name = f"Performance_random_on_{cfg.scenario}_seed_{cfg.seed}"
-        policy_weights = None
-    else:
+    assert (
+        cfg.policy_weights or cfg.scenario
+    ), "Please provide either 'scenario' or 'policy_weights'."
+
+    policy_weights = None
+    scenario = cfg.scenario
+    if cfg.policy_weights:
         policy_weights, trained_scenario = load_trained_weights(cfg.policy_weights)
+        print(f"Loaded policy trained on {trained_scenario}.")
+        if trained_scenario != cfg.scenario:
+            print("Overloading provided scenario.")
+            scenario = trained_scenario
+    print(f"Plotting performance on scenario {scenario}.")
 
-        run_name = f"Performance_on_{cfg.scenario}_trained_on_{trained_scenario}_seed_{cfg.seed}"
-
-    log_dir = Path(output_dir) / run_name
-
-    writer = SummaryWriter(log_dir=log_dir)
-    writer.add_text(
-        "hyperparameters",
-        "|param|value|\n|-|-|\n%s"
-        % ("\n".join([f"|{key}|{value}|" for key, value in cfg.items()])),
-    )
-
-    print(f"Plotting performance on scenario {cfg.scenario}.")
-
-    # Initialize with number of parallel jobs (-1 uses all available cores)
-    sampler = EpisodeSampler(
+    dfs = []
+    random_sampler = EpisodeSampler(
         cfg.seed,
         cfg.scenario,
         cfg.episode_length,
-        policy_weights=policy_weights,
+        policy_weights=None,
         num_jobs=cfg.num_jobs,
     )
-
-    # Sample episodes in parallel
-    stacked_rewards_to_go = sampler.sample_episodes(num_episodes=cfg.num_episodes)
-
-    writer.add_histogram(
-        "distributions/reward-to-go",
-        stacked_rewards_to_go[:, 0],
+    random_stacked_rewards_to_go = random_sampler.sample_episodes(
+        num_episodes=cfg.num_episodes
     )
-    writer.add_histogram(
-        "distributions/final-reward",
-        stacked_rewards_to_go[:, -1],
-    )
+    df_long = long_format_dataframe(random_stacked_rewards_to_go)
+    df_long["Policy"] = "Random"
+    dfs.append(df_long)
 
-    df = long_format_dataframe(stacked_rewards_to_go)
+    if cfg.policy_weights:
+        loaded_sampler = EpisodeSampler(
+            cfg.seed,
+            cfg.scenario,
+            cfg.episode_length,
+            policy_weights=policy_weights,
+            num_jobs=cfg.num_jobs,
+        )
+        loaded_stacked_rewards_to_go = loaded_sampler.sample_episodes(
+            num_episodes=cfg.num_episodes
+        )
+        df_long = long_format_dataframe(loaded_stacked_rewards_to_go)
+        df_long["Policy"] = "Trained"
+        dfs.append(df_long)
+
+    df = pd.concat(dfs)
 
     data_filename = Path(output_dir) / "rewards_to_go.csv"
     df.to_csv(data_filename, index=False)
+    print(f"Saved results in {data_filename}")
 
-    df = downsample_dataframe(df, step=5)
+    df = downsample_dataframe(df, steps=[0,20,25,27,29])
     plot_joyplot(df)
 
     plot_filename = Path(output_dir) / "joyplot.png"

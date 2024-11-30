@@ -94,8 +94,15 @@ def long_format_dataframe(stacked_rewards_to_go):
     return df.melt(var_name="timestep", value_name="reward_to_go")
 
 
-def downsample_dataframe(df_long, step):
-    last_timestep = df_long["timestep"].max()
-    df_down_sample = df_long.query(f"timestep % {step} == 0")
-    df_last_timestep = df_long.query(f"timestep == {last_timestep}")
-    return pd.concat([df_down_sample, df_last_timestep])
+def downsample_dataframe(df_long, step=None, steps=None):
+    assert step or steps
+    assert not (step and steps)
+    if steps:
+        return df_long.query(f"timestep in {steps}")
+    elif step:
+        last_timestep = df_long["timestep"].max()
+        df_down_sample = df_long.query(f"timestep % {step} == 0")
+        df_last_timestep = df_long.query(f"timestep == {last_timestep}")
+        return pd.concat([df_down_sample, df_last_timestep])
+    else:
+        return df_long
