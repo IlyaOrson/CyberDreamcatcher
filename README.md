@@ -32,9 +32,10 @@ Then install the submodules as local packages avoiding using pip to deal with de
 ```bash
 # install environments from git submodule as a local packages
 pixi run install-cyborg  # CybORG 2.1 + update to gymnasium API
+pixi run install-cyborg-debugged  # the new debugged version from The Alan Turing Institute
 
 # install troublesome dependencies without using pip to track their requirements
-pixi run install-sb3  # stable baselines 3
+pixi run install-sb3  # stable baselines 3
 ```
 
 Voila! An activated shell within this environment will have all dependencies working together.
@@ -77,18 +78,18 @@ pixi run plot-network scenario=Scenario2  # see --help for hyperparameters
 
 ### Training
 
-#### PPO
+<!-- #### PPO  (see issue [#20](https://github.com/IlyaOrson/CyberDreamcatcher/issues/20))
 
 We adapted the CleanRL implementation of PPO to handle our graph observation space, which is not compatible with gymnasium restrictions.
 
 ```bash
 pixi run train-gnn-ppo  # see --help for hyperparameters
-```
+``` -->
 
 #### REINFORCE
 
-We also include an implementation of the REINFORCE algorithm with a normalized rewards-to-go baseline for sanity check.
-This is slow since it samples a lot of episodes with a fixed policy to estimate the gradient before taking an optimization step.
+We include an implementation of the REINFORCE algorithm with a normalized rewards-to-go baseline.
+This is a bit slow since it samples a lot of episodes with a fixed policy to estimate the gradient before taking an optimization step.
 
 ```bash
 pixi run train-gnn-reinforce  # see --help for hyperparameters
@@ -96,18 +97,19 @@ pixi run train-gnn-reinforce  # see --help for hyperparameters
 
 ### Flat observation space + MLP + SB3-PPO
 
-This trains the canonical flat observation space and a MLP policy we use SB3 with PPO:
+This trains an MLP policy using PPO from Stable Baselines 3.
+It relies on the less realistic and flattened observation space from CAGE 2, which cannot extrapolate to different network dimensions.
 
 ```bash
 pixi run train-flat-sb3-ppo  # see --help for hyperparameters
 ```
 
 > [!IMPORTANT]
-> A direct performance comparison is not possible because the observation space is different due to the graph inductive bias.
+> A direct performance comparison is not possible because the observation space are fundamentally different; where the flattened version is a higher level representation whereas the graph observation uses low-level information from the simulator.
 
 ### Performance
 
-It is possible (❗) to extrapolate the performance of a trained policy under different network layouts.
+It is possible (❗) to extrapolate the performance of a trained GAT policy under different network layouts.
 
 #### Visualize reward to go at each timestep
 
