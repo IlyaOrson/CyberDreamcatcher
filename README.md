@@ -1,18 +1,32 @@
 # Cyber Dreamcatcher
 
-Graph Attention Networks (GATs) as network-aware reinforcement learning policies for cyber-defence!
+This repository implements a Graph Attention Network (GATs) (same architecture as [TacticAI](https://www.nature.com/articles/s41467-024-45965-x#Sec8)) as a network-aware reinforcement learning policy for cyber defence.
+Our work extends the Cyber Operations Research Gym ([CybORG](https://github.com/alan-turing-institute/CybORG_plus_plus)) to represent network states as directed graphs with realistic, low-level features, enabling more realistic autonomous defence strategies.
 
-![Logo](https://github.com/user-attachments/assets/73b01258-609d-4d07-b369-df323f360177)
+![Pica](https://github.com/user-attachments/assets/2a77929c-ffb1-41ab-954b-7bb024bce8c7)
+
+## Overview
+
+### Core Features
+- **Topology-Aware Defence**: Processes the complete network graph structure instead of simplified flat state observations
+- **Runtime Adaptability**: Handles dynamic changes in network topology as new connections appear
+- **Cross-Network Generalisation**: Trained policies can be deployed to networks of different sizes
+- **Enhanced Interpretability**: Defence actions can be explained through tangible network properties
+
+### What is included?
+- Custom CybORG environment with graph-based network state representation
+- GAT architecture modified for compatibility with policy gradient methods
+- Empirical evaluation for assessing policy generalisation vs. specialised training across varying network sizes
 
 > [!NOTE]
 > This is a research project that serves as a proof-of-concept towards realistic network environments in cyber defence.
 > Our implementation is based on the low-level structure of the CybORG v2.1 simulator, which is unfortunately very gimmicky.
-> Our technique is applicable to other simulators of similar complexity.
+> The technique should be applicable to any other simulator of similar complexity.
 
 ## Setup
 
 We use [pixi](https://github.com/prefix-dev/pixi) to setup a reproducible environment with predefined tasks.
-If you would like to use other project management tool, the list of dependencies and tasks are available in [pixi.toml](pixi.toml).
+If you would like to use other project management tool, the list of dependencies and installation tasks are available in [pixi.toml](pixi.toml).
 
 Clone this repo recursively to clone the CybORG v2.1 simulator and Cage 2 reference submissions as submodules.
 
@@ -66,7 +80,7 @@ pixi run eval-cardiff  # cage 2 winner policy inference (simplified and flattene
 
 ### Graph layout
 
-Quickly visualize the graph layout setup in the cage 2 challenge scenario file,
+Quickly visualise the graph layout setup in the cage 2 challenge scenario file,
 and the graph observations received by a random GAT policy.
 
 ```bash
@@ -88,8 +102,8 @@ pixi run train-gnn-ppo  # see --help for hyperparameters
 
 #### REINFORCE
 
-We include an implementation of the REINFORCE algorithm with a normalized rewards-to-go baseline.
-This is a bit slow since it samples a lot of episodes with a fixed policy to estimate the gradient before taking an optimization step.
+We include an implementation of the REINFORCE algorithm with a normalised rewards-to-go baseline.
+This is a bit slow since it samples a lot of episodes with a fixed policy to estimate the gradient before taking an optimisation step.
 
 ```bash
 pixi run train-gnn-reinforce  # see --help for hyperparameters
@@ -111,7 +125,7 @@ pixi run train-flat-sb3-ppo  # see --help for hyperparameters
 
 It is possible (❗) to extrapolate the performance of a trained GAT policy under different network layouts.
 
-#### Visualize reward to go at each timestep
+#### Visualise reward to go at each timestep
 
 Specify a scenario to sample episodes from and optionally the weights of a pretrained policy (potentially trained on a different scenario).
 
@@ -125,7 +139,7 @@ pixi run plot-performance policy_weights="path/to/trained_params.pt"
 ```
 ![joyplot](https://github.com/user-attachments/assets/9c9f0351-25cc-4eb9-98fe-2b1350c5a56a)
 
-#### Generalization to different networks
+#### Generalisation to different networks
 
 The objective is to compare the optimality gap trade-off between the extrapolation of a policy against a policy trained from scratch in each scenario.
 Specify the path to the trained policy to be tested and array of paths of the specialised policies to compare it to; the corresponding scenarios are loaded from the logged configuration.
