@@ -22,8 +22,7 @@ Our work extends the Cyber Operations Research Gym ([CybORG](https://github.com/
 
 > [!NOTE]
 > This is a research project that serves as a proof-of-concept towards realistic network environments in cyber defence.
-> Our implementation is based on the low-level structure of the CybORG v2.1 simulator, which is unfortunately very gimmicky.
-> The technique should be applicable to any other simulator of similar complexity.
+> Our implementation uses the low-level structure of the CybORG v2.1 simulator as a practical context, but the technique itself can be easily applied to other simulators with comparable complexity.
 
 ## Setup
 
@@ -93,7 +92,7 @@ pixi run plot-network scenario=Scenario2  # see --help for hyperparameters
 ```
 
 > [!WARNING]
-> This is the layout we expect from the simulator configuration... BUT this is not actually enforced by CybORG.
+> This is the layout we expect from the simulator configuration, but CybORG has some variability in strictly enforcing this configuration during runtime.
 
 ### Training
 
