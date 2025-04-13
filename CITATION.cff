@@ -1,23 +1,30 @@
 cff-version: 1.2.0
-title: An Attentive Graph Agent for Topology-Adaptive Cyber Defence
+title: "CyberDreamcatcher"
+type: software
+date-released: 2025-01-24
 authors:
-  - given-names: Ilya Orson
-    family-names: Sandoval
-  - given-names: Isaac Symes
-    family-names: Thompson
-  - given-names: Vasilios
-    family-names: Mavroudis
-  - given-names: Chris
-    family-names: Hicks
-doi: 10.48550/ARXIV.2501.14700
+  - family-names: Sandoval
+    given-names: Ilya Orson
+preferred-citation:
+  type: article
+  title: "An Attentive Graph Agent for Topology-Adaptive Cyber Defence"
+  authors:
+  - family-names: Sandoval
+    given-names: Ilya Orson
+  - family-names: Thompson
+    given-names: Isaac Symes
+  - family-names: Mavroudis
+    given-names: Vasilios
+  - family-names: Hicks
+    given-names: Chris
+  identifiers:
+    - type: doi
+      value: 10.48550/arXiv.2501.14700
+license: MIT
+message: "If you use this software, please cite it using this metadata."
 repository-code: https://github.com/IlyaOrson/CyberDreamcatcher
 keywords:
   - Machine Learning (cs.LG)
   - Artificial Intelligence (cs.AI)
   - Cryptography and Security (cs.CR)
   - Networking and Internet Architecture (cs.NI)
-  - FOS: Computer and information sciences
-type: article
-year: 2025
-license: CC-BY-4.0
-url: https://arxiv.org/abs/2501.14700
