@@ -24,7 +24,7 @@ Our work extends the Cyber Operations Research Gym ([CybORG](https://github.com/
 
 > [!NOTE]
 > This is a research project that serves as a proof-of-concept towards more realistic network environments in cyber defence.
-> Our implementation uses the low-level structure of the CybORG v2.1 simulator as a practical context, but the technique itself can be easily applied to other simulators with comparable complexity.
+> Our implementation uses the low-level structure of the CybORG v2.1 simulator as a practical context, but the technique itself can be adapted to other simulators with comparable complexity.
 
 ## Setup
 
@@ -92,8 +92,6 @@ pixi run eval-cardiff  # CAGE 2 winner policy inference (simplified and flattene
 > Tensorboard is used to track interesting metrics, just specify the correct hydra output folder as the logdir: `tensorboard --logdir=outputs/...`
 
 ### Graph Layout
-<details>
-  <summary><i>Expand</i></summary>
 
 Quickly visualise the graph layout setup in the cage 2 challenge scenario file,
 and the graph observations received by a random GAT policy.
@@ -106,11 +104,7 @@ pixi run plot-network scenario=Scenario2  # see --help for hyperparameters
 > This is the layout we expect from the simulator configuration and the actions available to the meander agent, but CybORG does not enforce these connection layout at runtime.
 > Connections between other subnets to User0 appear sporadically (unexpected), possibly as a hackish way of flagging the interaction of the meander agent with deployed decoys.
 
-</details>
-
 ### Training
-<details>
-  <summary><i>Expand</i></summary>
 
 <!-- #### PPO  (see issue [#20](https://github.com/IlyaOrson/CyberDreamcatcher/issues/20))
 
@@ -131,7 +125,6 @@ pixi run train-gnn-reinforce  # see --help for hyperparameters
 
 #### A CAGE 2 Reference: Stable Baselines 3 + MLP + PPO
 
-
 This trains a MLP policy using PPO from Stable Baselines 3, using the original CAGE 2 observation space - a flattened high-level representation.
 
 ```bash
@@ -142,8 +135,6 @@ pixi run train-flat-sb3-ppo  # see --help for hyperparameters
 > This approach cannot extrapolate to different network dimensions.
 > A performance comparison should be taken with the caveat that the observation spaces are fundamentally different; the flattened version is a higher level representation designed for the CAGE 2 Challenge, whereas our custom graph observation uses low-level information from the CybORG simulator.
 > See the final section for a performance comparison with CAGE 2 Challenge submissions.
-
-</details>
 
 ### Performance
 
@@ -201,11 +192,11 @@ For a complete list of CAGE 2 submission standings, see [here](https://github.co
 
 | Scenario 2<br>Red Agent:<br>Meander<br>Steps: 30 	| Penalty<br>mean 	|  Observation Space 	| Structural Generalization Capability 	|
 |:------------------------------------------------:	|:---------------:	|:------------------:	|:------------------------------------:	|
-|                   CAGE2 Winner                   	|       ~ 6       	| High level \| Flat 	|                  No                  	|
-|          Stable Baselines 3<br>MLP + PPO         	|       ~ 12      	| High level \| Flat 	|                  No                  	|
-|          CyberDreamcatcher<br>REINFORCE          	|       ~ 20      	| Low level \| Graph 	|              Reasonable              	|
-|                CAGE2 CSS Heuristic               	|       ~ 44      	| High level \| Flat 	|                  No                  	|
-|                 CAGE2 CSS Random                 	|       ~ 33      	| High level \| Flat 	|                  No                  	|
-|                 CAGE2 CSS Sleeper                	|       ~ 39      	| High level \| Flat 	|                  No                  	|
+|                   CAGE2 Winner                   	|       ~ 6       	|   High-level Flat 	|                  No                  	|
+|          Stable Baselines 3<br>MLP + PPO         	|       ~ 12      	|   High-level Flat 	|                  No                  	|
+|          CyberDreamcatcher<br>REINFORCE          	|       ~ 20      	|   Low-level Graph 	|              Reasonable              	|
+|                CAGE2 CSS Heuristic               	|       ~ 44      	|   High-level Flat 	|                  No                  	|
+|                 CAGE2 CSS Random                 	|       ~ 33      	|   High-level Flat 	|                  No                  	|
+|                 CAGE2 CSS Sleeper                	|       ~ 39      	|   High-level Flat 	|                  No                  	|
 
 </details>
