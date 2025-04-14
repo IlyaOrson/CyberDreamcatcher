@@ -2,8 +2,8 @@
 
 [![arXiv](https://img.shields.io/badge/arXiv-2501.14700-b31b1b.svg)](http://arxiv.org/abs/2501.14700)
 
-This repository implements a Graph Attention Network (GATs) (same architecture as [TacticAI](https://www.nature.com/articles/s41467-024-45965-x#Sec8)) as a network-aware reinforcement learning policy for cyber defence.
-Our work extends the Cyber Operations Research Gym ([CybORG](https://github.com/alan-turing-institute/CybORG_plus_plus)) to represent network states as directed graphs with low-level features, exploring more realistic autonomous defence strategies.
+This repository implements a Graph Attention Network (GAT) (same architecture as [TacticAI](https://www.nature.com/articles/s41467-024-45965-x#Sec8)) as a network-aware reinforcement learning policy for cyber defence.
+Our work extends the Cyber Operations Research Gym ([CybORG](https://github.com/alan-turing-institute/CybORG_plus_plus)) to represent network states as directed graphs with low-level features to explore more realistic autonomous defence strategies.
 
 <div align="center">
   <img src="https://github.com/user-attachments/assets/2a77929c-ffb1-41ab-954b-7bb024bce8c7" width="70%">
@@ -51,9 +51,11 @@ Then install the submodules as local packages avoiding using pip to deal with de
 ```bash
 # install environments from git submodules as a local packages
 pixi run install-cyborg  # CybORG 2.1 + update to gymnasium API
-pixi run install-cyborg-debugged  # or a debugged version from The Alan Turing Institute
 
-# install troublesome dependencies without using pip to track their requirements
+# OR a debugged version from The Alan Turing Institute (https://github.com/alan-turing-institute/CybORG_plus_plus)
+pixi run install-cyborg-debugged
+
+# install troublesome dependencies without using pip to track their requirements
 pixi run install-sb3  # stable baselines 3
 ```
 
@@ -194,8 +196,7 @@ For a complete list of CAGE 2 submission standings, see [here](https://github.co
 |:------------------------------------------------:	|:---------------:	|:------------------:	|:------------------------------------:	|
 |                   CAGE2 Winner                   	|       ~ 6       	|   High-level Flat 	|                  No                  	|
 |          Stable Baselines 3<br>MLP + PPO         	|       ~ 12      	|   High-level Flat 	|                  No                  	|
-|          CyberDreamcatcher<br>REINFORCE          	|       ~ 20      	|   Low-level Graph 	|              Reasonable              	|
-|                CAGE2 CSS Heuristic               	|       ~ 44      	|   High-level Flat 	|                  No                  	|
+|        **CyberDreamcatcher**<br>REINFORCE        	|       ~ 18      	|   Low-level Graph 	|              Reasonable              	|
 |                 CAGE2 CSS Random                 	|       ~ 33      	|   High-level Flat 	|                  No                  	|
 |                 CAGE2 CSS Sleeper                	|       ~ 39      	|   High-level Flat 	|                  No                  	|
 
