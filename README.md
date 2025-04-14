@@ -125,18 +125,19 @@ This is a bit slow since it samples a lot of episodes with a fixed policy to est
 pixi run train-gnn-reinforce  # see --help for hyperparameters
 ```
 
-#### A CAGE 2 Reference: Stable Baselines 3 + MLP + PPO
+#### A high-level flattened observation space reference
 
-This trains a MLP policy using PPO from Stable Baselines 3, using the original CAGE 2 observation space - a flattened high-level representation.
+This script trains a MLP policy with PPO using Stable Baselines 3.
+The observation space used is the original CAGE 2 observation space - a flattened high-level representation of the network.
 
 ```bash
 pixi run train-flat-sb3-ppo  # see --help for hyperparameters
 ```
 
 > [!IMPORTANT]
-> This approach cannot extrapolate to different network dimensions.
-> A performance comparison should be taken with the caveat that the observation spaces are fundamentally different; the flattened version is a higher level representation designed for the CAGE 2 Challenge, whereas our custom graph observation uses low-level information from the CybORG simulator.
-> See the final section for a performance comparison with CAGE 2 Challenge submissions.
+> This SB3 MLP serves as a reference for performance, but cannot extrapolate to different network dimensions.
+> A major caveat for a performance comparison with this or the CAGE 2 submissions is that the observation spaces are fundamentally different: the flattened version is a higher level representation designed for the CAGE 2 Challenge, whereas our custom graph observation uses low-level information from the CybORG simulator.
+> See [this section](#comparison-to-cage2-submissions) for a performance comparison with CAGE 2 Challenge submissions.
 
 ### Performance
 
@@ -183,7 +184,7 @@ pixi run plot-generalisation policy_weights=path/to/trained_params.pt local_poli
 
 </details>
 
-#### Comparison to CAGE2 submissions
+#### Comparison to CAGE 2 submissions
 
 <details>
   <summary><i>Expand</i></summary>
@@ -197,7 +198,7 @@ For a complete list of CAGE 2 submission standings, see [here](https://github.co
 |                   CAGE2 Winner                   	|       ~ 6       	|   High-level Flat 	|                  No                  	|
 |          Stable Baselines 3<br>MLP + PPO         	|       ~ 12      	|   High-level Flat 	|                  No                  	|
 |        **CyberDreamcatcher**<br>REINFORCE        	|       ~ 18      	|   Low-level Graph 	|              Reasonable              	|
-|                 CAGE2 CSS Random                 	|       ~ 33      	|   High-level Flat 	|                  No                  	|
-|                 CAGE2 CSS Sleeper                	|       ~ 39      	|   High-level Flat 	|                  No                  	|
+|                 CAGE2 CSS Random                 	|       ~ 33      	|   High-level Flat 	|                  N/A                 	|
+|                 CAGE2 CSS Sleeper                	|       ~ 39      	|   High-level Flat 	|                  N/A                 	|
 
 </details>
