@@ -145,6 +145,10 @@ class Cfg:
 
 
 if __name__ == "__main__":
+
+    # FIXME: PPO stagnates
+    raise NotImplementedError("PPO is not working yet. See #20 in the GitHub repo.")
+
     # Registering the Config class with the expected name 'args'.
     # https://hydra.cc/docs/tutorials/structured_config/minimal_example/
     cs = ConfigStore.instance()
