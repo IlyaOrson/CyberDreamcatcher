@@ -184,8 +184,11 @@ cython_debug/
 .DS_Store
 
 # examples
-_*
+-*
 
 # Hydra outputs
 outputs/
 multirun/
+
+# logs
+logs/

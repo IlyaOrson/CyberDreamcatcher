@@ -1,7 +1,5 @@
 # Cyber Dreamcatcher
 
-[![arXiv](https://img.shields.io/badge/arXiv-2501.14700-b31b1b.svg)](http://arxiv.org/abs/2501.14700)
-
 This repository implements a Graph Attention Network (GAT) (same architecture as [TacticAI](https://www.nature.com/articles/s41467-024-45965-x#Sec8)) as a network-aware reinforcement learning policy for cyber defence.
 Our work extends the Cyber Operations Research Gym ([CybORG](https://github.com/alan-turing-institute/CybORG_plus_plus)) to represent network states as directed graphs with low-level features to explore more realistic autonomous defence strategies.
 
@@ -137,7 +135,7 @@ pixi run train-flat-sb3-ppo  # see --help for hyperparameters
 > [!IMPORTANT]
 > This SB3 MLP serves as a reference for performance, but cannot extrapolate to different network dimensions.
 > A major caveat for a performance comparison with this or the CAGE 2 submissions is that the observation spaces are fundamentally different: the flattened version is a higher level representation designed for the CAGE 2 Challenge, whereas our custom graph observation uses low-level information from the CybORG simulator.
-> See [this section](#comparison-to-cage2-submissions) for a performance comparison with CAGE 2 Challenge submissions.
+> See below for a performance comparison with CAGE 2 Challenge submissions.
 
 ### Performance
 
@@ -193,12 +191,12 @@ For a detailed description of the CAGE 2 Challenge, see [this preprint](https://
 
 For a complete list of CAGE 2 submission standings, see [here](https://github.com/cage-challenge/cage-challenge-2).
 
-| Scenario 2<br>Red Agent:<br>Meander<br>Steps: 30 	| Penalty<br>mean 	|  Observation Space 	| Structural Generalization Capability 	|
-|:------------------------------------------------:	|:---------------:	|:------------------:	|:------------------------------------:	|
-|                   CAGE2 Winner                   	|       ~ 6       	|   High-level Flat 	|                  No                  	|
-|          Stable Baselines 3<br>MLP + PPO         	|       ~ 12      	|   High-level Flat 	|                  No                  	|
-|        **CyberDreamcatcher**<br>REINFORCE        	|       ~ 18      	|   Low-level Graph 	|              Reasonable              	|
-|                 CAGE2 CSS Random                 	|       ~ 33      	|   High-level Flat 	|                  N/A                 	|
-|                 CAGE2 CSS Sleeper                	|       ~ 39      	|   High-level Flat 	|                  N/A                 	|
+|   Scenario 2<br>Red Agent: Meander<br>Steps: 30   | Penalty<br>mean |  Observation Space 	| Structural Generalization |
+|:------------------------------------------------:	|:---------------:|:------------------:	|:-------------------------:|
+|                   CAGE2 Winner                   	|       ~ 6       |   High-level Flat 	|             No            |
+|          Stable Baselines 3<br>MLP + PPO         	|       ~ 12      |   High-level Flat 	|             No            |
+|        **CyberDreamcatcher**<br>REINFORCE        	|       ~ 18      |   Low-level Graph 	|         Reasonable        |
+|                 CAGE2 CSS Random                 	|       ~ 33      |   High-level Flat 	|             N/A           |
+|                 CAGE2 CSS Sleeper                	|       ~ 39      |   High-level Flat 	|             N/A           |
 
 </details>

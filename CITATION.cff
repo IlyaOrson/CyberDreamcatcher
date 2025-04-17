@@ -5,28 +5,6 @@ date-released: 2025-01-24
 authors:
   - family-names: Sandoval
     given-names: Ilya Orson
-preferred-citation:
-  type: article
-  title: "An Attentive Graph Agent for Topology-Adaptive Cyber Defence"
-  date-released: 2025-02-18
-  authors:
-  - family-names: Sandoval
-    given-names: Ilya Orson
-  - family-names: Thompson
-    given-names: Isaac Symes
-  - family-names: Mavroudis
-    given-names: Vasilios
-  - family-names: Hicks
-    given-names: Chris
-  url: https://arxiv.org/abs/2501.14700
-  identifiers:
-    - type: doi
-      value: 10.48550/arXiv.2501.14700
-  keywords:
-    - Machine Learning (cs.LG)
-    - Artificial Intelligence (cs.AI)
-    - Cryptography and Security (cs.CR)
-    - Networking and Internet Architecture (cs.NI)
 license: MIT
 message: "If you use this software, please cite it using this metadata."
 repository-code: https://github.com/IlyaOrson/CyberDreamcatcher
