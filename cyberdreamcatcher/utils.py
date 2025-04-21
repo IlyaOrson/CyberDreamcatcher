@@ -1,3 +1,4 @@
+import random
 import inspect
 from pathlib import Path
 from bidict import bidict
@@ -5,12 +6,18 @@ import logging
 
 import torch
 from omegaconf import OmegaConf
+import numpy as np
 import pandas as pd
+import torch
 
 import CybORG
 
 LOGGER = logging.getLogger(__name__)
 
+def set_all_seeds(seed):
+    random.seed(seed)
+    torch.manual_seed(seed)
+    np.random.seed(seed)
 
 def get_scenario(name="Scenario2", from_cyborg=True):
     if from_cyborg:

@@ -1,14 +1,12 @@
-# adapted from https://github.com/OptiMaL-PSE-Lab/REINFORCE-PSE
-
-import random
 from dataclasses import dataclass
-# from itertools import accumulate
 
 import numpy as np
 from tqdm import trange
 import torch
 from torch.utils.tensorboard import SummaryWriter
 
+from cyberdreamcatcher.utils import set_all_seeds
+from cyberdreamcatcher.sampler import collect_rewards_log_probs
 
 EPS = np.finfo(np.float32).eps.item()
 
@@ -38,36 +36,7 @@ class REINFORCE:
             % ("\n".join([f"|{key}|{value}|" for key, value in self.conf.items()])),
         )
 
-        random.seed(conf.seed)
-        torch.manual_seed(conf.seed)
-        np.random.seed(conf.seed)
-
-    def run_episode(self):
-        """Compute a single episode given a policy and track useful quantities for learning."""
-
-        # define initial conditions
-        obs, info = self.env.reset(seed=self.conf.seed)
-
-        log_probs = []
-        rewards = []
-        done = False
-        while not done:
-            action, log_prob, entropy, value = self.policy(obs)
-
-            obs, reward, terminated, truncated, info = self.env.step(action)
-
-            log_probs.append(log_prob)
-            rewards.append(reward)
-
-            done = terminated or truncated
-
-        # rewards to go per timestep
-        # (no discount because episodes have fixed length)
-        # pure python version
-        # rewards_to_go = list(reversed(list(accumulate(reversed(rewards)))))
-        rewards_to_go = np.flip(np.cumsum(np.flip(np.array(rewards))))
-
-        return rewards_to_go, log_probs
+        set_all_seeds(conf.seed)
 
     def sample_episodes(self, counter=None):
         """
@@ -81,7 +50,9 @@ class REINFORCE:
         batch_log_probs = [None for _ in range(num_episodes)]
 
         for epi in trange(num_episodes, desc="Sampling episodes"):
-            rewards_to_go, log_probs = self.run_episode()
+            rewards_to_go, log_probs = collect_rewards_log_probs(
+                self.env, self.policy, self.conf.seed
+            )
             batch_rewards_to_go[epi] = rewards_to_go
             batch_log_probs[epi] = log_probs
 
@@ -183,13 +154,6 @@ if __name__ == "__main__":
         torch.save(policy.state_dict(), file_path)
 
         trainer.writer.close()
-
-        # policy.load_state_dict(params_dict)
-        # policy.load_state_dict(torch.load(file_path))
-        # NOTE Call model.eval() to set dropout and batch normalization layers
-        # to evaluation mode before running inference.
-        # Failing to do this will yield inconsistent inference results.
-        # policy.eval()
 
         print("Voila!")
 

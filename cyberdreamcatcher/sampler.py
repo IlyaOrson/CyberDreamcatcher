@@ -1,26 +1,18 @@
-import random
 import numpy as np
-from tqdm import trange
+from tqdm import trange, tqdm
 
 import torch
 from joblib import Parallel, delayed
 
+from cyberdreamcatcher.utils import set_all_seeds
 from cyberdreamcatcher.env import GraphWrapper
 from cyberdreamcatcher.policy import Police
 
 
-# Set unique seeds
-# random.seed(episode_seed)
-# torch.manual_seed(episode_seed)
-# np.random.seed(episode_seed)
-
-
-def run_episode(env, policy, seed):
+def collect_rewards_log_probs(env, policy, seed):
     """Compute a single episode given a policy and track useful quantities for learning."""
 
-    # random.seed(seed)
-    # torch.manual_seed(seed)
-    # np.random.seed(seed)
+    set_all_seeds(seed)
 
     # define initial conditions
     obs, info = env.reset(seed=seed)
@@ -41,7 +33,9 @@ def run_episode(env, policy, seed):
     # (no discount because episodes have fixed length)
     rewards_to_go = np.flip(np.cumsum(np.flip(np.array(rewards))))
 
-    return rewards_to_go
+    return rewards_to_go, log_probs
+
+
 
 
 class EpisodeSampler:
@@ -60,9 +54,7 @@ class EpisodeSampler:
         self.policy_weights = policy_weights
         self.num_jobs = num_jobs  # Number of parallel jobs (-1 means use all cores)
 
-        random.seed(self.seed)
-        torch.manual_seed(self.seed)
-        np.random.seed(self.seed)
+        set_all_seeds(self.seed)
 
     def sample_episodes(self, num_episodes):
         """
@@ -71,7 +63,7 @@ class EpisodeSampler:
         and use them to form the baselined loss function to optimize.
         """
 
-        def _run_episode(seed, scenario, episode_length, policy_weights):
+        def _collect_rewards_log_probs(seed, scenario, episode_length, policy_weights):
             "Create an independent environment and policy"
             env = GraphWrapper(
                 scenario=scenario,
@@ -84,21 +76,31 @@ class EpisodeSampler:
             if policy_weights:
                 policy.load_state_dict(policy_weights)
 
-                # NOTE Call model.eval() to set dropout and batch normalization layers
-                # to evaluation mode before running inference.
-                # Failing to do this will yield inconsistent inference results.
-                policy.eval()
-
-            return run_episode(env, policy, seed)
+            return collect_rewards_log_probs(env, policy, seed)
 
         # Run episodes in parallel
-        batch_rewards_to_go = Parallel(n_jobs=self.num_jobs, verbose=10)(
-            delayed(_run_episode)(
+        # unordered because there is no need to track seeds <--> episodes
+        parallel_generator = Parallel(
+            n_jobs=self.num_jobs, return_as="generator_unordered"
+        )(
+            delayed(_collect_rewards_log_probs)(
                 self.seed + i, self.scenario, self.episode_length, self.policy_weights
             )
-            for i in trange(num_episodes, desc="Sampling episodes")
+            for i in range(num_episodes)
+        )
+        batch_rewards_to_go = [
+            _
+            for _ in tqdm(
+                parallel_generator,
+                total=num_episodes,
+                desc="Collecting rewards and log probabilities",
+            )
+        ]
+
+        stacked_rewards_to_go = np.vstack([t[0] for t in batch_rewards_to_go])
+        stacked_log_probs = torch.stack(
+            [torch.stack(t[1]) for t in batch_rewards_to_go]
         )
 
-        stacked_rewards_to_go = np.vstack(batch_rewards_to_go)
+        return stacked_rewards_to_go, stacked_log_probs  # a row per episode
 
-        return stacked_rewards_to_go  # a row per episode

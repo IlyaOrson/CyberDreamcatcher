@@ -83,7 +83,7 @@ def main(cfg: Cfg):
             policy_weights=policy_weights,
             num_jobs=cfg.num_jobs,
         )
-        stacked_rewards_to_go = specialised_policy_sampler.sample_episodes(
+        stacked_rewards_to_go, _ = specialised_policy_sampler.sample_episodes(
             num_episodes=cfg.num_episodes
         )
         local_results[trained_scenario] = stacked_rewards_to_go
@@ -96,7 +96,7 @@ def main(cfg: Cfg):
             policy_weights=foreign_policy_weights,
             num_jobs=cfg.num_jobs,
         )
-        stacked_rewards_to_go = foreign_policy_sampler.sample_episodes(
+        stacked_rewards_to_go, _ = foreign_policy_sampler.sample_episodes(
             num_episodes=cfg.num_episodes
         )
         foreign_results[trained_scenario] = stacked_rewards_to_go
@@ -129,6 +129,7 @@ def main(cfg: Cfg):
     plot_filename = Path(output_dir) / "generalisation.png"
     # Save figure with high DPI for publication
     plt.savefig(plot_filename, dpi=300, bbox_inches="tight", pad_inches=0.2)
+    print(f"Saved figure at {plot_filename}")
 
 
 main()

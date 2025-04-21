@@ -72,7 +72,7 @@ def main(cfg: Cfg):
         policy_weights=None,
         num_jobs=cfg.num_jobs,
     )
-    random_stacked_rewards_to_go = random_sampler.sample_episodes(
+    random_stacked_rewards_to_go, _ = random_sampler.sample_episodes(
         num_episodes=cfg.num_episodes
     )
     df_long = long_format_dataframe(random_stacked_rewards_to_go)
@@ -87,7 +87,7 @@ def main(cfg: Cfg):
             policy_weights=policy_weights,
             num_jobs=cfg.num_jobs,
         )
-        loaded_stacked_rewards_to_go = loaded_sampler.sample_episodes(
+        loaded_stacked_rewards_to_go, _ = loaded_sampler.sample_episodes(
             num_episodes=cfg.num_episodes
         )
         df_long = long_format_dataframe(loaded_stacked_rewards_to_go)
@@ -100,7 +100,7 @@ def main(cfg: Cfg):
     df.to_csv(data_filename, index=False)
     print(f"Saved results in {data_filename}")
 
-    df = downsample_dataframe(df, steps=[0,20,25,27,29])
+    df = downsample_dataframe(df, steps=[0, 20, 25, 27, 29])
     plot_joyplot(df)
 
     plot_filename = Path(output_dir) / "joyplot.png"
