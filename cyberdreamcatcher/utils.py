@@ -4,11 +4,12 @@ from pathlib import Path
 from bidict import bidict
 import logging
 
-import torch
 from omegaconf import OmegaConf
 import numpy as np
 import pandas as pd
 import torch
+from torch.profiler import profile, ProfilerActivity, record_function
+from torch_geometric.data import Data
 
 import CybORG
 
@@ -113,3 +114,16 @@ def downsample_dataframe(df_long, step=None, steps=None):
         return pd.concat([df_down_sample, df_last_timestep])
     else:
         return df_long
+
+
+def profile_inference(data: Data, model: torch.nn.Module, device: str):
+    model = model.to(device)
+    data = data.to(device)
+
+    with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA], 
+                profile_memory=True, 
+                record_shapes=True) as prof:
+        with record_function("model_inference"):
+            _ = model(data)
+    
+    print(prof.key_averages().table(sort_by="cuda_time_total" if device == 'cuda' else "cpu_time_total"))
