@@ -143,7 +143,7 @@ if __name__ == "__main__":
 
         env = GraphWrapper(scenario=cfg.scenario, max_steps=cfg.episode_length)
 
-        policy = Police(env, latent_node_dim=env.host_embedding_size)
+        policy = Police(env)
 
         trainer = REINFORCE(env, policy, cfg, log_dir=output_dir)
 

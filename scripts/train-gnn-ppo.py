@@ -206,9 +206,7 @@ if __name__ == "__main__":
         # )
 
         env = GraphWrapper(scenario=args.scenario, max_steps=args.num_steps)
-        agent = Police(
-            env, train_critic=True, latent_node_dim=env.host_embedding_size
-        ).to(device)
+        agent = Police(env, train_critic=True).to(device)
         optimizer = optim.Adam(agent.parameters(), lr=args.learning_rate, eps=1e-5)
 
         sampler = EpisodeSampler(env, agent, seed=args.seed, writer=writer)  # FIXME

@@ -63,8 +63,11 @@ class Police(torch.nn.Module):
         "PoliceReport", ["action", "log_prob", "entropy", "value"]
     )
 
-    def __init__(self, env, latent_node_dim, train_critic=True, *args, **kwargs):
+    def __init__(self, env, latent_node_dim=None, train_critic=False, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+        if latent_node_dim is None:
+            latent_node_dim = 2 * env.host_embedding_size
 
         # Latent layers (typically 1-4 in gnns due to oversmoothing)
         self.actor_latent_0 = GATGlobalConv(
@@ -100,46 +103,51 @@ class Police(torch.nn.Module):
             }
         )
 
-        self.critic_latent_0 = GATGlobalConv(
-            in_channels=env.host_embedding_size,
-            out_channels=latent_node_dim,
-            global_channels=env.global_embedding_size,
-            edge_dim=env.edge_embedding_size,
-            heads=1,
-            share_weights=False,
-        )
-        self.critic_latent_1 = GATGlobalConv(
-            in_channels=latent_node_dim,
-            out_channels=latent_node_dim,
-            global_channels=env.global_embedding_size,
-            edge_dim=env.edge_embedding_size,
-            heads=1,
-            share_weights=False,
-        )
-        self.critic_head = GATGlobalConv(
-            in_channels=latent_node_dim,
-            out_channels=1,  # one score per node
-            global_channels=env.global_embedding_size,
-            edge_dim=env.edge_embedding_size,
-            heads=1,
-            share_weights=False,
-        )
+        # NOTE: this may break backwards compatibility
+        # since previous trained policies have an unused critic
+        self.train_critic = train_critic
 
-        self.critic_layers = ModuleDict(
-            {
-                # "latent_0": self.actor_latent_0,
-                # "latent_1": self.actor_latent_1,
-                "latent_0": self.critic_latent_0,
-                "latent_1": self.critic_latent_1,
-                "head": self.critic_head,
-            }
-        )
+        # Train critic only in actor-critic methods
+        if self.train_critic: 
+            self.critic_latent_0 = GATGlobalConv(
+                in_channels=env.host_embedding_size,
+                out_channels=latent_node_dim,
+                global_channels=env.global_embedding_size,
+                edge_dim=env.edge_embedding_size,
+                heads=1,
+                share_weights=False,
+            )
+            self.critic_latent_1 = GATGlobalConv(
+                in_channels=latent_node_dim,
+                out_channels=latent_node_dim,
+                global_channels=env.global_embedding_size,
+                edge_dim=env.edge_embedding_size,
+                heads=1,
+                share_weights=False,
+            )
+            self.critic_head = GATGlobalConv(
+                in_channels=latent_node_dim,
+                out_channels=1,  # one score per node
+                global_channels=env.global_embedding_size,
+                edge_dim=env.edge_embedding_size,
+                heads=1,
+                share_weights=False,
+            )
 
-        # To train the critic only makes sense in actor-critic methods
-        if not train_critic:
-            # for param in (*self.critic_latent_0.parameters(), *self.critic_latent_1.parameters(), *self.critic_head.parameters()):
-            for param in self.critic_layers.parameters():
-                param.requires_grad = False
+            self.critic_layers = ModuleDict(
+                {
+                    # "latent_0": self.actor_latent_0,
+                    # "latent_1": self.actor_latent_1,
+                    "latent_0": self.critic_latent_0,
+                    "latent_1": self.critic_latent_1,
+                    "head": self.critic_head,
+                }
+            )
+
+        # Train critic only in actor-critic methods
+        # if not self.train_critic:
+        #     for param in self.critic_layers.parameters():
+        #         param.requires_grad = False
 
     def count_parameters(self, submodule=None):
         if submodule:
@@ -187,8 +195,10 @@ class Police(torch.nn.Module):
             nodes_matrix, edge_index, global_vector, edges_matrix
         )
 
-        # with torch.no_grad():
-        value = self.critic(nodes_matrix, edge_index, global_vector, edges_matrix)
+        if self.train_critic:
+            value = self.critic(nodes_matrix, edge_index, global_vector, edges_matrix)
+        else:
+            value = None
 
         return ActionLogits(action_logits), value
 

@@ -23,7 +23,7 @@ print("Voila!")
 obs, info = env.reset()
 env.render()
 
-policy = Police(env, latent_node_dim=env.host_embedding_size)
+policy = Police(env)
 
 for step in trange(3):
 
