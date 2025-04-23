@@ -84,6 +84,7 @@ class REINFORCEParallel:
                 log_probs.append(report.log_prob)
                 pbar.update(1)
             batch_log_probs.append(log_probs)
+            # FIXME log_probs and log_probs_seq are different
         if counter:
             stacked_rewards_to_go = np.vstack(batch_rewards_to_go)
             self.writer.add_histogram(
