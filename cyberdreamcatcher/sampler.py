@@ -1,5 +1,5 @@
 import numpy as np
-from tqdm import trange, tqdm
+from tqdm import tqdm
 
 import torch
 from joblib import Parallel, delayed
@@ -12,7 +12,12 @@ from cyberdreamcatcher.policy import Police
 def collect_rewards_log_probs(env, policy, seed):
     """Compute a single episode given a policy and track useful quantities for learning."""
 
-    set_all_seeds(seed)
+    # set_all_seeds(seed)  # this breaks the algorithm for some reason
+
+    # NOTE Call model.eval() to set dropout and batch normalization layers
+    # to evaluation mode before running inference.
+    # Failing to do this will yield inconsistent inference results.
+    policy.eval()
 
     # define initial conditions
     obs, info = env.reset(seed=seed)
@@ -42,13 +47,12 @@ def collect_trajectory(env, policy, seed):
     Results need to be serializable (e.g., CPU tensors, dicts, etc.).
     """
 
-    set_all_seeds(seed)
+    # set_all_seeds(seed)
 
     # NOTE Call model.eval() to set dropout and batch normalization layers
     # to evaluation mode before running inference.
     # Failing to do this will yield inconsistent inference results.
-    if hasattr(policy, "eval"):
-        policy.eval()
+    policy.eval()
 
     # Reset the environment
     # Ensure obs is serializable. If it's a complex object or GPU tensor,
@@ -58,6 +62,7 @@ def collect_trajectory(env, policy, seed):
     all_obs = []
     all_actions = []
     all_rewards = []
+    all_log_probs = []
     done = False
 
     # Disable gradient calculations during trajectory rollout
@@ -84,12 +89,11 @@ def collect_trajectory(env, policy, seed):
 
             # Store reward
             all_rewards.append(reward)
-
+            all_log_probs.append(log_prob)
             # Check termination conditions
             done = terminated or truncated
-
     # Return the raw trajectory components
-    return all_obs, all_actions, all_rewards
+    return all_obs, all_actions, all_rewards, all_log_probs
 
 
 class EpisodeSampler:
@@ -106,7 +110,7 @@ class EpisodeSampler:
         self.episode_length = episode_length
 
         self.policy_weights = policy_weights
-        self.num_jobs = num_jobs  # Number of parallel jobs (-1 means use all cores)
+        self.num_jobs = num_jobs
 
         set_all_seeds(self.seed)
 
@@ -124,7 +128,7 @@ class EpisodeSampler:
                 max_steps=episode_length,
                 render_mode=None,
             )
-            policy = Police(env, latent_node_dim=env.host_embedding_size)
+            policy = Police(env)
 
             # load trained policy
             if policy_weights:
@@ -134,6 +138,7 @@ class EpisodeSampler:
 
         # Run episodes in parallel
         # unordered because there is no need to track seeds <--> episodes
+        # Use joblib with tqdm  https://github.com/joblib/joblib/issues/972#issuecomment-1623366702
         parallel_generator = Parallel(
             n_jobs=self.num_jobs, return_as="generator_unordered"
         )(
@@ -148,6 +153,7 @@ class EpisodeSampler:
                 parallel_generator,
                 total=num_episodes,
                 desc="Collecting rewards and log probabilities",
+                leave=False,
             )
         ]
 
@@ -172,7 +178,7 @@ class EpisodeSampler:
                 max_steps=episode_length,
                 render_mode=None,
             )
-            policy = Police(env, latent_node_dim=env.host_embedding_size)
+            policy = Police(env)
 
             # load trained policy
             if policy_weights:
@@ -194,6 +200,8 @@ class EpisodeSampler:
         #         (or you store the random seed used for each action and replay it).
         #       - If there is any mismatch, the recomputed log_prob may not match the action
         #         that was actually taken, leading to incorrect gradients.
+
+        # Use joblib with tqdm  https://github.com/joblib/joblib/issues/972#issuecomment-1623366702
         parallel_generator = Parallel(n_jobs=self.num_jobs, return_as="generator")(
             delayed(_collect_trajectory)(
                 self.seed + i, self.scenario, self.episode_length, self.policy_weights
@@ -206,6 +214,7 @@ class EpisodeSampler:
                 parallel_generator,
                 total=num_episodes,
                 desc="Collecting trajectories",
+                leave=False,
             )
         ]
         return batch_trajectories  # a row per episode

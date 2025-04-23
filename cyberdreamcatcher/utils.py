@@ -19,6 +19,9 @@ def set_all_seeds(seed):
     random.seed(seed)
     torch.manual_seed(seed)
     np.random.seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+
 
 def get_scenario(name="Scenario2", from_cyborg=True):
     if from_cyborg:

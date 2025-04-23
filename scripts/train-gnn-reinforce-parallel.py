@@ -70,9 +70,9 @@ class REINFORCEParallel:
         self.policy.eval()
 
         for i, episode in enumerate(batch_trajectories):
-            set_all_seeds(self.conf.seed + i)
+            # set_all_seeds(self.conf.seed + i)
 
-            obs_seq, actions_seq, rewards_seq = episode
+            obs_seq, actions_seq, rewards_seq, log_probs_seq = episode
             # Compute rewards-to-go
             rewards_to_go = np.flip(np.cumsum(np.flip(np.array(rewards_seq))))
             batch_rewards_to_go.append(rewards_to_go)
@@ -146,7 +146,7 @@ def main(cfg: Cfg) -> None:
     output_dir = hydra.core.hydra_config.HydraConfig.get().runtime.output_dir
     print(f"Output directory  : {output_dir}")
     env = GraphWrapper(scenario=cfg.scenario, max_steps=cfg.episode_length)
-    policy = Police(env, latent_node_dim=env.host_embedding_size)
+    policy = Police(env)
     trainer = REINFORCEParallel(env, policy, cfg, log_dir=output_dir)
     params_dict = trainer.learn()
     # store trained policy
