@@ -63,11 +63,11 @@ class Police(torch.nn.Module):
         "PoliceReport", ["action", "log_prob", "entropy", "value"]
     )
 
-    def __init__(self, env, latent_node_dim=None, train_critic=False, *args, **kwargs):
+    def __init__(self, env, latent_node_dim=None, train_critic=False, actor_heads=1, critic_heads=1, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         if latent_node_dim is None:
-            latent_node_dim = 2 * env.host_embedding_size
+            latent_node_dim = env.host_embedding_size
 
         # Latent layers (typically 1-4 in gnns due to oversmoothing)
         self.actor_latent_0 = GATGlobalConv(
@@ -75,7 +75,7 @@ class Police(torch.nn.Module):
             out_channels=latent_node_dim,
             global_channels=env.global_embedding_size,
             edge_dim=env.edge_embedding_size,
-            heads=1,
+            heads=actor_heads,
             share_weights=False,
         )
         self.actor_latent_1 = GATGlobalConv(
@@ -83,7 +83,7 @@ class Police(torch.nn.Module):
             out_channels=latent_node_dim,
             global_channels=env.global_embedding_size,
             edge_dim=env.edge_embedding_size,
-            heads=1,
+            heads=actor_heads,
             share_weights=False,
         )
         # Returns logits in a matrix of shape (nodes x actions)
@@ -92,7 +92,7 @@ class Police(torch.nn.Module):
             out_channels=env.num_actions,  # one score per host/node and per action
             global_channels=env.global_embedding_size,
             edge_dim=env.edge_embedding_size,
-            heads=1,
+            heads=actor_heads,
             share_weights=False,
         )
         self.actor_layers = ModuleDict(
@@ -114,7 +114,7 @@ class Police(torch.nn.Module):
                 out_channels=latent_node_dim,
                 global_channels=env.global_embedding_size,
                 edge_dim=env.edge_embedding_size,
-                heads=1,
+                heads=critic_heads,
                 share_weights=False,
             )
             self.critic_latent_1 = GATGlobalConv(
@@ -122,7 +122,7 @@ class Police(torch.nn.Module):
                 out_channels=latent_node_dim,
                 global_channels=env.global_embedding_size,
                 edge_dim=env.edge_embedding_size,
-                heads=1,
+                heads=critic_heads,
                 share_weights=False,
             )
             self.critic_head = GATGlobalConv(
@@ -130,14 +130,12 @@ class Police(torch.nn.Module):
                 out_channels=1,  # one score per node
                 global_channels=env.global_embedding_size,
                 edge_dim=env.edge_embedding_size,
-                heads=1,
+                heads=critic_heads,
                 share_weights=False,
             )
 
             self.critic_layers = ModuleDict(
                 {
-                    # "latent_0": self.actor_latent_0,
-                    # "latent_1": self.actor_latent_1,
                     "latent_0": self.critic_latent_0,
                     "latent_1": self.critic_latent_1,
                     "head": self.critic_head,
