@@ -64,11 +64,8 @@ pixi shell  # activate shell
 python -m cyberdreamcatcher  # try out a single environment simulation
 ```
 
-> [!TIP]
-> If you would like to use other project management tool, the list of dependencies and installation tasks are available in [pixi.toml](pixi.toml).
-> Untested environment files are provided for uv/pip ([pyproject.toml](pyproject.toml)) and for conda/mamba ([conda_env.yml](conda_env.yml)).
-> Make sure to manually ignore the deps set by CybORG/SB3 when installing it locally.
-
+> If you would like to use other project management tool, the list of dependencies and custom installation commands are available in [pixi.toml](pixi.toml).
+> Make sure to manually disable the dependency management with pip when installing CybORG/SB3.
 
 </details>
 
