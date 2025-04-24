@@ -25,22 +25,22 @@ class Cfg:
     seed: int = 0
     scenario: str = "Scenario2"
     episode_length: int = 30
-    num_episodes_sample: int = 100
+    num_episodes_sample: int = 200
     num_jobs: int = -1
     # Nevergrad settings
     budget: int = 500  # Total number of 'ask' calls (parameter sets evaluated)
-    optimizer_name: str = "TBPSA"  # Or "OnePlusOne", "CMA", etc.
-    init_policy_path: str | None = None  # Optional path to load initial policy weights
-    # Policy settings (if needed, e.g., hidden dims)
+    use_mean_reward: bool = True  # Policy settings (if needed, e.g., hidden dims)
+    optimizer: str = "TwoPointsDE"  # Or "TBPSA", "CMA", "PSO", "NG", etc.
+    init_policy_path: str | None = None  # Optional path    
     policy_kwargs: dict = field(default_factory=dict)
 
 
 # --- Hydra Setup ---
 cs = ConfigStore.instance()
-cs.store(name="config", node=Cfg)
+cs.store(name="args", node=Cfg)
 
 
-@hydra.main(version_base=None, config_name="config", config_path="conf")
+@hydra.main(version_base=None, config_name="hydra", config_path="conf")
 def main(cfg: Cfg) -> None:
     output_dir = Path(hydra.core.hydra_config.HydraConfig.get().runtime.output_dir)
     print(f"Working directory : {os.getcwd()}")
@@ -77,8 +77,8 @@ def main(cfg: Cfg) -> None:
 
     # --- Setup Optimizer ---
     # Adjust budget based on 'tell' calls
-    optimizer = ng.optimizers.registry[cfg.optimizer_name](
-        parametrization=parametrization, budget=cfg.budget * cfg.num_episodes_sample
+    optimizer = ng.optimizers.registry[cfg.optimizer](
+        parametrization=parametrization, budget=cfg.budget
     )
     # Suggest initial point (optional but good practice)
     optimizer.suggest(initial_params_vector)
@@ -95,9 +95,7 @@ def main(cfg: Cfg) -> None:
 
     # --- Run Optimization using Ask/Tell ---
     print(f"Starting Nevergrad optimization with ask/tell interface...")
-    print(
-        f"Budget: {cfg.budget} 'ask' calls, {cfg.num_episodes_sample} episodes/ask, {optimizer.budget} total 'tell' calls."
-    )
+    print(f"Budget: {cfg.budget} 'ask' calls, {cfg.num_episodes_sample} episodes/ask.")
 
     pbar = tqdm(total=cfg.budget, desc="Nevergrad Optimization (Ask calls)")
     best_known_reward = float("-inf")  # Track best reward found so far
@@ -130,25 +128,34 @@ def main(cfg: Cfg) -> None:
         mean_reward = np.mean(episode_rewards)
         std_reward = np.std(episode_rewards)
 
-        # 5. Tell Nevergrad the result for EACH episode
-        for reward_value in episode_rewards:
-            # Rewards in CybORG are penalties (negative), so negate for minimization
-            optimizer.tell(candidate, -reward_value)
+        # 5. Tell Nevergrad the result
+        #    Rewards in CybORG are penalties (negative), so negate for minimization
+        if cfg.use_mean_reward:
+            optimizer.tell(candidate, -mean_reward)
+            # Track best reward observed across
+            if mean_reward > best_known_reward:
+                best_known_reward = mean_reward
+        else:
+            # Tell optimizer each result individually
+            # Note: check if this is appropriate for the chosen optimizer
+            for reward_value in episode_rewards:
+                optimizer.tell(candidate, -reward_value)
 
-        # Track best reward observed across all tells
-        current_best_reward = np.max(episode_rewards)
-        if current_best_reward > best_known_reward:
-            best_known_reward = current_best_reward
+            # Track best reward observed across
+            current_best_reward = np.max(episode_rewards)
+            if current_best_reward > best_known_reward:
+                best_known_reward = current_best_reward
 
-        # Save a checkpoint of the best policy so far
-        state_dict = vector_to_state_dict(params_vector, initial_state_dict)
-        policy_path = output_dir / f"best_policy_{i}.pt"
-        torch.save(state_dict, policy_path)
+        if i % 10 == 0:
+            # Save a checkpoint of the best policy so far
+            state_dict = vector_to_state_dict(params_vector, initial_state_dict)
+            policy_path = output_dir / f"best_policy_{i}.pt"
+            torch.save(state_dict, policy_path)
 
-        # Save the full optimizer state if needed for checkpointing
-        optimizer_state_path = output_dir / f"optimizer_state_{i}.pkl"
-        with open(optimizer_state_path, "wb") as f:
-            pickle.dump(optimizer, f)  # Save the whole optimizer instance
+            # Save the full optimizer state if needed for checkpointing
+            optimizer_state_path = output_dir / f"optimizer_state_{i}.pkl"
+            with open(optimizer_state_path, "wb") as file:
+                pickle.dump(optimizer, file)  # Save the whole optimizer instance
 
         pbar.set_postfix(
             {
@@ -157,8 +164,6 @@ def main(cfg: Cfg) -> None:
                 "std_reward": f"{std_reward:.3f}",
             }
         )
-
-
         pbar.update(1)  # Update progress bar after processing one 'ask' candidate
 
     pbar.close()
@@ -193,14 +198,55 @@ def main(cfg: Cfg) -> None:
 
 
 if __name__ == "__main__":
+
     main()
 
 # NOTE: Nevergrad optimizer selection
+# https://facebookresearch.github.io/nevergrad/optimization.html#choosing-an-optimizer
 
-# TBPSA (Tree-structured Parzen Algorithm):
-# Why: Explicitly designed for noisy problems and handles high parallelism (num_workers) well. This seems like a very strong match given that your objective function relies on sampled episode returns, which are inherently noisy.
-# Consideration: Might be computationally slightly more intensive than simpler methods per evaluation.
+# Start with CMA. It's a powerful, well-regarded default for this kind of problem.
+# Also try TwoPointsDE (or another DE variant). It's often competitive and sometimes better, especially with high noise.
+# If seeking potentially higher performance (and willing to explore), investigate the NGOpt family.
+# Regardless of the algorithm, provide the mean of your 1000 noisy samples as the objective function value returned to the optimizer.
+
+# Key Problem Characteristics:
+
+# Blackbox: No gradient information available directly from the RL environment/policy interaction.
+# Dimensionality: ~500 - 1000 parameters. This is moderate-to-high dimensionality for blackbox optimization.
+# Noise: High noise, inherent in RL reward signals (stochastic environments, exploration, initial conditions). You get 1000 noisy samples per parameter evaluation.
+# Evaluation Output: Can provide mean/variance or raw samples.
+
+# Analysis & Recommendations:
+
+# CMA (Covariance Matrix Adaptation Evolution Strategy):
+
+# Why: CMA-ES is often a very strong baseline for continuous optimization problems up to several hundred or even a thousand dimensions. It adapts the covariance matrix of its search distribution, allowing it to learn correlations between parameters and effectively navigate complex fitness landscapes. It's known for its relative robustness to noise, especially when using population averaging inherent in the algorithm.
+# Suitability: Excellent fit. Handles dimensionality, reasonable noise robustness. It implicitly averages over its population, smoothing out some noise effects.
+
+# TwoPointsDE or other DE Variants (Differential Evolution):
+
+# Why: DE is a population-based algorithm that relies on differences between population members to create new candidate solutions. This reliance on ranking and differences often makes it quite robust to noise. It scales reasonably well with dimensions. TwoPointsDE is often recommended by the Nevergrad developers as a strong DE variant.
+# Suitability: Very good fit. Handles dimensionality, good noise robustness. Simpler concept than CMA but often very effective.
+
+# NGOpt Family (e.g., NGOpt, DiagonalCMA depending on Nevergrad version/availability):
+
+# Why: These often represent more recent or advanced Estimation of Distribution Algorithms (EDAs) or Natural Evolution Strategies (NES). They are specifically designed for optimizing noisy functions and can sometimes outperform CMA or DE, especially if tuned correctly. DiagonalCMA could be relevant if you suspect low parameter correlation.
+# Suitability: Potentially excellent, possibly state-of-the-art within Nevergrad for this task. Might require more understanding of their specific mechanisms or slight tuning.
+
+# TBPSA (Tree-structured Parzen Estimator Bayesian Sampling Algorithm):
+
+# Why: This is a sequential model-based optimization (SMBO) method, similar to Bayesian Optimization but using Parzen estimators instead of Gaussian Processes typically. It's known to work well in hyperparameter optimization (like Optuna uses) and can handle conditional parameters. It models the probability of good vs. bad points.
+# Suitability: Moderate fit. It can handle noise, but its performance compared to ES methods at 500-1000 dimensions for direct policy search is less consistently documented than CMA/DE/NES. Model building can add overhead.
 
 # PSO (Particle Swarm Optimization):
-# Why: Known for its robustness and good performance on continuous problems. It also scales well with high parallelism. A solid, well-understood choice.
-# Consideration: Can sometimes converge prematurely on complex landscapes, but generally reliable. also scales well with high parallelism. A solid, well-understood choice.
+
+# Why: Another population-based algorithm inspired by social behavior. Particles 'fly' through the search space, influenced by their own best position and the swarm's best position.
+# Suitability: Moderate fit. Can work well, but sometimes prone to premature convergence compared to DE or CMA. Noise robustness is decent due to population averaging effects.
+
+# Regarding Evaluation Output:
+
+# Mean and Variance: Most standard Nevergrad optimizers (CMA, DE, PSO, NGOpt) primarily use the mean (or a single scalar fitness value) returned by the function evaluation. They don't explicitly use the variance information.
+
+# Bayesian Optimization (BO): If you were considering BO (which might struggle at 1000 dimensions without specific techniques like random embeddings or specialized kernels), providing the variance could be very useful to inform the noise level (alpha parameter) in its Gaussian Process model. However, given the dimensionality and common practices in RL policy search, CMA/DE/NGOpt are often preferred over standard BO.
+
+# Raw Noisy Evaluations: Standard Nevergrad optimizers typically expect one objective value per function call (representing one parameter vector evaluation). They are not designed to directly process the 1000 raw samples. You would almost certainly calculate the mean (or perhaps a robust statistic like the median, or a Conditional Value at Risk - CVaR) from your 1000 samples and return that single scalar value to the optimizer.
