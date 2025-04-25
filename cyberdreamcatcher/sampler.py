@@ -38,7 +38,7 @@ def collect_rewards_log_probs(env, policy, seed):
     # (no discount because episodes have fixed length)
     rewards_to_go = np.flip(np.cumsum(np.flip(np.array(rewards))))
 
-    return rewards_to_go, log_probs
+    return rewards_to_go, torch.stack(log_probs)
 
 
 def collect_trajectory(env, policy, seed):
@@ -147,19 +147,19 @@ class EpisodeSampler:
             )
             for i in range(num_episodes)
         )
-        batch_rewards_to_go = [
+        batch_episodes = [
             _
             for _ in tqdm(
                 parallel_generator,
                 total=num_episodes,
-                desc="Collecting rewards and log probabilities",
+                desc="Collecting rewards-to-go and log probabilities",
                 leave=False,
             )
         ]
 
-        stacked_rewards_to_go = np.vstack([t[0] for t in batch_rewards_to_go])
+        stacked_rewards_to_go = np.vstack([t[0] for t in batch_episodes])
         stacked_log_probs = torch.stack(
-            [torch.stack(t[1]) for t in batch_rewards_to_go]
+            [t[1] for t in batch_episodes]
         )
 
         return stacked_rewards_to_go, stacked_log_probs  # a row per episode

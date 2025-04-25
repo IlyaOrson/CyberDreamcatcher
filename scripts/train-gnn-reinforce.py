@@ -13,12 +13,14 @@ EPS = np.finfo(np.float32).eps.item()
 
 @dataclass
 class Cfg:
-    scenario: str = "Scenario2_-_User2_User4"  # "Scenario2_+_User5_User6"
+    scenario: str = "Scenario2"  # "Scenario2_+_User5_User6"
     episode_length: int = 30
-    num_episodes_sample: int = 1000
+    num_episodes_sample: int = 500
     seed: int = 0
     learning_rate: float = 1e-2
-    optimizer_iterations: int = 300
+    optimizer_iterations: int = 200
+    latent_node_dim: int = 3
+    normalize_advantage: bool = False
 
 
 class REINFORCE:
@@ -69,29 +71,32 @@ class REINFORCE:
                 global_step=counter,
             )
 
-        reward_mean = np.mean(batch_rewards_to_go)
-        reward_std = np.std(batch_rewards_to_go)
+        rewards_to_go = np.stack(batch_rewards_to_go)
+        log_probs = torch.stack(batch_log_probs)
 
-        log_prob_R = 0.0
-        for epi in range(num_episodes):
-            # TODO is normalizing a valid baseline?
-            reward_to_go_baselined = (batch_rewards_to_go[epi] - reward_mean) / (
-                reward_std + EPS
-            )
+        reward_mean = np.mean(rewards_to_go[:,0])
+        reward_std = np.std(rewards_to_go[:,0])
 
-            # invert signs to maximize reward
-            log_prob_R -= torch.sum(
-                torch.mul(
-                    torch.stack(batch_log_probs[epi]),
-                    torch.tensor(reward_to_go_baselined),
-                )
-            )
-            for log_prob, reward_to_go in zip(
-                batch_log_probs[epi], reward_to_go_baselined
-            ):
-                log_prob_R -= log_prob * reward_to_go
+        # Calculate the time-step-dependent baseline (mean across episodes for each time step)
+        # Shape: (episode_length,)
+        baselines_t = np.mean(rewards_to_go, axis=0)
+
+        # Calculate advantages A_t = R_t - b_t using broadcasting
+        # NumPy automatically subtracts the 1D baselines_t from each row of rewards_to_go
+        # Shape: (num_episodes, episode_length)
+        advantages = rewards_to_go - baselines_t
+
+        # A'_{i,t} = (A_{i,t} - mean_A) / (std_A + EPS)
+        if self.conf.normalize_advantage:
+            advantages_mean = np.mean(advantages)
+            advantages_std = np.std(advantages)
+            advantages = (advantages - advantages_mean) / (advantages_std + EPS)
+
+        # invert signs to maximize reward
+        log_prob_R = - torch.sum(torch.mul(log_probs, torch.tensor(advantages)))
 
         mean_log_prob_R = log_prob_R / num_episodes
+
         return mean_log_prob_R, reward_mean, reward_std
 
     def learn(self):
@@ -110,9 +115,15 @@ class REINFORCE:
             self.writer.add_scalar("mean reward", reward_mean, global_step=it)
             self.writer.add_scalar("mean std", reward_std, global_step=it)
 
-            pbar.write(f"Roll-out mean reward: {reward_mean:.3} +- {reward_std:.2}")
+            pbar.write(f"Roll-out mean reward: {reward_mean:.3f} +- {reward_std:.2f}")
+            pbar.set_postfix(
+                {
+                    "reward mean": f"{reward_mean:.3f}",
+                    "reward std": f"{reward_std:.2f}",
+                }
+            )
 
-            if it % 20 == 0:
+            if it % 10 == 0:
                 file_path = Path(self.log_dir) / f"trained_params_iter_{it}.pt"
                 torch.save(self.policy.state_dict(), file_path)
 
@@ -143,7 +154,7 @@ if __name__ == "__main__":
 
         env = GraphWrapper(scenario=cfg.scenario, max_steps=cfg.episode_length)
 
-        policy = Police(env)
+        policy = Police(env, latent_node_dim=cfg.latent_node_dim)
 
         trainer = REINFORCE(env, policy, cfg, log_dir=output_dir)
 
@@ -151,6 +162,7 @@ if __name__ == "__main__":
 
         # store trained policy
         file_path = Path(output_dir) / "trained_params.pt"
+        # torch.save(params_dict, file_path)
         torch.save(policy.state_dict(), file_path)
 
         trainer.writer.close()
