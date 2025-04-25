@@ -145,7 +145,6 @@ class Cfg:
 
 
 if __name__ == "__main__":
-
     # FIXME: PPO stagnates
     raise NotImplementedError("PPO is not working yet. See #20 in the GitHub repo.")
 

@@ -3,12 +3,17 @@ from dataclasses import dataclass, field
 from pathlib import Path
 import pickle
 
-import numpy as np
-import torch
-import nevergrad as ng
-from tqdm import tqdm
 import hydra
 from hydra.core.config_store import ConfigStore
+from omegaconf import OmegaConf
+
+import comet_ml
+from dotenv import load_dotenv
+
+from tqdm import tqdm
+import nevergrad as ng
+import numpy as np
+import torch
 
 from cyberdreamcatcher.utils import (
     set_all_seeds,
@@ -29,10 +34,11 @@ class Cfg:
     num_jobs: int = -1
     # Nevergrad settings
     budget: int = 500  # Total number of 'ask' calls (parameter sets evaluated)
-    use_mean_reward: bool = True  # Policy settings (if needed, e.g., hidden dims)
+    use_mean_reward: bool = True
     optimizer: str = "TwoPointsDE"  # Or "TBPSA", "CMA", "PSO", "NG", etc.
-    init_policy_path: str | None = None  # Optional path    
+    init_policy_path: str | None = None
     policy_kwargs: dict = field(default_factory=dict)
+    log_comet: bool = True
 
 
 # --- Hydra Setup ---
@@ -45,6 +51,27 @@ def main(cfg: Cfg) -> None:
     output_dir = Path(hydra.core.hydra_config.HydraConfig.get().runtime.output_dir)
     print(f"Working directory : {os.getcwd()}")
     print(f"Output directory  : {output_dir}")
+
+    experiment = None  # Initialize experiment to None
+    if cfg.log_comet:
+        try:
+            # --- Comet ML Setup ---
+            load_dotenv()
+            experiment = comet_ml.Experiment(
+                api_key=os.getenv("COMET_API_KEY"),
+                project_name=os.getenv("COMET_PROJECT_NAME"),
+                auto_param_logging=False,
+                auto_metric_logging=False,
+            )
+            experiment.set_name(f"nevergrad_{cfg.optimizer}_seed_{cfg.seed}")
+            # Use OmegaConf for consistency
+            experiment.log_parameters(OmegaConf.to_container(cfg, resolve=True))
+            experiment.log_html(f"<p>Output Directory: {output_dir}</p>")
+            # --- End Comet ML Setup ---
+        except Exception as e:
+            print(f"WARNING: CometML initialization failed: {e}")
+            experiment = None  # Ensure it's None on failure
+
     print("Configuration:")
     print(cfg)
 
@@ -70,6 +97,8 @@ def main(cfg: Cfg) -> None:
     initial_params_vector = state_dict_to_vector(initial_state_dict)
     param_dim = len(initial_params_vector)
     print(f"Policy parameter dimension: {param_dim}")
+    if experiment is not None:
+        experiment.log_other("policy_parameter_dimension", param_dim)
 
     # Define the search space for nevergrad
     # Use the initial parameters as a starting point hint
@@ -99,8 +128,11 @@ def main(cfg: Cfg) -> None:
 
     pbar = tqdm(total=cfg.budget, desc="Nevergrad Optimization (Ask calls)")
     best_known_reward = float("-inf")  # Track best reward found so far
+    step = 0
 
     for i in range(cfg.budget):
+        if experiment is not None:
+            experiment.set_step(step)
         candidate = optimizer.ask()
         params_vector = candidate.value
 
@@ -132,44 +164,39 @@ def main(cfg: Cfg) -> None:
         #    Rewards in CybORG are penalties (negative), so negate for minimization
         if cfg.use_mean_reward:
             optimizer.tell(candidate, -mean_reward)
-            # Track best reward observed across
-            if mean_reward > best_known_reward:
-                best_known_reward = mean_reward
+            # Log to Comet
+            if experiment is not None:
+                experiment.log_metric("reward_mean", mean_reward, step=step)
+                experiment.log_metric("reward_std", std_reward, step=step)
+                # Log the running best reward found so far
+                if mean_reward > best_known_reward:
+                    best_known_reward = mean_reward
+                    experiment.log_metric("best_reward_so_far", best_known_reward, step=step)
+
         else:
             # Tell optimizer each result individually
             # Note: check if this is appropriate for the chosen optimizer
             for reward_value in episode_rewards:
                 optimizer.tell(candidate, -reward_value)
 
-            # Track best reward observed across
-            current_best_reward = np.max(episode_rewards)
-            if current_best_reward > best_known_reward:
-                best_known_reward = current_best_reward
+            # Track best reward observed across *all* individual episodes
+            current_batch_best_reward = np.max(episode_rewards)
+            if current_batch_best_reward > best_known_reward:
+                best_known_reward = current_batch_best_reward
+            # Log to Comet (log mean/std/best of the batch and running best)
+            if experiment is not None:
+                experiment.log_metric("batch_reward_mean", np.mean(episode_rewards), step=step)
+                experiment.log_metric("batch_reward_std", np.std(episode_rewards), step=step)
+                experiment.log_metric("best_reward_so_far", best_known_reward, step=step)
 
-        if i % 10 == 0:
-            # Save a checkpoint of the best policy so far
-            state_dict = vector_to_state_dict(params_vector, initial_state_dict)
-            policy_path = output_dir / f"best_policy_{i}.pt"
-            torch.save(state_dict, policy_path)
-
-            # Save the full optimizer state if needed for checkpointing
-            optimizer_state_path = output_dir / f"optimizer_state_{i}.pkl"
-            with open(optimizer_state_path, "wb") as file:
-                pickle.dump(optimizer, file)  # Save the whole optimizer instance
-
-        pbar.set_postfix(
-            {
-                "best_reward": f"{best_known_reward:.3f}",
-                "mean_reward": f"{mean_reward:.3f}",
-                "std_reward": f"{std_reward:.3f}",
-            }
-        )
-        pbar.update(1)  # Update progress bar after processing one 'ask' candidate
+        pbar.update(1)
+        pbar.set_postfix({"Best Reward": f"{best_known_reward:.4f}"})  # Use tracked best_known_reward
+        step += 1
 
     pbar.close()
 
     # --- Get Recommendation and Save Results ---
-    recommendation = optimizer.provide_recommendation()  # Get the final best candidate
+    recommendation = optimizer.provide_recommendation()
 
     best_params_vector = recommendation.value
     # Note: recommendation.loss might be the loss of the specific point recommended,
@@ -187,66 +214,59 @@ def main(cfg: Cfg) -> None:
     best_policy_path = output_dir / "best_policy.pt"
     torch.save(best_state_dict, best_policy_path)
     print(f"Saved best policy weights to: {best_policy_path}")
+    if experiment is not None:
+        experiment.log_asset(best_policy_path)  # Log asset
 
     # Save the full optimizer state if needed for checkpointing (optional)
     optimizer_state_path = output_dir / "optimizer_state.pkl"
     with open(optimizer_state_path, "wb") as f:
-        pickle.dump(optimizer, f)  # Save the whole optimizer instance
-    print(f"Saved full optimizer state to: {optimizer_state_path}")
+        pickle.dump(optimizer.state, f)
+    print(f"Saved optimizer state to: {optimizer_state_path}")
+    if experiment is not None:
+        experiment.log_asset(optimizer_state_path)  # Log asset
 
     print("\nVoila!")
 
+    # --- Evaluate the final recommended policy ---
+    print("\nEvaluating final recommended policy...")
+    sampler.policy_weights = best_state_dict
+    final_rewards_to_go, _ = sampler.sample_episodes(
+        num_episodes=cfg.num_episodes_sample * 2
+    )
+    final_total_rewards = final_rewards_to_go[:, 0]
+    final_mean_reward = np.mean(final_total_rewards)
+    final_std_reward = np.std(final_total_rewards)
+    print(
+        f"Final Policy Mean Reward: {final_mean_reward:.4f} +/- {final_std_reward:.4f}"
+    )
+    if experiment is not None:
+        experiment.log_metric("final_policy_mean_reward", final_mean_reward)
+        experiment.log_metric("final_policy_std_reward", final_std_reward)
+        experiment.log_histogram_3d(
+            final_total_rewards, name="final_policy_reward_distribution"
+        )
+        # Log the empirically best reward found during the optimization run
+        experiment.log_metric("optimization_best_reward_overall", best_known_reward)
+
+    # You might want to log the actual best reward obtained *during* optimization too
+    # if Nevergrad provides it easily, e.g., through recommendation.loss
+    best_loss_from_optimizer = recommendation.loss
+    if best_loss_from_optimizer is not None:
+        print(
+            f"Best loss reported by optimizer for recommendation: {best_loss_from_optimizer}"
+        )
+        # Remember loss is negative reward
+        if experiment is not None:
+            experiment.log_metric(
+                "recommended_policy_optimization_loss", best_loss_from_optimizer
+            )
+            experiment.log_metric(
+                "recommended_policy_optimization_reward", -best_loss_from_optimizer
+            )
+
+    if experiment is not None:
+        experiment.end()
+
 
 if __name__ == "__main__":
-
     main()
-
-# NOTE: Nevergrad optimizer selection
-# https://facebookresearch.github.io/nevergrad/optimization.html#choosing-an-optimizer
-
-# Start with CMA. It's a powerful, well-regarded default for this kind of problem.
-# Also try TwoPointsDE (or another DE variant). It's often competitive and sometimes better, especially with high noise.
-# If seeking potentially higher performance (and willing to explore), investigate the NGOpt family.
-# Regardless of the algorithm, provide the mean of your 1000 noisy samples as the objective function value returned to the optimizer.
-
-# Key Problem Characteristics:
-
-# Blackbox: No gradient information available directly from the RL environment/policy interaction.
-# Dimensionality: ~500 - 1000 parameters. This is moderate-to-high dimensionality for blackbox optimization.
-# Noise: High noise, inherent in RL reward signals (stochastic environments, exploration, initial conditions). You get 1000 noisy samples per parameter evaluation.
-# Evaluation Output: Can provide mean/variance or raw samples.
-
-# Analysis & Recommendations:
-
-# CMA (Covariance Matrix Adaptation Evolution Strategy):
-
-# Why: CMA-ES is often a very strong baseline for continuous optimization problems up to several hundred or even a thousand dimensions. It adapts the covariance matrix of its search distribution, allowing it to learn correlations between parameters and effectively navigate complex fitness landscapes. It's known for its relative robustness to noise, especially when using population averaging inherent in the algorithm.
-# Suitability: Excellent fit. Handles dimensionality, reasonable noise robustness. It implicitly averages over its population, smoothing out some noise effects.
-
-# TwoPointsDE or other DE Variants (Differential Evolution):
-
-# Why: DE is a population-based algorithm that relies on differences between population members to create new candidate solutions. This reliance on ranking and differences often makes it quite robust to noise. It scales reasonably well with dimensions. TwoPointsDE is often recommended by the Nevergrad developers as a strong DE variant.
-# Suitability: Very good fit. Handles dimensionality, good noise robustness. Simpler concept than CMA but often very effective.
-
-# NGOpt Family (e.g., NGOpt, DiagonalCMA depending on Nevergrad version/availability):
-
-# Why: These often represent more recent or advanced Estimation of Distribution Algorithms (EDAs) or Natural Evolution Strategies (NES). They are specifically designed for optimizing noisy functions and can sometimes outperform CMA or DE, especially if tuned correctly. DiagonalCMA could be relevant if you suspect low parameter correlation.
-# Suitability: Potentially excellent, possibly state-of-the-art within Nevergrad for this task. Might require more understanding of their specific mechanisms or slight tuning.
-
-# TBPSA (Tree-structured Parzen Estimator Bayesian Sampling Algorithm):
-
-# Why: This is a sequential model-based optimization (SMBO) method, similar to Bayesian Optimization but using Parzen estimators instead of Gaussian Processes typically. It's known to work well in hyperparameter optimization (like Optuna uses) and can handle conditional parameters. It models the probability of good vs. bad points.
-# Suitability: Moderate fit. It can handle noise, but its performance compared to ES methods at 500-1000 dimensions for direct policy search is less consistently documented than CMA/DE/NES. Model building can add overhead.
-
-# PSO (Particle Swarm Optimization):
-
-# Why: Another population-based algorithm inspired by social behavior. Particles 'fly' through the search space, influenced by their own best position and the swarm's best position.
-# Suitability: Moderate fit. Can work well, but sometimes prone to premature convergence compared to DE or CMA. Noise robustness is decent due to population averaging effects.
-
-# Regarding Evaluation Output:
-
-# Mean and Variance: Most standard Nevergrad optimizers (CMA, DE, PSO, NGOpt) primarily use the mean (or a single scalar fitness value) returned by the function evaluation. They don't explicitly use the variance information.
-
-# Bayesian Optimization (BO): If you were considering BO (which might struggle at 1000 dimensions without specific techniques like random embeddings or specialized kernels), providing the variance could be very useful to inform the noise level (alpha parameter) in its Gaussian Process model. However, given the dimensionality and common practices in RL policy search, CMA/DE/NGOpt are often preferred over standard BO.
-
-# Raw Noisy Evaluations: Standard Nevergrad optimizers typically expect one objective value per function call (representing one parameter vector evaluation). They are not designed to directly process the 1000 raw samples. You would almost certainly calculate the mean (or perhaps a robust statistic like the median, or a Conditional Value at Risk - CVaR) from your 1000 samples and return that single scalar value to the optimizer.

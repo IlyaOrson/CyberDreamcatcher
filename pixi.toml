@@ -31,7 +31,6 @@ plot-performance = "python -m scripts.plot-policy-performance"
 plot-generalisation = "python -m scripts.plot-policy-generalisation"
 
 [dependencies]
-captum = "~=0.7"
 ipython = "~=8"
 jupyterlab = "~=4"
 matplotlib = "~=3.8"
@@ -54,7 +53,6 @@ tensorboard = ">=2.16.2,<2.17"
 tensordict = ">=0.1.2,<0.2"
 pytorch_geometric = "==2.5.0"
 fsspec = ">=2024.6.1,<2025"
-plotille = ">=5.0.0,<6"
 
 [pypi-dependencies]
 gymnasium = "~=0.28.1"
@@ -66,6 +64,8 @@ torch = "~=2.6"
 nevergrad = ">=1.0,<1.1"
 botorch = ">=0.13.0,<0.14"
 bayesian-optimization = "==1.4"
+comet-ml = ">=3.49.8, <4"
+python-dotenv = ">=1.1.0, <2"
 
 [feature.cuda]
 system-requirements = {cuda = "12.6"}
