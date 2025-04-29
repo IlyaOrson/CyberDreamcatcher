@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 import logging
 import gc
 
@@ -33,6 +33,7 @@ class Cfg:
     optimizer_iterations: int = 300
     num_jobs: int = -1
     normalize_advantage: bool = False
+    device: str = "cuda" if torch.cuda.is_available() else "cpu"
     latent_node_dim: int = 3
     log_comet: bool = True
     log_level: str = "INFO"
@@ -41,6 +42,8 @@ class REINFORCEParallel:
     def __init__(self, env, policy, conf, output_dir):
         self.env = env
         self.policy = policy
+        self.policy.to(conf.device)
+
         self.conf = conf
         self.output_dir = output_dir
         self.optimizer_step = 0
@@ -68,11 +71,12 @@ class REINFORCEParallel:
 
     def sample_episodes(self, counter=None):
         num_episodes = self.conf.num_episodes_sample
+        policy_weights = {k: v.cpu() for k, v in self.policy.state_dict().items()}
         sampler = EpisodeSampler(
             seed=self.conf.seed,
             scenario=self.conf.scenario,
             episode_length=self.conf.episode_length,
-            policy_weights=self.policy.state_dict(),
+            policy_weights=policy_weights,
             num_jobs=self.conf.num_jobs,
         )
         batch_trajectories = sampler.sample_trajectories(num_episodes)
@@ -86,15 +90,18 @@ class REINFORCEParallel:
 
         self.policy.eval()
 
-        for i, episode in enumerate(batch_trajectories):
+        # TODO: use batch processing on GPU
+        for _, episode in enumerate(batch_trajectories):
             obs_seq, actions_seq, rewards_seq, log_probs_seq = episode
             rewards_to_go = np.flip(np.cumsum(np.flip(np.array(rewards_seq))))
             batch_rewards_to_go.append(rewards_to_go)
             log_probs = []
             for obs, action in zip(obs_seq, actions_seq):
-                with torch.no_grad():
-                    report = self.policy(obs, action=action)
+                obs = obs.to(self.conf.device)
+                action = action.to(self.conf.device)
+                report = self.policy(obs, action=action)
                 log_probs.append(report.log_prob)
+            assert all(torch.isclose(p, l) for (p,l) in zip(log_probs_seq, log_probs))
             batch_log_probs.append(torch.stack(log_probs))
             pbar.update(1)
 
@@ -163,8 +170,11 @@ class REINFORCEParallel:
                 if torch.cuda.is_available():
                     torch.cuda.empty_cache()
 
+            # Safely get and format the loss value
+            loss_val = pbar.postfix.get('loss', 'N/A') if isinstance(pbar.postfix, dict) else 'N/A'
+            loss_str = f"{loss_val:.3f}" if isinstance(loss_val, (int, float)) else str(loss_val)
+            pbar.set_postfix({"reward mean": f"{reward_mean:.3f}", "loss": loss_str})
             pbar.write(f"Roll-out mean reward: {reward_mean:.3f} +- {reward_std:.2f}")
-            pbar.set_postfix({"reward mean": f"{reward_mean:.3f}", "loss": f"{pbar.postfix['loss'] if pbar.postfix else 'N/A'}"})
 
             if it % 100 == 0:
                 file_path = Path(self.output_dir) / f"policy_step_{it}.pt"

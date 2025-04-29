@@ -420,6 +420,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/49/10/328172e7c8bf498c826a6d53646781afac0f7e647c82835ba5c8dbb3957d/cma-4.0.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/52/80/1696dd4fa383bdc44a70c2bbf14d9201851f413ce7a6dc902671b39adc7f/comet_ml-3.49.8-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/a6/c4/0679472c60052c27efa612b4cd3ddd2a23e885dcdc73461781d2c802d39e/configobj-5.0.9-py2.py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/42/b0/876bc174ff34a0b2e3b75f10d7c3c9a267a1f56dbac59e943b6f682f6aa8/directsearch-1.0.tar.gz
       - pypi: https://files.pythonhosted.org/packages/fa/73/50ddf1f3ad592c2526cb34287f45b07ee6320b850efddda2917cc81ac651/dulwich-0.22.8-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/91/9a/d882fd7562208456236fb2e62b762bf16fbc9ecde842bb871f676ca0f7e1/everett-3.1.0-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/05/2c/ffc08c54c05cdce6fbed2aeebc46348dbe180c6d2c541c7af7ba0aa5f5f8/Farama_Notifications-0.0.4-py3-none-any.whl
@@ -431,7 +432,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/ed/c7/8a27fd8e182c611d4bf0aa9f0ea9046a7c843901d0f06c8cdcb599840a38/linear_operator-0.6-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/51/c0/00c9809d8b9346eb238a6bbd5f83e846a4ce4503da94a4c08cb7284c325b/multipledispatch-1.0.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/79/7b/2c79738432f5c924bef5071f933bcc9efd0473bac3b4aa584a6f7c1c8df8/mypy_extensions-1.1.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/e9/a8/ac50e03fc261b930112275817ae686e4fad99ce67279b3cef4870da95ee2/nevergrad-1.0.3-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/5a/13/8267afdb84a890d7fc3e6f0eef170b0323915c28879e79e8184f7257cf8a/nevergrad-1.0.12-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/a4/7a/9812cb8be9828ab688203c5ac5f743c60652887f0c00995a6f6f19f912bd/pyre_extensions-0.0.32-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/fc/81/957ae78e6398460a7230b0eb9b8f1cb954c5e913e868e48d89324c68cec7/pyro_api-0.1.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/ed/37/def183a2a2c8619d92649d62fe0622c4c6c62f60e4151e8fbaa409e7d5ab/pyro_ppl-1.9.1-py3-none-any.whl
@@ -858,6 +859,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/49/10/328172e7c8bf498c826a6d53646781afac0f7e647c82835ba5c8dbb3957d/cma-4.0.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/52/80/1696dd4fa383bdc44a70c2bbf14d9201851f413ce7a6dc902671b39adc7f/comet_ml-3.49.8-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/a6/c4/0679472c60052c27efa612b4cd3ddd2a23e885dcdc73461781d2c802d39e/configobj-5.0.9-py2.py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/42/b0/876bc174ff34a0b2e3b75f10d7c3c9a267a1f56dbac59e943b6f682f6aa8/directsearch-1.0.tar.gz
       - pypi: https://files.pythonhosted.org/packages/02/57/7163ed06a2d9bf1f34d89dcc7c5881119beeed287022c997b0a706edcfbe/dulwich-0.22.8-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl
       - pypi: https://files.pythonhosted.org/packages/91/9a/d882fd7562208456236fb2e62b762bf16fbc9ecde842bb871f676ca0f7e1/everett-3.1.0-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/05/2c/ffc08c54c05cdce6fbed2aeebc46348dbe180c6d2c541c7af7ba0aa5f5f8/Farama_Notifications-0.0.4-py3-none-any.whl
@@ -869,7 +871,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/ed/c7/8a27fd8e182c611d4bf0aa9f0ea9046a7c843901d0f06c8cdcb599840a38/linear_operator-0.6-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/51/c0/00c9809d8b9346eb238a6bbd5f83e846a4ce4503da94a4c08cb7284c325b/multipledispatch-1.0.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/79/7b/2c79738432f5c924bef5071f933bcc9efd0473bac3b4aa584a6f7c1c8df8/mypy_extensions-1.1.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/e9/a8/ac50e03fc261b930112275817ae686e4fad99ce67279b3cef4870da95ee2/nevergrad-1.0.3-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/5a/13/8267afdb84a890d7fc3e6f0eef170b0323915c28879e79e8184f7257cf8a/nevergrad-1.0.12-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/a4/7a/9812cb8be9828ab688203c5ac5f743c60652887f0c00995a6f6f19f912bd/pyre_extensions-0.0.32-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/fc/81/957ae78e6398460a7230b0eb9b8f1cb954c5e913e868e48d89324c68cec7/pyro_api-0.1.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/ed/37/def183a2a2c8619d92649d62fe0622c4c6c62f60e4151e8fbaa409e7d5ab/pyro_ppl-1.9.1-py3-none-any.whl
@@ -1224,6 +1226,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/49/10/328172e7c8bf498c826a6d53646781afac0f7e647c82835ba5c8dbb3957d/cma-4.0.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/52/80/1696dd4fa383bdc44a70c2bbf14d9201851f413ce7a6dc902671b39adc7f/comet_ml-3.49.8-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/a6/c4/0679472c60052c27efa612b4cd3ddd2a23e885dcdc73461781d2c802d39e/configobj-5.0.9-py2.py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/42/b0/876bc174ff34a0b2e3b75f10d7c3c9a267a1f56dbac59e943b6f682f6aa8/directsearch-1.0.tar.gz
       - pypi: https://files.pythonhosted.org/packages/81/20/b149f68557d42607b5dcc6f57c1650f2136049be617f3e68092c25861275/dulwich-0.22.8-cp312-cp312-win_amd64.whl
       - pypi: https://files.pythonhosted.org/packages/91/9a/d882fd7562208456236fb2e62b762bf16fbc9ecde842bb871f676ca0f7e1/everett-3.1.0-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/05/2c/ffc08c54c05cdce6fbed2aeebc46348dbe180c6d2c541c7af7ba0aa5f5f8/Farama_Notifications-0.0.4-py3-none-any.whl
@@ -1235,7 +1238,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/ed/c7/8a27fd8e182c611d4bf0aa9f0ea9046a7c843901d0f06c8cdcb599840a38/linear_operator-0.6-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/51/c0/00c9809d8b9346eb238a6bbd5f83e846a4ce4503da94a4c08cb7284c325b/multipledispatch-1.0.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/79/7b/2c79738432f5c924bef5071f933bcc9efd0473bac3b4aa584a6f7c1c8df8/mypy_extensions-1.1.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/e9/a8/ac50e03fc261b930112275817ae686e4fad99ce67279b3cef4870da95ee2/nevergrad-1.0.3-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/5a/13/8267afdb84a890d7fc3e6f0eef170b0323915c28879e79e8184f7257cf8a/nevergrad-1.0.12-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/a4/7a/9812cb8be9828ab688203c5ac5f743c60652887f0c00995a6f6f19f912bd/pyre_extensions-0.0.32-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/fc/81/957ae78e6398460a7230b0eb9b8f1cb954c5e913e868e48d89324c68cec7/pyro_api-0.1.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/ed/37/def183a2a2c8619d92649d62fe0622c4c6c62f60e4151e8fbaa409e7d5ab/pyro_ppl-1.9.1-py3-none-any.whl
@@ -1638,6 +1641,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/49/10/328172e7c8bf498c826a6d53646781afac0f7e647c82835ba5c8dbb3957d/cma-4.0.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/52/80/1696dd4fa383bdc44a70c2bbf14d9201851f413ce7a6dc902671b39adc7f/comet_ml-3.49.8-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/a6/c4/0679472c60052c27efa612b4cd3ddd2a23e885dcdc73461781d2c802d39e/configobj-5.0.9-py2.py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/42/b0/876bc174ff34a0b2e3b75f10d7c3c9a267a1f56dbac59e943b6f682f6aa8/directsearch-1.0.tar.gz
       - pypi: https://files.pythonhosted.org/packages/fa/73/50ddf1f3ad592c2526cb34287f45b07ee6320b850efddda2917cc81ac651/dulwich-0.22.8-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/91/9a/d882fd7562208456236fb2e62b762bf16fbc9ecde842bb871f676ca0f7e1/everett-3.1.0-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/05/2c/ffc08c54c05cdce6fbed2aeebc46348dbe180c6d2c541c7af7ba0aa5f5f8/Farama_Notifications-0.0.4-py3-none-any.whl
@@ -1649,7 +1653,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/ed/c7/8a27fd8e182c611d4bf0aa9f0ea9046a7c843901d0f06c8cdcb599840a38/linear_operator-0.6-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/51/c0/00c9809d8b9346eb238a6bbd5f83e846a4ce4503da94a4c08cb7284c325b/multipledispatch-1.0.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/79/7b/2c79738432f5c924bef5071f933bcc9efd0473bac3b4aa584a6f7c1c8df8/mypy_extensions-1.1.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/e9/a8/ac50e03fc261b930112275817ae686e4fad99ce67279b3cef4870da95ee2/nevergrad-1.0.3-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/5a/13/8267afdb84a890d7fc3e6f0eef170b0323915c28879e79e8184f7257cf8a/nevergrad-1.0.12-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/a4/7a/9812cb8be9828ab688203c5ac5f743c60652887f0c00995a6f6f19f912bd/pyre_extensions-0.0.32-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/fc/81/957ae78e6398460a7230b0eb9b8f1cb954c5e913e868e48d89324c68cec7/pyro_api-0.1.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/ed/37/def183a2a2c8619d92649d62fe0622c4c6c62f60e4151e8fbaa409e7d5ab/pyro_ppl-1.9.1-py3-none-any.whl
@@ -2044,6 +2048,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/49/10/328172e7c8bf498c826a6d53646781afac0f7e647c82835ba5c8dbb3957d/cma-4.0.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/52/80/1696dd4fa383bdc44a70c2bbf14d9201851f413ce7a6dc902671b39adc7f/comet_ml-3.49.8-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/a6/c4/0679472c60052c27efa612b4cd3ddd2a23e885dcdc73461781d2c802d39e/configobj-5.0.9-py2.py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/42/b0/876bc174ff34a0b2e3b75f10d7c3c9a267a1f56dbac59e943b6f682f6aa8/directsearch-1.0.tar.gz
       - pypi: https://files.pythonhosted.org/packages/02/57/7163ed06a2d9bf1f34d89dcc7c5881119beeed287022c997b0a706edcfbe/dulwich-0.22.8-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl
       - pypi: https://files.pythonhosted.org/packages/91/9a/d882fd7562208456236fb2e62b762bf16fbc9ecde842bb871f676ca0f7e1/everett-3.1.0-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/05/2c/ffc08c54c05cdce6fbed2aeebc46348dbe180c6d2c541c7af7ba0aa5f5f8/Farama_Notifications-0.0.4-py3-none-any.whl
@@ -2055,7 +2060,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/ed/c7/8a27fd8e182c611d4bf0aa9f0ea9046a7c843901d0f06c8cdcb599840a38/linear_operator-0.6-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/51/c0/00c9809d8b9346eb238a6bbd5f83e846a4ce4503da94a4c08cb7284c325b/multipledispatch-1.0.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/79/7b/2c79738432f5c924bef5071f933bcc9efd0473bac3b4aa584a6f7c1c8df8/mypy_extensions-1.1.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/e9/a8/ac50e03fc261b930112275817ae686e4fad99ce67279b3cef4870da95ee2/nevergrad-1.0.3-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/5a/13/8267afdb84a890d7fc3e6f0eef170b0323915c28879e79e8184f7257cf8a/nevergrad-1.0.12-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/a4/7a/9812cb8be9828ab688203c5ac5f743c60652887f0c00995a6f6f19f912bd/pyre_extensions-0.0.32-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/fc/81/957ae78e6398460a7230b0eb9b8f1cb954c5e913e868e48d89324c68cec7/pyro_api-0.1.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/ed/37/def183a2a2c8619d92649d62fe0622c4c6c62f60e4151e8fbaa409e7d5ab/pyro_ppl-1.9.1-py3-none-any.whl
@@ -2396,6 +2401,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/49/10/328172e7c8bf498c826a6d53646781afac0f7e647c82835ba5c8dbb3957d/cma-4.0.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/52/80/1696dd4fa383bdc44a70c2bbf14d9201851f413ce7a6dc902671b39adc7f/comet_ml-3.49.8-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/a6/c4/0679472c60052c27efa612b4cd3ddd2a23e885dcdc73461781d2c802d39e/configobj-5.0.9-py2.py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/42/b0/876bc174ff34a0b2e3b75f10d7c3c9a267a1f56dbac59e943b6f682f6aa8/directsearch-1.0.tar.gz
       - pypi: https://files.pythonhosted.org/packages/d5/f2/53c5a22a4a9c0033e10f35c293bc533d64fe3e0c4ff4421128a97d6feda9/dulwich-0.22.8-cp312-cp312-macosx_11_0_arm64.whl
       - pypi: https://files.pythonhosted.org/packages/91/9a/d882fd7562208456236fb2e62b762bf16fbc9ecde842bb871f676ca0f7e1/everett-3.1.0-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/05/2c/ffc08c54c05cdce6fbed2aeebc46348dbe180c6d2c541c7af7ba0aa5f5f8/Farama_Notifications-0.0.4-py3-none-any.whl
@@ -2407,7 +2413,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/ed/c7/8a27fd8e182c611d4bf0aa9f0ea9046a7c843901d0f06c8cdcb599840a38/linear_operator-0.6-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/51/c0/00c9809d8b9346eb238a6bbd5f83e846a4ce4503da94a4c08cb7284c325b/multipledispatch-1.0.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/79/7b/2c79738432f5c924bef5071f933bcc9efd0473bac3b4aa584a6f7c1c8df8/mypy_extensions-1.1.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/e9/a8/ac50e03fc261b930112275817ae686e4fad99ce67279b3cef4870da95ee2/nevergrad-1.0.3-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/5a/13/8267afdb84a890d7fc3e6f0eef170b0323915c28879e79e8184f7257cf8a/nevergrad-1.0.12-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/a4/7a/9812cb8be9828ab688203c5ac5f743c60652887f0c00995a6f6f19f912bd/pyre_extensions-0.0.32-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/fc/81/957ae78e6398460a7230b0eb9b8f1cb954c5e913e868e48d89324c68cec7/pyro_api-0.1.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/ed/37/def183a2a2c8619d92649d62fe0622c4c6c62f60e4151e8fbaa409e7d5ab/pyro_ppl-1.9.1-py3-none-any.whl
@@ -2748,6 +2754,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/49/10/328172e7c8bf498c826a6d53646781afac0f7e647c82835ba5c8dbb3957d/cma-4.0.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/52/80/1696dd4fa383bdc44a70c2bbf14d9201851f413ce7a6dc902671b39adc7f/comet_ml-3.49.8-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/a6/c4/0679472c60052c27efa612b4cd3ddd2a23e885dcdc73461781d2c802d39e/configobj-5.0.9-py2.py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/42/b0/876bc174ff34a0b2e3b75f10d7c3c9a267a1f56dbac59e943b6f682f6aa8/directsearch-1.0.tar.gz
       - pypi: https://files.pythonhosted.org/packages/81/20/b149f68557d42607b5dcc6f57c1650f2136049be617f3e68092c25861275/dulwich-0.22.8-cp312-cp312-win_amd64.whl
       - pypi: https://files.pythonhosted.org/packages/91/9a/d882fd7562208456236fb2e62b762bf16fbc9ecde842bb871f676ca0f7e1/everett-3.1.0-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/05/2c/ffc08c54c05cdce6fbed2aeebc46348dbe180c6d2c541c7af7ba0aa5f5f8/Farama_Notifications-0.0.4-py3-none-any.whl
@@ -2759,7 +2766,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/ed/c7/8a27fd8e182c611d4bf0aa9f0ea9046a7c843901d0f06c8cdcb599840a38/linear_operator-0.6-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/51/c0/00c9809d8b9346eb238a6bbd5f83e846a4ce4503da94a4c08cb7284c325b/multipledispatch-1.0.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/79/7b/2c79738432f5c924bef5071f933bcc9efd0473bac3b4aa584a6f7c1c8df8/mypy_extensions-1.1.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/e9/a8/ac50e03fc261b930112275817ae686e4fad99ce67279b3cef4870da95ee2/nevergrad-1.0.3-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/5a/13/8267afdb84a890d7fc3e6f0eef170b0323915c28879e79e8184f7257cf8a/nevergrad-1.0.12-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/a4/7a/9812cb8be9828ab688203c5ac5f743c60652887f0c00995a6f6f19f912bd/pyre_extensions-0.0.32-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/fc/81/957ae78e6398460a7230b0eb9b8f1cb954c5e913e868e48d89324c68cec7/pyro_api-0.1.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/ed/37/def183a2a2c8619d92649d62fe0622c4c6c62f60e4151e8fbaa409e7d5ab/pyro_ppl-1.9.1-py3-none-any.whl
@@ -4980,6 +4987,13 @@ packages:
   - pkg:pypi/defusedxml?source=hash-mapping
   size: 24062
   timestamp: 1615232388757
+- pypi: https://files.pythonhosted.org/packages/42/b0/876bc174ff34a0b2e3b75f10d7c3c9a267a1f56dbac59e943b6f682f6aa8/directsearch-1.0.tar.gz
+  name: directsearch
+  version: '1.0'
+  sha256: 8093ecc401a3d5eff28f053d4ef1b726f5a9c577bd33d6a8b2413a5ba753c734
+  requires_dist:
+  - numpy>=1.11
+  - scipy>=1.0
 - conda: https://conda.anaconda.org/conda-forge/linux-64/docutils-0.20.1-py312h7900ff3_3.conda
   sha256: b9fb75d806afc53d9d7b98edb0c45ac38a3cc983916b8dac4ad7ddac5c18a024
   md5: 1b90835ae26b9b8250b302649359a989
@@ -11972,23 +11986,24 @@ packages:
   purls: []
   size: 1265008
   timestamp: 1731521053408
-- pypi: https://files.pythonhosted.org/packages/e9/a8/ac50e03fc261b930112275817ae686e4fad99ce67279b3cef4870da95ee2/nevergrad-1.0.3-py3-none-any.whl
+- pypi: https://files.pythonhosted.org/packages/5a/13/8267afdb84a890d7fc3e6f0eef170b0323915c28879e79e8184f7257cf8a/nevergrad-1.0.12-py3-none-any.whl
   name: nevergrad
-  version: 1.0.3
-  sha256: f83baafb416de42bcae52cf1b2b2e9d80220a429f99444be93f7ad715d31f37d
+  version: 1.0.12
+  sha256: 56ff65d6a2f497ecd79af5a796968ee946c05705a6a69ca616eae5988cc5d999
   requires_dist:
   - numpy>=1.24.0
   - cma>=2.6.0
-  - bayesian-optimization>=1.2.0
+  - bayesian-optimization==1.4.0
   - typing-extensions>=3.6.6
   - pandas
+  - directsearch
   - black==24.3.0 ; extra == 'all'
   - mypy>=0.800 ; extra == 'all'
   - pytest>=4.3.0 ; extra == 'all'
   - pytest-cov>=2.6.1 ; extra == 'all'
   - pylint>=2.4.4 ; extra == 'all'
   - wheel>=0.33.6 ; extra == 'all'
-  - setuptools>=41.2.0 ; extra == 'all'
+  - setuptools==70.0.0 ; extra == 'all'
   - sphinx>=3.3.0 ; extra == 'all'
   - sphinx-rtd-theme>=0.4.3 ; extra == 'all'
   - recommonmark>=0.5.0 ; extra == 'all'
@@ -12004,7 +12019,7 @@ packages:
   - xlwt>=1.3.0 ; extra == 'all'
   - xlrd>=1.2.0 ; extra == 'all'
   - opencv-python>=4.1.2.30 ; extra == 'all'
-  - matplotlib>=2.2.3 ; extra == 'all'
+  - matplotlib==3.7.0 ; extra == 'all'
   - gym==0.24.1 ; extra == 'all'
   - pygame>=2.1.2 ; extra == 'all'
   - torch>=1.7.0 ; extra == 'all'
@@ -12019,7 +12034,6 @@ packages:
   - mixsimulator>=0.3.3 ; extra == 'all'
   - hyperopt>=0.2.5 ; extra == 'all'
   - iohexperimenter>=0.2.9.2 ; extra == 'all'
-  - cdt>=0.5.23 ; extra == 'all'
   - tensorflow-estimator>=2.7.0 ; extra == 'all'
   - tensorflow>=2.7.0 ; extra == 'all'
   - keras>=2.4.3 ; extra == 'all'
@@ -12036,6 +12050,8 @@ packages:
   - glfw ; extra == 'all'
   - mujoco ; extra == 'all'
   - pysot ; extra == 'all'
+  - pytest-timeout ; extra == 'all'
+  - pytest-xdist ; extra == 'all'
   - poap ; extra == 'all'
   - pytest-circleci-parallelized ; extra == 'all'
   - py-bobyqa>=1.2 ; extra == 'all'
@@ -12044,10 +12060,7 @@ packages:
   - directsearch>=1.0 ; extra == 'all'
   - numpy>=1.16.2 ; extra == 'all'
   - scipy>=1.2.1 ; extra == 'all'
-  - matplotlib>=3.0.3 ; extra == 'all'
   - autograd>=1.2 ; extra == 'all'
-  - pymkl>=0.0.3 ; extra == 'all'
-  - ceviche>=0.0.2 ; extra == 'all'
   - scikit-image>=0.15.0 ; extra == 'all'
   - olymp>=0.0.1b0 ; sys_platform == 'linux' and extra == 'all'
   - requests>=2.21.0 ; extra == 'benchmark'
@@ -12057,7 +12070,7 @@ packages:
   - xlwt>=1.3.0 ; extra == 'benchmark'
   - xlrd>=1.2.0 ; extra == 'benchmark'
   - opencv-python>=4.1.2.30 ; extra == 'benchmark'
-  - matplotlib>=2.2.3 ; extra == 'benchmark'
+  - matplotlib==3.7.0 ; extra == 'benchmark'
   - gym==0.24.1 ; extra == 'benchmark'
   - pygame>=2.1.2 ; extra == 'benchmark'
   - torch>=1.7.0 ; extra == 'benchmark'
@@ -12073,7 +12086,6 @@ packages:
   - mixsimulator>=0.3.3 ; extra == 'benchmark'
   - hyperopt>=0.2.5 ; extra == 'benchmark'
   - iohexperimenter>=0.2.9.2 ; extra == 'benchmark'
-  - cdt>=0.5.23 ; extra == 'benchmark'
   - tensorflow-estimator>=2.7.0 ; extra == 'benchmark'
   - tensorflow>=2.7.0 ; extra == 'benchmark'
   - keras>=2.4.3 ; extra == 'benchmark'
@@ -12090,6 +12102,8 @@ packages:
   - glfw ; extra == 'benchmark'
   - mujoco ; extra == 'benchmark'
   - pysot ; extra == 'benchmark'
+  - pytest-timeout ; extra == 'benchmark'
+  - pytest-xdist ; extra == 'benchmark'
   - poap ; extra == 'benchmark'
   - pytest-circleci-parallelized ; extra == 'benchmark'
   - py-bobyqa>=1.2 ; extra == 'benchmark'
@@ -12098,10 +12112,7 @@ packages:
   - directsearch>=1.0 ; extra == 'benchmark'
   - numpy>=1.16.2 ; extra == 'benchmark'
   - scipy>=1.2.1 ; extra == 'benchmark'
-  - matplotlib>=3.0.3 ; extra == 'benchmark'
   - autograd>=1.2 ; extra == 'benchmark'
-  - pymkl>=0.0.3 ; extra == 'benchmark'
-  - ceviche>=0.0.2 ; extra == 'benchmark'
   - scikit-image>=0.15.0 ; extra == 'benchmark'
   - olymp>=0.0.1b0 ; sys_platform == 'linux' and extra == 'benchmark'
   - black==24.3.0 ; extra == 'dev'
@@ -12110,7 +12121,7 @@ packages:
   - pytest-cov>=2.6.1 ; extra == 'dev'
   - pylint>=2.4.4 ; extra == 'dev'
   - wheel>=0.33.6 ; extra == 'dev'
-  - setuptools>=41.2.0 ; extra == 'dev'
+  - setuptools==70.0.0 ; extra == 'dev'
   - sphinx>=3.3.0 ; extra == 'dev'
   - sphinx-rtd-theme>=0.4.3 ; extra == 'dev'
   - recommonmark>=0.5.0 ; extra == 'dev'

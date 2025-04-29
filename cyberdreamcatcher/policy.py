@@ -27,18 +27,21 @@ class ActionLogits:
 
     def flat_to_multidim(self, action_flat):
         # The first entry of action represents the host
-        # so it is irrelevant for these global actions
+        # so it is irrelevant for global actions
+        # [x, 0] == "Sleep"
+        # [x, 1] == "Monitor"
         if action_flat == 0:  # Sleep
             action = [0, 0]
         elif action_flat == 1:  # Monitor
             action = [0, 1]
         else:
             # Recover the corresponding multidimensional index from the flattened action
-            # action = torch.unravel_index(action_flat, action_logits.shape)
-            action = torch.unravel_index(action_flat - 2, self.node_logits.shape)
+            # Remove the global actions from the flattened index
+            host_id, action_id = torch.unravel_index(action_flat - 2, self.node_logits.shape)
+            action = (host_id, action_id + 2)  # Add 2 to account for global actions
 
-        return torch.tensor(action)
-
+        return torch.tensor(action, device=action_flat.device)
+    
     def multidim_to_flat(self, action_multi):
         # Convert multidimensional action to the corresponding flat action
         assert len(action_multi) == self.node_logits.dim()
@@ -51,9 +54,10 @@ class ActionLogits:
             # only its log_prob is of interest to be calculated
             # action_multi[-1] -= 2
             shifted_action = torch.tensor([action_multi[0], action_multi[-1] - 2])
-            action_flat = ravel_multi_index(shifted_action, self.node_logits.shape)
+            # Calculate flat index within node_logits and add 2 for the final flat index
+            action_flat = ravel_multi_index(shifted_action, self.node_logits.shape) + 2
 
-        return action_flat
+        return action_flat.to(action_multi.device)
 
 
 class Police(torch.nn.Module):
@@ -108,7 +112,7 @@ class Police(torch.nn.Module):
         self.train_critic = train_critic
 
         # Train critic only in actor-critic methods
-        if self.train_critic: 
+        if self.train_critic:
             self.critic_latent_0 = GATGlobalConv(
                 in_channels=env.host_embedding_size,
                 out_channels=latent_node_dim,
@@ -215,9 +219,11 @@ class Police(torch.nn.Module):
             action_flat = distribution.sample()  # stochastic
 
             action = action_logits.flat_to_multidim(action_flat)
+            assert action_flat == action_logits.multidim_to_flat(action)
         else:
             # Convert multidimensional action to the corresponding flat action
             action_flat = action_logits.multidim_to_flat(action)
+            assert torch.equal(action, action_logits.flat_to_multidim(action_flat))
 
         action_log_prob = distribution.log_prob(action_flat)
 
