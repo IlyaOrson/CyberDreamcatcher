@@ -13,7 +13,7 @@ import torch
 from CybORG import CybORG
 from CybORG.Shared.Enums import TrinaryEnum
 from CybORG.Agents import RedMeanderAgent  # , TestAgent
-from CybORG.Agents.Wrappers import ChallengeWrapper  # , BaseWrapper
+from CybORG.Agents.Wrappers import BlueTableWrapper  # , ChallengeWrapper, RedTableWrapper
 
 # NOTE not sure if this limits are actually enforced in CybORG
 from CybORG.Shared.ActionSpace import MAX_PORTS
@@ -30,8 +30,8 @@ from cyberdreamcatcher.plots import (
 )
 
 
-# NOTE does not comply with the gym observation space restrictions
-# class GraphWrapper(gym.Env):
+# NOTE graph observation are not supported by gymnasium observation space restrictions
+# class GraphWrapper(gym.Env):  # not useful
 class GraphWrapper:
     agent_name = "Blue"
 
@@ -85,6 +85,8 @@ class GraphWrapper:
 
         # NOTE this depends on the random IPs assigned so need to be called after each environment reset as well
         # Initialize feasiable connection graph with the structure from the scenario
+        # TODO: Do this through empirical sampling instead,
+        #       since the structure is not really respected by CybORG
         self.set_feasible_connections()
 
         # NOTE  the "true" state is not really updated because the observations are updated instead
@@ -96,13 +98,13 @@ class GraphWrapper:
         # ec_obs_blue = ec._filter_obs(ec.get_true_state(ec.INFO_DICT["Blue"]), "Blue").data
 
         # ChallengeWrapper > OpenAIGymWrapper > EnumActionWrapper > BlueTableWrapper > TrueTableWrapper > CyBORG
-        self.challenge = ChallengeWrapper(
-            agent_name=self.agent_name, env=self.cyborg, max_steps=self.max_steps
-        )
-        self.openai_gym = self.challenge.env
-        self.enum_action = self.openai_gym.env
-        self.blue_table = self.enum_action.env
-        self.true_table = self.blue_table.env
+        # self.challenge = ChallengeWrapper(
+        #     agent_name=self.agent_name, env=self.cyborg, max_steps=self.max_steps
+        # )
+        # self.openai_gym = self.challenge.env
+        # self.enum_action = self.openai_gym.env
+        # self.blue_table = self.enum_action.env
+        # self.true_table = self.blue_table.env
 
         # This imitates the logic in BlueTable._process_initial_obs()
         self.blue_baseline = {
@@ -115,7 +117,7 @@ class GraphWrapper:
         self.previous_action_encoding = torch.tensor([0, 0], dtype=torch.float)
 
         # Set gymnasium properties
-        self.reward_range = (float("-inf"), float("inf"))
+        # self.reward_range = (float("-inf"), float("inf"))  # not used
         self.action_space = gym.spaces.MultiDiscrete([self.num_hosts, self.num_actions])
 
         # NOTE  not very useful since unexpected connections appear regardless of layout constraints... and
@@ -132,7 +134,9 @@ class GraphWrapper:
             self.fig, self.axis = plt.subplots(1, 2)
             self._node_positions = plot_feasible_connections(self)
 
+    # TODO use TensorDict instead? https://github.com/pytorch/rl/issues/1154
     def _build_dict_obs_space(self):
+        raise NotImplementedError("Nested dicts are not supported by gymnasium.spaces")
         # host_properties[host] = [subnet, num_local_ports, malware]
         host_props = gym.spaces.Dict(
             {
@@ -184,7 +188,7 @@ class GraphWrapper:
                 if name == hostname:
                     # TODO should we add a self loop
                     # self_reference = True
-                    continue  # NOTE does this flag a node available for red attacks?
+                    continue  # what is the meaning of this?
                 origin_remote = (hostname, name)
                 self.internet_connections.append(origin_remote)
 
@@ -195,7 +199,8 @@ class GraphWrapper:
         # subnet name --> hostnames
         self.subnet_hostnames_map = {}
 
-        # feasible connections between hosts in the same subnet
+        # NOTE: assuming bidirectional connections are possible
+        #       between every pair of hosts in the same subnet
         self.intranet_connections = []
         subnets = self.env_controller.state.subnets.values()
         for subnet in subnets:
@@ -481,11 +486,42 @@ class GraphWrapper:
         # info = ChainMap(vars(result), graph_info)  # not supported by gymnasium wrappers
         info = vars(result)
         info.update(graph_info)
+
+        # NOTE: red table cannot be used at the same time as the blue table
+        #       because each cyborg.step() call requires an agent name
+        #       which means it would require an independent copy of cyborg synced
+        #       with the main cyborg instance
+        # self.red_table = RedTableWrapper(env=self.cyborg)
+        # red_obs = self.red_table.observation_change(result.observation)
+        # info["red_table"] = red_obs
+
+        self.blue_table = BlueTableWrapper(env=self.cyborg)
+
+        # reset blue state ( from BlueTableWrapper.reset() )
+        self.blue_table._process_initial_obs(result.observation)
+
+        blue_obs = self.blue_table.observation_change(result.observation, baseline=True)
+        info["blue_table"] = blue_obs
+
+        # NOTE: true table needs to be managed by either blue/red table wrappers
+        info["true_table"] = self.get_true_table()
+
         return observation, info
 
     def step(self, action):
+
         action_instance = self.gym_to_cyborg_action(action)
         cyborg_result = self.cyborg.step(agent=self.agent_name, action=action_instance)
+
+        info = vars(cyborg_result)
+
+        info["true_table"] = self.get_true_table()
+
+        # red_obs = self.red_table.observation_change(cyborg_result.observation)
+        # info["red_table"] = red_obs
+
+        blue_obs = self.blue_table.observation_change(cyborg_result.observation, baseline=False)
+        info["blue_table"] = blue_obs
 
         # cyborg_observation = cyborg_result.observation
         host_properties, connections, success = self.get_graph_observation()
@@ -502,8 +538,6 @@ class GraphWrapper:
             truncated = True
 
         graph_info = {"hosts": host_properties, "connections": connections}
-        # info = ChainMap(vars(cyborg_result), graph_info)
-        info = vars(cyborg_result)
         info.update(graph_info)
 
         self.previous_action_encoding = action.float()
@@ -523,14 +557,14 @@ class GraphWrapper:
                 connections,
                 axis=self.axis[0],
                 node_positions=self._node_positions,
-                # show=True,
+                show=True,
             )
             plot_observation_encoded(
                 self,
                 observation,
                 node_positions=self._node_positions,
                 axis=self.axis[1],
-                # show=True,
+                show=True,
             )
             if self.previous_action is None:
                 self.fig.suptitle("Initial blue observation")
@@ -553,10 +587,16 @@ class GraphWrapper:
         return self.env_controller.observation[self.agent_name].data
 
     def get_true_table(self):
+        # NOTE: true table needs to be managed by either agent
+        # return self.true_table.get_table()
         return self.blue_table.get_table(output_mode="true_table")
+        # return self.red_table.get_table(output_mode="true_table")
 
     def get_blue_table(self):
         return self.blue_table.get_table(output_mode="blue_table")
+
+    # def get_red_table(self):
+    #     return self.red_table.get_table(output_mode="red_table")
 
     def get_last_action(self):
         return self.cyborg.get_last_action(self.agent_name)
