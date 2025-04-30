@@ -1,12 +1,15 @@
 from rich import inspect
-from rich.pretty import pprint
-from tqdm import trange
+from rich.console import Console
+from rich.rule import Rule
+from rich.progress import track
 import matplotlib.pyplot as plt
 import torch
 
 from cyberdreamcatcher.env import GraphWrapper
 from cyberdreamcatcher.policy import Police
-from cyberdreamcatcher.plots import plot_action_probabilities, plot_observation_encoded
+# from cyberdreamcatcher.plots import plot_action_probabilities, plot_observation_encoded
+
+console = Console()
 
 # plt.show(block=False)
 
@@ -14,55 +17,65 @@ scenario = None
 # scenario = "Scenario2"
 # scenario = "Scenario2_-_User2_User4"
 # scenario = "Scenario2_+_User5_User6"
-env = GraphWrapper(scenario=scenario, verbose=True)
+env = GraphWrapper(scenario=scenario, verbose=True, track_red_table=True)
 
 obs, info = env.reset()
-env.render()
+# env.render()
 
-pprint("---Initial Observation---")
-pprint(env.get_raw_observation())
+console.print(Rule("Initial Observation", style="bold red"))
+# pprint(info["observation"])
 
-pprint("---True Table---")
-pprint(env.get_true_table())
-pprint("---Blue Table---")
-pprint(env.get_blue_table())
-
+console.print(Rule("True Table", style="bold red"))
+console.print(info["true_table"])
+console.print(Rule("Blue Table", style="bold red"))
+console.print(info["blue_table"])
+if env.red_table:
+    console.print(Rule("Red Table", style="bold red"))
+    console.print(info["red_table"])
 
 policy = Police(env)
 
-for step in trange(30):
+for step in track(range(50)):
 
     action = torch.tensor(env.action_space.sample())
     # action, log_prob, entropy, value = policy(obs)
 
     # visualise action probability distribution
     # plot_action_probabilities(env, policy, obs)
-
+    
     obs, reward, terminated, truncated, info = env.step(action)
-    env.render()
-
-    pprint(f"---Step {step}---")
-    pprint("---Action---")
-    inspect(info["action"])
-    pprint("---Observation---")
-    pprint(info["observation"])
-
-    pprint("---Hosts---")
-    pprint(info["hosts"])
-
-    pprint("---Connections---")
-    pprint(info["connections"])
-
+    # env.render()
     # plot_observation_encoded(env, obs, show=True)
 
-    pprint("---Last Red Action---")
-    inspect(env.cyborg.get_last_action(agent="Red"))
-    pprint("---Last Blue Action---")
-    inspect(env.cyborg.get_last_action(agent="Blue"))
+    console.print(Rule(f"Step {step}", style="bold red"))
+    console.print(Rule("Action", style="bold red"))
+    inspect(info["action"])
+    console.print(Rule("Observation", style="bold red"))
+    console.print(info["observation"])
 
-    pprint("---True Table---")
-    pprint(env.get_true_table())
-    pprint("---Blue Table---")
-    pprint(env.get_blue_table())
+    console.print(Rule("Hosts", style="bold red"))
+    console.print(info["hosts"])
+    console.print(Rule("Connections", style="bold red"))
+    console.print(info["connections"])
+
+    console.print(Rule("True Table", style="bold red"))
+    console.print(info["true_table"])
+
+    console.print(Rule("Last Blue Action", style="bold red"))
+    inspect(env.cyborg.get_last_action(agent="Blue"))
+    console.print(Rule("Blue Table", style="bold red"))
+    console.print(info["blue_table"])
+
+    console.print(Rule("Last Red Action", style="bold red"))
+    inspect(env.cyborg.get_last_action(agent="Red"))
+
+    if env.red_table:
+        console.print(Rule("Red Table", style="bold red"))
+        console.print(info["red_table"])
+        console.print(Rule("Red Observation", style="bold red"))
+        console.print(info["red_obs"])
+    
+    console.print(Rule("Reward", style="bold red"))
+    console.print(env.cyborg.get_rewards())
 
 plt.show()

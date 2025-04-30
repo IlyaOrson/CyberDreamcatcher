@@ -13,7 +13,7 @@ import torch
 from CybORG import CybORG
 from CybORG.Shared.Enums import TrinaryEnum
 from CybORG.Agents import RedMeanderAgent  # , TestAgent
-from CybORG.Agents.Wrappers import BlueTableWrapper  # , ChallengeWrapper, RedTableWrapper
+from CybORG.Agents.Wrappers import BlueTableWrapper, RedTableWrapper  # , ChallengeWrapper
 
 # NOTE not sure if this limits are actually enforced in CybORG
 from CybORG.Shared.ActionSpace import MAX_PORTS
@@ -44,7 +44,7 @@ class GraphWrapper:
     metadata = {"render_modes": ["human"]}
 
     def __init__(
-        self, scenario=None, max_steps=100, render_mode="human", verbose=False
+        self, scenario=None, max_steps=100, render_mode="human", verbose=False, track_red_table=False,
     ) -> None:
         self.step_counter = None
         self.max_steps = max_steps
@@ -60,6 +60,11 @@ class GraphWrapper:
         self.cyborg = CybORG(self.scenario_path, "sim", agents={"Red": RedMeanderAgent})
         self.env_controller = self.cyborg.environment_controller
         self.scenario = self.env_controller.scenario
+
+        self.blue_table = BlueTableWrapper(env=self.cyborg)
+        self.red_table = None
+        if track_red_table:
+            self.red_table = RedTableWrapper(env=self.cyborg)
 
         self.host_names = self.scenario.hosts
         self.subnet_names = self.scenario.subnets
@@ -457,6 +462,7 @@ class GraphWrapper:
     # def graph_to_gym_observation(self) TODO method to adapt graph to gymnasium space
 
     def reset(self, *, seed=None, options=None):
+
         self.step_counter = 0
 
         # CybORG does not expect options as a keyword
@@ -464,6 +470,10 @@ class GraphWrapper:
             result = self.cyborg.reset(seed=seed, **options)
         else:
             result = self.cyborg.reset(seed=seed)
+
+        self.blue_table.reset(seed=seed)
+        if self.red_table:
+            self.red_table.reset(seed=seed)
 
         self.set_feasible_connections()
 
@@ -487,15 +497,13 @@ class GraphWrapper:
         info = vars(result)
         info.update(graph_info)
 
-        # NOTE: red table cannot be used at the same time as the blue table
-        #       because each cyborg.step() call requires an agent name
-        #       which means it would require an independent copy of cyborg synced
-        #       with the main cyborg instance
-        # self.red_table = RedTableWrapper(env=self.cyborg)
-        # red_obs = self.red_table.observation_change(result.observation)
-        # info["red_table"] = red_obs
-
-        self.blue_table = BlueTableWrapper(env=self.cyborg)
+        # NOTE: cyborg.step() call requires an agent name, which means the red table state
+        #       update is manual and synced with the main cyborg instance at every step
+        if self.red_table:
+            red_obs = self.cyborg.get_observation("Red")
+            red_table = self.red_table.observation_change(red_obs)
+            info["red_obs"] = red_obs
+            info["red_table"] = red_table
 
         # reset blue state ( from BlueTableWrapper.reset() )
         self.blue_table._process_initial_obs(result.observation)
@@ -503,7 +511,7 @@ class GraphWrapper:
         blue_obs = self.blue_table.observation_change(result.observation, baseline=True)
         info["blue_table"] = blue_obs
 
-        # NOTE: true table needs to be managed by either blue/red table wrappers
+        info["true_state"] = self.get_true_state()
         info["true_table"] = self.get_true_table()
 
         return observation, info
@@ -515,13 +523,20 @@ class GraphWrapper:
 
         info = vars(cyborg_result)
 
+        info["true_state"] = self.get_true_state()
         info["true_table"] = self.get_true_table()
 
-        # red_obs = self.red_table.observation_change(cyborg_result.observation)
-        # info["red_table"] = red_obs
+        # NOTE: cyborg.step() call requires an agent name, which means the red table state
+        #       update is manual and synced with the main cyborg instance at every step
+        if self.red_table:
+            red_obs = self.cyborg.get_observation("Red")
+            red_table = self.red_table.observation_change(red_obs)
+            info["red_obs"] = red_obs
+            info["red_table"] = red_table
 
-        blue_obs = self.blue_table.observation_change(cyborg_result.observation, baseline=False)
-        info["blue_table"] = blue_obs
+        # info["blue_obs"] = cyborg_result.observation  # already stored in "observation"
+        blue_table = self.blue_table.observation_change(cyborg_result.observation, baseline=False)
+        info["blue_table"] = blue_table
 
         # cyborg_observation = cyborg_result.observation
         host_properties, connections, success = self.get_graph_observation()
@@ -580,21 +595,23 @@ class GraphWrapper:
         raw_observation = self.get_raw_observation()
         return self.distill_graph_observation(raw_observation)
 
-    def get_raw_observation(self):
-        # NOTE with ec == CybORG.environment_controller
-        # self.blue_table.get_observation("Blue") is equivalent to
-        # ec.get_last_observation("Blue").data --> ec.observation["Blue"]
-        return self.env_controller.observation[self.agent_name].data
+    def get_raw_observation(self, agent=None):
+        if agent is None:
+            agent = self.agent_name
+        return self.cyborg.get_observation(agent=agent)
+
+    def get_true_state(self):
+        return self.cyborg.get_agent_state("True")
 
     def get_true_table(self):
-        # NOTE: true table needs to be managed by either agent
-        # return self.true_table.get_table()
+        # NOTE: true table is managed by the blue agent
+        # return self.true_table.get_table()  # does not work
         return self.blue_table.get_table(output_mode="true_table")
-        # return self.red_table.get_table(output_mode="true_table")
 
     def get_blue_table(self):
         return self.blue_table.get_table(output_mode="blue_table")
 
+    # NOTE this does not work because the state is managed by the blue agent
     # def get_red_table(self):
     #     return self.red_table.get_table(output_mode="red_table")
 
