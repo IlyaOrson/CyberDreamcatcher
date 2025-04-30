@@ -35,9 +35,9 @@ from cyberdreamcatcher.plots import (
 class GraphWrapper:
     agent_name = "Blue"
 
-    HostProperties = namedtuple("Host", ("subnet", "num_local_ports", "malware"))
+    HostProperties = namedtuple("Host", ("subnet", "num_local_ports", "exploit_port", "malware"))
 
-    host_embedding_size = 3
+    host_embedding_size = 4
     edge_embedding_size = 1
     global_embedding_size = 3
 
@@ -72,6 +72,9 @@ class GraphWrapper:
             "actions"
         ]
         self.global_actions_names = ("Sleep", "Monitor")
+
+        # for encoding previous action ( imitates the logic in BlueTableWrapper._process_last_action() )
+        self.active_actions_map = {"Restore": -1, "Remove": 1, "Other": 0}
 
         # Form enumeration mappings
         self.subnet_enumeration = enumerate_bidict(self.subnet_names)
@@ -128,7 +131,6 @@ class GraphWrapper:
         # NOTE  not very useful since unexpected connections appear regardless of layout constraints... and
         #       nested dict observations are not really supported by stable baselines 3, only super siple plain dicts
         # self.observation_space = self._build_dict_obs_space()
-        self.observation_space = None
 
         assert render_mode is None or render_mode in self.metadata["render_modes"]
         self.render_mode = render_mode
@@ -291,13 +293,11 @@ class GraphWrapper:
         for host, properties in observation.items():
             if host == "success":
                 success_enum = properties
-                # NOTE The observation can be valuable even if the previous action failed
-                # if properties.name == "FALSE":
-                #     pass
-                #     return self.host_properties_baseline, self.connections_baseline, success_enum
+                # NOTE The observation is valuable even if the previous action succeeded/failed
                 continue
 
             num_local_ports = 0
+            exploit_port = False
             if "Processes" in properties:
                 processes = properties["Processes"]
 
@@ -347,7 +347,12 @@ class GraphWrapper:
                                     f"Connection {local_remote_tuple} has no remote port!"
                                 )
 
-                num_local_ports = sum(local_ports_counter.values())
+                # BlueTable uses unique ports, so we use the number of unique ports
+                # num_local_ports = sum(local_ports_counter.values())  # this is the total number of ports
+                num_local_ports = len(local_ports_counter)  # this is the number of unique ports
+
+                if 4444 in remote_ports_counter:
+                    exploit_port = True
 
             malware = False
             if "Files" in properties:
@@ -356,9 +361,9 @@ class GraphWrapper:
 
             subnet_ip = self.hostname_subnet_map[host]
             subnet = self.subnet_cidr_map.inv[subnet_ip]
-            # host_properties[host] = [subnet, num_local_ports, malware]
+
             host_properties[host] = self.HostProperties(
-                subnet, num_local_ports, malware
+                subnet, num_local_ports, exploit_port, malware
             )
 
         if observation != self.blue_baseline:
@@ -396,8 +401,9 @@ class GraphWrapper:
             )
             subnet_id = self.subnet_enumeration[props.subnet]
             local_ports = props.num_local_ports
+            exploit_port = int(props.exploit_port)
             malware_int = int(props.malware)
-            node_matrix[host_idx, :] = (subnet_id, local_ports, malware_int)
+            node_matrix[host_idx, :] = (subnet_id, local_ports, exploit_port, malware_int)
 
         # This set difference needs to happen before any further access to the
         # connections object because it is a default dict and its keys change upon access
@@ -487,13 +493,10 @@ class GraphWrapper:
             self.success_enum,
         )
 
-        # return np.array(result.observation), vars(result)
-
         graph_info = {
             "hosts": self.host_properties_baseline,
             "connections": self.connections_baseline,
         }
-        # info = ChainMap(vars(result), graph_info)  # not supported by gymnasium wrappers
         info = vars(result)
         info.update(graph_info)
 
@@ -555,8 +558,16 @@ class GraphWrapper:
         graph_info = {"hosts": host_properties, "connections": connections}
         info.update(graph_info)
 
-        self.previous_action_encoding = action.float()
+        # encoding the previous action imitates the logic in BlueTableWrapper._process_last_action()
         self.previous_action = action_instance
+        previous_action_name = action_instance.__class__.__name__
+        previous_action_value = self.active_actions_map.get(previous_action_name, 0)  # non-active actions are mapped to 0
+        if previous_action_name in self.global_actions_names:
+            host_idx = 0
+        else:
+            host_name = action_instance.hostname
+            host_idx = self.host_enumeration[host_name]
+        self.previous_action_encoding = torch.tensor([host_idx, previous_action_value], dtype=torch.float)
 
         return observation, reward, terminated, truncated, info
 

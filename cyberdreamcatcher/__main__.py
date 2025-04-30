@@ -1,7 +1,7 @@
 from rich import inspect
 from rich.console import Console
 from rich.rule import Rule
-from rich.progress import track
+from tqdm import trange
 import matplotlib.pyplot as plt
 import torch
 
@@ -35,7 +35,7 @@ if env.red_table:
 
 policy = Police(env)
 
-for step in track(range(50)):
+for step in trange(30):
 
     action = torch.tensor(env.action_space.sample())
     # action, log_prob, entropy, value = policy(obs)
