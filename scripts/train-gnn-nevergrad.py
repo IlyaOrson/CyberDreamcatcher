@@ -21,7 +21,7 @@ from cyberdreamcatcher.utils import (
     vector_to_state_dict,
 )
 from cyberdreamcatcher.sampler import EpisodeSampler
-from cyberdreamcatcher.env import GraphWrapper
+from cyberdreamcatcher.env import GraphEnv
 from cyberdreamcatcher.policy import Police
 
 
@@ -80,7 +80,7 @@ def main(cfg: Cfg) -> None:
     print(f"Using device: {device}")
 
     # --- Initialize Policy and Parameterization ---
-    env = GraphWrapper(scenario=cfg.scenario, max_steps=cfg.episode_length)
+    env = GraphEnv(scenario=cfg.scenario, max_steps=cfg.episode_length)
     # Create a dummy policy instance to get the state dict structure
     # It won't be used for sampling directly in the main thread
     policy_structure_provider = Police(env, **cfg.policy_kwargs).to(device)
@@ -171,7 +171,9 @@ def main(cfg: Cfg) -> None:
                 # Log the running best reward found so far
                 if mean_reward > best_known_reward:
                     best_known_reward = mean_reward
-                    experiment.log_metric("best_reward_so_far", best_known_reward, step=step)
+                    experiment.log_metric(
+                        "best_reward_so_far", best_known_reward, step=step
+                    )
 
         else:
             # Tell optimizer each result individually
@@ -185,12 +187,20 @@ def main(cfg: Cfg) -> None:
                 best_known_reward = current_batch_best_reward
             # Log to Comet (log mean/std/best of the batch and running best)
             if experiment is not None:
-                experiment.log_metric("batch_reward_mean", np.mean(episode_rewards), step=step)
-                experiment.log_metric("batch_reward_std", np.std(episode_rewards), step=step)
-                experiment.log_metric("best_reward_so_far", best_known_reward, step=step)
+                experiment.log_metric(
+                    "batch_reward_mean", np.mean(episode_rewards), step=step
+                )
+                experiment.log_metric(
+                    "batch_reward_std", np.std(episode_rewards), step=step
+                )
+                experiment.log_metric(
+                    "best_reward_so_far", best_known_reward, step=step
+                )
 
         pbar.update(1)
-        pbar.set_postfix({"Best Reward": f"{best_known_reward:.4f}"})  # Use tracked best_known_reward
+        pbar.set_postfix(
+            {"Best Reward": f"{best_known_reward:.4f}"}
+        )  # Use tracked best_known_reward
         step += 1
 
     pbar.close()

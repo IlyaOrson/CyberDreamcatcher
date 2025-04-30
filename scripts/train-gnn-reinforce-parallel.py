@@ -13,15 +13,17 @@ from dotenv import load_dotenv
 import hydra
 from hydra.core.config_store import ConfigStore
 from omegaconf import OmegaConf
+from rich.logging import RichHandler
 
 from cyberdreamcatcher.utils import set_all_seeds
-from cyberdreamcatcher.env import GraphWrapper
+from cyberdreamcatcher.env import GraphEnv
 from cyberdreamcatcher.policy import Police
 from cyberdreamcatcher.sampler import EpisodeSampler
 
 EPS = np.finfo(np.float32).eps.item()
 
 LOGGER = logging.getLogger(__name__)
+
 
 @dataclass
 class Cfg:
@@ -37,6 +39,7 @@ class Cfg:
     latent_node_dim: int = 3
     log_comet: bool = True
     log_level: str = "INFO"
+
 
 class REINFORCEParallel:
     def __init__(self, env, policy, conf, output_dir):
@@ -101,7 +104,7 @@ class REINFORCEParallel:
                 action = action.to(self.conf.device)
                 report = self.policy(obs, action=action)
                 log_probs.append(report.log_prob)
-            assert all(torch.isclose(p, l) for (p,l) in zip(log_probs_seq, log_probs))
+            assert all(torch.isclose(p, l) for (p, l) in zip(log_probs_seq, log_probs))
             batch_log_probs.append(torch.stack(log_probs))
             pbar.update(1)
 
@@ -123,7 +126,9 @@ class REINFORCEParallel:
             advantages_std = np.std(advantages)
             advantages = (advantages - advantages_mean) / (advantages_std + EPS)
 
-        advantages_tensor = torch.tensor(advantages, dtype=torch.float32, device=log_probs.device)
+        advantages_tensor = torch.tensor(
+            advantages, dtype=torch.float32, device=log_probs.device
+        )
         log_prob_R = -torch.sum(torch.mul(log_probs, advantages_tensor))
 
         mean_log_prob_R = log_prob_R / num_episodes
@@ -171,8 +176,16 @@ class REINFORCEParallel:
                     torch.cuda.empty_cache()
 
             # Safely get and format the loss value
-            loss_val = pbar.postfix.get('loss', 'N/A') if isinstance(pbar.postfix, dict) else 'N/A'
-            loss_str = f"{loss_val:.3f}" if isinstance(loss_val, (int, float)) else str(loss_val)
+            loss_val = (
+                pbar.postfix.get("loss", "N/A")
+                if isinstance(pbar.postfix, dict)
+                else "N/A"
+            )
+            loss_str = (
+                f"{loss_val:.3f}"
+                if isinstance(loss_val, (int, float))
+                else str(loss_val)
+            )
             pbar.set_postfix({"reward mean": f"{reward_mean:.3f}", "loss": loss_str})
             pbar.write(f"Roll-out mean reward: {reward_mean:.3f} +- {reward_std:.2f}")
 
@@ -180,24 +193,27 @@ class REINFORCEParallel:
                 file_path = Path(self.output_dir) / f"policy_step_{it}.pt"
                 torch.save(self.policy.state_dict(), file_path)
                 if self.experiment:
-                    self.experiment.log_asset(file_path, file_name=f"policy_step_{it}.pt")
+                    self.experiment.log_asset(
+                        file_path, file_name=f"policy_step_{it}.pt"
+                    )
 
 
 cs = ConfigStore.instance()
 cs.store(name="args", node=Cfg)
 
+
 @hydra.main(version_base=None, config_name="hydra", config_path="conf")
 def main(cfg: Cfg) -> None:
     import os
 
-    logging.basicConfig(level=cfg.log_level)
+    logging.basicConfig(level=cfg.log_level, handlers=[RichHandler()])
     LOGGER.info("Starting Parallel REINFORCE GNN Training")
     LOGGER.info(f"Working directory : {os.getcwd()}")
     output_dir = Path(hydra.core.hydra_config.HydraConfig.get().runtime.output_dir)
     LOGGER.info(f"Output directory  : {output_dir}")
     LOGGER.info(f"Config used: {OmegaConf.to_yaml(cfg)}")
 
-    env = GraphWrapper(scenario=cfg.scenario, max_steps=cfg.episode_length)
+    env = GraphEnv(scenario=cfg.scenario, max_steps=cfg.episode_length)
     policy = Police(env, latent_node_dim=cfg.latent_node_dim)
     trainer = REINFORCEParallel(env, policy, cfg, output_dir=output_dir)
 

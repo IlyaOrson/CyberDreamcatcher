@@ -2,7 +2,7 @@ import os
 from pathlib import Path
 import logging
 import time
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, field
 # import warnings
 
 import hydra
@@ -12,6 +12,7 @@ from omegaconf import OmegaConf
 import comet_ml
 from comet_ml.integration.pytorch import log_model
 from dotenv import load_dotenv
+from rich.logging import RichHandler
 
 import torch
 import numpy as np
@@ -28,7 +29,7 @@ from cyberdreamcatcher.utils import (
     vector_to_state_dict,
 )
 from cyberdreamcatcher.sampler import EpisodeSampler
-from cyberdreamcatcher.env import GraphWrapper
+from cyberdreamcatcher.env import GraphEnv
 from cyberdreamcatcher.policy import Police
 
 LOGGER = logging.getLogger(__name__)
@@ -99,7 +100,7 @@ cs.store(name="args", node=Cfg)
 def train(cfg: Cfg):
     run_start_time = time.time()
     output_dir = Path(hydra.core.hydra_config.HydraConfig.get().runtime.output_dir)
-    logging.basicConfig(level=cfg.log_level)
+    logging.basicConfig(level=cfg.log_level, handlers=[RichHandler()])
     LOGGER.info("Starting BoTorch GNN Training")
     LOGGER.info(f"Output directory: {output_dir}")
     LOGGER.info(f"Using device: {cfg.device}")
@@ -128,7 +129,7 @@ def train(cfg: Cfg):
     set_all_seeds(cfg.seed)
     device = torch.device(cfg.device)
 
-    env_template = GraphWrapper(scenario=cfg.scenario, max_steps=cfg.episode_length)
+    env_template = GraphEnv(scenario=cfg.scenario, max_steps=cfg.episode_length)
     policy_template = Police(env_template, **cfg.policy_kwargs).to(device)
     initial_state_dict = policy_template.state_dict()
     initial_params_vector = state_dict_to_vector(initial_state_dict)
@@ -151,8 +152,8 @@ def train(cfg: Cfg):
         device=device,
     )
 
-    initial_x_tensor = (
-        bounds[0] + (bounds[1] - bounds[0]) * torch.rand(cfg.num_initial_points, param_dim, device=device)
+    initial_x_tensor = bounds[0] + (bounds[1] - bounds[0]) * torch.rand(
+        cfg.num_initial_points, param_dim, device=device
     )
     initial_y = []
     initial_y_var = []
@@ -173,15 +174,17 @@ def train(cfg: Cfg):
             experiment.log_metric("initial_point_eval_time", eval_time, step=i)
 
     train_x = initial_x_tensor
-    train_y = torch.stack(initial_y).unsqueeze(-1) # Shape [n_initial, 1]
-    train_y_var = torch.stack(initial_y_var).unsqueeze(-1) # Shape [n_initial, 1]
+    train_y = torch.stack(initial_y).unsqueeze(-1)  # Shape [n_initial, 1]
+    train_y_var = torch.stack(initial_y_var).unsqueeze(-1)  # Shape [n_initial, 1]
 
     LOGGER.info("Starting Bayesian Optimization loop...")
 
     for iteration in range(cfg.budget):
         iter_start_time = time.time()
         if experiment:
-            experiment.set_step(cfg.num_initial_points + iteration) # Set step correctly
+            experiment.set_step(
+                cfg.num_initial_points + iteration
+            )  # Set step correctly
 
         train_x_normalized = normalize(train_x, bounds)
         train_x_normalized.clamp_(0.0, 1.0)
@@ -194,8 +197,13 @@ def train(cfg: Cfg):
             LOGGER.info("GP model fitted successfully.")
             if experiment is not None:
                 try:
-                    experiment.log_metric("gp_lengthscale", model.covar_module.base_kernel.lengthscale.item())
-                    experiment.log_metric("gp_outputscale", model.covar_module.outputscale.item())
+                    experiment.log_metric(
+                        "gp_lengthscale",
+                        model.covar_module.base_kernel.lengthscale.item(),
+                    )
+                    experiment.log_metric(
+                        "gp_outputscale", model.covar_module.outputscale.item()
+                    )
                     experiment.log_metric("gp_noise", model.likelihood.noise.item())
                 except AttributeError as e:
                     LOGGER.warning(f"Could not log GP hyperparameter: {e}")
@@ -258,22 +266,32 @@ def train(cfg: Cfg):
             experiment.log_metric("acquisition_value", acq_value.item())
             experiment.log_metric("candidate_reward", new_y.item())
             experiment.log_metric("candidate_reward_variance", new_y_var.item())
-            experiment.log_metric("best_reward_so_far", current_best_reward) # Renamed for clarity
+            experiment.log_metric(
+                "best_reward_so_far", current_best_reward
+            )  # Renamed for clarity
             experiment.log_metric("iteration_time", iter_time)
 
     best_idx = train_y.argmax()
     best_reward = train_y[best_idx].item()
-    best_params_tensor = unnormalize(train_x_normalized[best_idx], bounds) # Use normalized x for lookup
+    best_params_tensor = unnormalize(
+        train_x_normalized[best_idx], bounds
+    )  # Use normalized x for lookup
     best_params_vector = best_params_tensor.cpu().numpy()
 
     LOGGER.info("--- Optimization Finished ---")
     LOGGER.info(f"Total time: {time.time() - run_start_time:.2f}s")
-    LOGGER.info(f"Total evaluations: {cfg.num_initial_points + cfg.budget}") # Corrected total evaluations
+    LOGGER.info(
+        f"Total evaluations: {cfg.num_initial_points + cfg.budget}"
+    )  # Corrected total evaluations
     LOGGER.info(f"Best reward found: {best_reward:.4f}")
     if experiment is not None:
-        final_step = cfg.num_initial_points + cfg.budget # Define final step for summary metrics
+        final_step = (
+            cfg.num_initial_points + cfg.budget
+        )  # Define final step for summary metrics
         experiment.log_metric("final_best_reward", best_reward, step=final_step)
-        experiment.log_metric("total_runtime", time.time() - run_start_time, step=final_step)
+        experiment.log_metric(
+            "total_runtime", time.time() - run_start_time, step=final_step
+        )
         experiment.log_other("final_best_parameter_index", best_idx.item())
 
     try:
@@ -291,7 +309,7 @@ def train(cfg: Cfg):
         training_data_path = output_dir / "training_data.pt"
         torch.save(
             {
-                "train_x_normalized": train_x_normalized.cpu(), # Save normalized for consistency
+                "train_x_normalized": train_x_normalized.cpu(),  # Save normalized for consistency
                 "train_y": train_y.cpu(),
                 "train_y_var": train_y_var.cpu(),
             },
@@ -305,8 +323,10 @@ def train(cfg: Cfg):
             experiment.log_asset(training_data_path)
 
             LOGGER.info("Logging final policy model to Comet...")
-            temp_policy = Police(env_template, **cfg.policy_kwargs) # Create a policy instance
-            temp_policy.load_state_dict(best_state_dict) # Load the best weights
+            temp_policy = Police(
+                env_template, **cfg.policy_kwargs
+            )  # Create a policy instance
+            temp_policy.load_state_dict(best_state_dict)  # Load the best weights
             log_model(experiment, temp_policy, "BestPolicy")
 
     except Exception as e:
@@ -317,6 +337,7 @@ def train(cfg: Cfg):
         experiment.end()
 
     LOGGER.info("BoTorch training finished successfully!")
+
 
 if __name__ == "__main__":
     train()

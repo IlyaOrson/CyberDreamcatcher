@@ -15,6 +15,7 @@ import CybORG
 
 LOGGER = logging.getLogger(__name__)
 
+
 def set_all_seeds(seed):
     random.seed(seed)
     torch.manual_seed(seed)
@@ -22,10 +23,12 @@ def set_all_seeds(seed):
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(seed)
 
+
 # Add these helper functions for parameter conversion
 def state_dict_to_vector(state_dict: dict) -> np.ndarray:
     """Converts a PyTorch state_dict to a flat NumPy array."""
     return np.concatenate([v.cpu().numpy().flatten() for v in state_dict.values()])
+
 
 def vector_to_state_dict(vector: np.ndarray, template_state_dict: dict) -> dict:
     """Converts a flat NumPy array back to a PyTorch state_dict using a template."""
@@ -36,21 +39,32 @@ def vector_to_state_dict(vector: np.ndarray, template_state_dict: dict) -> dict:
         num_elements = v_template.numel()
         # Ensure slice does not exceed vector bounds
         if current_pos + num_elements > len(vector):
-             raise ValueError(f"Vector is too short to populate state_dict. "
-                              f"Needed {current_pos + num_elements} elements, but vector has {len(vector)}. "
-                              f"Issue with key '{k}'.")
+            raise ValueError(
+                f"Vector is too short to populate state_dict. "
+                f"Needed {current_pos + num_elements} elements, but vector has {len(vector)}. "
+                f"Issue with key '{k}'."
+            )
         chunk = vector[current_pos : current_pos + num_elements]
         # Ensure chunk has the correct number of elements before reshaping
         if chunk.size != num_elements:
-            raise ValueError(f"Shape mismatch for key '{k}'. "
-                             f"Expected {num_elements} elements, but got {chunk.size} from vector slice.")
-        new_state_dict[k] = torch.from_numpy(chunk).reshape(shape).to(v_template.device).type(v_template.dtype)
+            raise ValueError(
+                f"Shape mismatch for key '{k}'. "
+                f"Expected {num_elements} elements, but got {chunk.size} from vector slice."
+            )
+        new_state_dict[k] = (
+            torch.from_numpy(chunk)
+            .reshape(shape)
+            .to(v_template.device)
+            .type(v_template.dtype)
+        )
         current_pos += num_elements
     # Final check that the entire vector was used
     if current_pos != len(vector):
-         raise ValueError(f"Vector length ({len(vector)}) does not match the total number "
-                          f"of elements in the template state_dict ({current_pos}). "
-                          f"Vector might be too long.")
+        raise ValueError(
+            f"Vector length ({len(vector)}) does not match the total number "
+            f"of elements in the template state_dict ({current_pos}). "
+            f"Vector might be too long."
+        )
     return new_state_dict
 
 
@@ -124,8 +138,8 @@ def load_trained_weights(policy_weights_path, trained_scenario=None):
         logged_cfg_path = policy_dir / ".hydra" / "config.yaml"
         assert logged_cfg_path.is_file()
         logged_cfg = OmegaConf.load(logged_cfg_path)
-        print("Configuration used to train loaded policy.")
-        print(OmegaConf.to_yaml(logged_cfg))
+        LOGGER.info("Configuration used to train loaded policy.")
+        LOGGER.info(OmegaConf.to_yaml(logged_cfg))
         trained_scenario = logged_cfg.scenario
 
     return policy_weights, trained_scenario
@@ -154,10 +168,16 @@ def profile_inference(data: Data, model: torch.nn.Module, device: str):
     model = model.to(device)
     data = data.to(device)
 
-    with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA],
-                profile_memory=True,
-                record_shapes=True) as prof:
+    with profile(
+        activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA],
+        profile_memory=True,
+        record_shapes=True,
+    ) as prof:
         with record_function("model_inference"):
             _ = model(data)
 
-    print(prof.key_averages().table(sort_by="cuda_time_total" if device == 'cuda' else "cpu_time_total"))
+    LOGGER.info(
+        prof.key_averages().table(
+            sort_by="cuda_time_total" if device == "cuda" else "cpu_time_total"
+        )
+    )

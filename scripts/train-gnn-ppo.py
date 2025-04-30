@@ -21,7 +21,7 @@ import torch.optim as optim
 # from torch.distributions.categorical import Categorical
 from torch.utils.tensorboard import SummaryWriter
 
-from cyberdreamcatcher.env import GraphWrapper
+from cyberdreamcatcher.env import GraphEnv
 from cyberdreamcatcher.policy import Police
 from cyberdreamcatcher.sampler import EpisodeSampler
 
@@ -36,11 +36,11 @@ class Cfg:
     # if toggled, `torch.backends.cudnn.deterministic=False`
     cuda: bool = True
     # if toggled, cuda will be enabled by default
-    capture_video: bool = False
+    # capture_video: bool = False
     # whether to capture videos of the agent performances (check out `videos` folder)
 
     # Graph wrapper stuff
-    scenario: str = "Scenario2_-_User2_User4"
+    scenario: str = "Scenario2"
     # how many episodes to sample with a fixed policy to estimate the reward distribution
     num_ep_reward_sample: int = 100
     # how many opt steps to wait between reward sampling
@@ -204,7 +204,7 @@ if __name__ == "__main__":
         #     ],
         # )
 
-        env = GraphWrapper(scenario=args.scenario, max_steps=args.num_steps)
+        env = GraphEnv(scenario=args.scenario, max_steps=args.num_steps)
         agent = Police(env, train_critic=True).to(device)
         optimizer = optim.Adam(agent.parameters(), lr=args.learning_rate, eps=1e-5)
 

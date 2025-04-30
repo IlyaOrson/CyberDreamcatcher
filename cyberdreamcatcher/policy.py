@@ -37,11 +37,13 @@ class ActionLogits:
         else:
             # Recover the corresponding multidimensional index from the flattened action
             # Remove the global actions from the flattened index
-            host_id, action_id = torch.unravel_index(action_flat - 2, self.node_logits.shape)
+            host_id, action_id = torch.unravel_index(
+                action_flat - 2, self.node_logits.shape
+            )
             action = (host_id, action_id + 2)  # Add 2 to account for global actions
 
         return torch.tensor(action, device=action_flat.device)
-    
+
     def multidim_to_flat(self, action_multi):
         # Convert multidimensional action to the corresponding flat action
         assert len(action_multi) == self.node_logits.dim()
@@ -67,26 +69,35 @@ class Police(torch.nn.Module):
         "PoliceReport", ["action", "log_prob", "entropy", "value"]
     )
 
-    def __init__(self, env, latent_node_dim=None, train_critic=False, actor_heads=1, critic_heads=1, *args, **kwargs):
+    def __init__(
+        self,
+        env,
+        latent_node_dim=None,
+        train_critic=False,
+        actor_heads=1,
+        critic_heads=1,
+        *args,
+        **kwargs,
+    ):
         super().__init__(*args, **kwargs)
 
         if latent_node_dim is None:
-            latent_node_dim = env.host_embedding_size
+            latent_node_dim = env.host_encoding_dim
 
         # Latent layers (typically 1-4 in gnns due to oversmoothing)
         self.actor_latent_0 = GATGlobalConv(
-            in_channels=env.host_embedding_size,
+            in_channels=env.host_encoding_dim,
             out_channels=latent_node_dim,
-            global_channels=env.global_embedding_size,
-            edge_dim=env.edge_embedding_size,
+            global_channels=env.global_encoding_dim,
+            edge_dim=env.edge_encoding_dim,
             heads=actor_heads,
             share_weights=False,
         )
         self.actor_latent_1 = GATGlobalConv(
             in_channels=latent_node_dim,
             out_channels=latent_node_dim,
-            global_channels=env.global_embedding_size,
-            edge_dim=env.edge_embedding_size,
+            global_channels=env.global_encoding_dim,
+            edge_dim=env.edge_encoding_dim,
             heads=actor_heads,
             share_weights=False,
         )
@@ -94,8 +105,8 @@ class Police(torch.nn.Module):
         self.actor_head = GATGlobalConv(
             in_channels=latent_node_dim,
             out_channels=env.num_actions,  # one score per host/node and per action
-            global_channels=env.global_embedding_size,
-            edge_dim=env.edge_embedding_size,
+            global_channels=env.global_encoding_dim,
+            edge_dim=env.edge_encoding_dim,
             heads=actor_heads,
             share_weights=False,
         )
@@ -114,26 +125,26 @@ class Police(torch.nn.Module):
         # Train critic only in actor-critic methods
         if self.train_critic:
             self.critic_latent_0 = GATGlobalConv(
-                in_channels=env.host_embedding_size,
+                in_channels=env.host_encoding_dim,
                 out_channels=latent_node_dim,
-                global_channels=env.global_embedding_size,
-                edge_dim=env.edge_embedding_size,
+                global_channels=env.global_encoding_dim,
+                edge_dim=env.edge_encoding_dim,
                 heads=critic_heads,
                 share_weights=False,
             )
             self.critic_latent_1 = GATGlobalConv(
                 in_channels=latent_node_dim,
                 out_channels=latent_node_dim,
-                global_channels=env.global_embedding_size,
-                edge_dim=env.edge_embedding_size,
+                global_channels=env.global_encoding_dim,
+                edge_dim=env.edge_encoding_dim,
                 heads=critic_heads,
                 share_weights=False,
             )
             self.critic_head = GATGlobalConv(
                 in_channels=latent_node_dim,
                 out_channels=1,  # one score per node
-                global_channels=env.global_embedding_size,
-                edge_dim=env.edge_embedding_size,
+                global_channels=env.global_encoding_dim,
+                edge_dim=env.edge_encoding_dim,
                 heads=critic_heads,
                 share_weights=False,
             )

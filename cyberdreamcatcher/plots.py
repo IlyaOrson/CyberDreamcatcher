@@ -5,7 +5,6 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import StrMethodFormatter
 import networkx as nx
 import numpy as np
-import pandas as pd
 import seaborn as sns
 
 import torch
@@ -341,7 +340,6 @@ def plot_joyplot(
     ylabel="Timesteps",
     # title="Reward distribution per timestep",
 ):
-
     # Create color palette
     # num_timesteps = df_long["timestep"].nunique()
     # num_policies = df_long["Policy"].nunique()

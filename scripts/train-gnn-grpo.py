@@ -11,6 +11,7 @@ from omegaconf import OmegaConf
 import comet_ml
 from comet_ml.integration.pytorch import log_model
 from dotenv import load_dotenv
+from rich.logging import RichHandler
 
 import numpy as np
 from tqdm import trange
@@ -18,12 +19,13 @@ import torch
 
 from cyberdreamcatcher.utils import set_all_seeds
 from cyberdreamcatcher.sampler import run_episode
-from cyberdreamcatcher.env import GraphWrapper
+from cyberdreamcatcher.env import GraphEnv
 from cyberdreamcatcher.policy import Police
 
 EPS = np.finfo(np.float32).eps.item()
 
 LOGGER = logging.getLogger(__name__)
+
 
 @dataclass
 class Cfg:
@@ -36,6 +38,7 @@ class Cfg:
     latent_node_dim: int = 3
     log_comet: bool = True
     log_level: str = "INFO"
+
 
 class GRPO:
     """Group Relative Policy Optimization Trainer"""
@@ -200,7 +203,9 @@ class GRPO:
                 torch.save(self.policy.state_dict(), file_path)
                 # Log checkpoint as asset
                 if self.experiment:
-                    self.experiment.log_asset(file_path, file_name=f"policy_step_{it}.pt")
+                    self.experiment.log_asset(
+                        file_path, file_name=f"policy_step_{it}.pt"
+                    )
 
         # Save final model
         final_params = self.policy.state_dict()
@@ -217,7 +222,7 @@ cs.store(name="config", node=Cfg)
 
 @hydra.main(version_base=None, config_name="config", config_path="conf")
 def main(cfg: Cfg) -> None:
-    logging.basicConfig(level=cfg.log_level)
+    logging.basicConfig(level=cfg.log_level, handlers=[RichHandler()])
     LOGGER.info("Starting GRPO GNN Training")
     LOGGER.info(f"Working directory : {os.getcwd()}")
     # Hydra automatically creates an output directory based on config overrides
@@ -226,7 +231,7 @@ def main(cfg: Cfg) -> None:
     LOGGER.info(f"Config used: {OmegaConf.to_yaml(cfg)}")
 
     # Setup environment
-    env = GraphWrapper(scenario=cfg.scenario, max_steps=cfg.episode_length)
+    env = GraphEnv(scenario=cfg.scenario, max_steps=cfg.episode_length)
 
     # Setup device and policy
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

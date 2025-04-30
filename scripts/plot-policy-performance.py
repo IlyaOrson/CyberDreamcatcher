@@ -24,14 +24,13 @@ sns.set_theme(style="white", rc={"axes.facecolor": (0, 0, 0, 0)})
 
 # Disable specific loggers
 logging.getLogger("CybORGLog-Process").setLevel(logging.CRITICAL)
-logging.getLogger("cyberdreamcatcher.utils").setLevel(logging.CRITICAL)
 
 
 @dataclass
 class Cfg:
     policy_weights: Optional[str] = None
     scenario: Optional[str] = "Scenario2"
-    seed: int = 31415
+    seed: int = 0
     episode_length: int = 30
     num_episodes: int = 1000
     num_jobs: int = -1
@@ -60,7 +59,7 @@ def main(cfg: Cfg):
         policy_weights, trained_scenario = load_trained_weights(cfg.policy_weights)
         print(f"Loaded policy trained on {trained_scenario}.")
         if trained_scenario != cfg.scenario:
-            print("Overloading provided scenario.")
+            print("Will ignore the provided scenario.")
             scenario = trained_scenario
     print(f"Plotting performance on scenario {scenario}.")
 

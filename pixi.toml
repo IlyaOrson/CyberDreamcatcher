@@ -16,6 +16,7 @@ install-sb3 = "pip install --no-build-isolation --no-deps --disable-pip-version-
 format = "ruff format cyberdreamcatcher scripts"
 tutorial-cyborg = "jupyter-lab CybORG/CybORG/Tutorial/"
 test-cyborg = "pytest CybORG/CybORG/Tests/test_sim"
+test-graph-env = "python -m scripts.test-graph-env"
 eval-cardiff = "python cardiff-cage-2/evaluation.py"
 train-cardiff = "python cardiff-cage-2/train.py"
 train-flat-sb3-ppo = "python -m scripts.train-sb3-cyborg"

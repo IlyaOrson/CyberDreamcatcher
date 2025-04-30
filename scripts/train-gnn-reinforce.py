@@ -4,6 +4,7 @@ import gc
 import logging
 
 from dotenv import load_dotenv
+from rich.logging import RichHandler
 import comet_ml
 from comet_ml.integration.pytorch import log_model
 from tqdm import trange
@@ -25,11 +26,12 @@ LOGGER = logging.getLogger(__name__)
 class Cfg:
     scenario: str = "Scenario2"
     episode_length: int = 30
-    num_episodes_sample: int = 500
+    num_episodes_sample: int = 1000
     seed: int = 0
-    learning_rate: float = 3e-2
-    optimizer_iterations: int = 200
-    latent_node_dim: int = 3
+    learning_rate: float = 1e-3
+    optimizer_iterations: int = 300
+    latent_node_dim: int = 4
+    actor_heads: int = 1  # FIXME
     normalize_advantage: bool = False
     device: str = "cuda" if torch.cuda.is_available() else "cpu"
     log_comet: bool = True
@@ -189,7 +191,7 @@ if __name__ == "__main__":
     import hydra
     from hydra.core.config_store import ConfigStore
 
-    from cyberdreamcatcher.env import GraphWrapper
+    from cyberdreamcatcher.env import GraphEnv
     from cyberdreamcatcher.policy import Police
 
     # Registering the Config class with the expected name 'args'.
@@ -199,7 +201,7 @@ if __name__ == "__main__":
 
     @hydra.main(version_base=None, config_name="hydra", config_path="conf")
     def main(cfg: Cfg) -> None:
-        logging.basicConfig(level=cfg.log_level)
+        logging.basicConfig(level=cfg.log_level, handlers=[RichHandler()])
         LOGGER.info("Starting REINFORCE GNN Training")
         # https://hydra.cc/docs/tutorials/basic/running_your_app/working_directory/
         LOGGER.info(f"Working directory : {os.getcwd()}")
@@ -207,8 +209,10 @@ if __name__ == "__main__":
         LOGGER.info(f"Output directory  : {output_dir}")
         LOGGER.info(f"Config used: {OmegaConf.to_yaml(cfg)}")
 
-        env = GraphWrapper(scenario=cfg.scenario, max_steps=cfg.episode_length)
-        policy = Police(env, latent_node_dim=cfg.latent_node_dim)
+        env = GraphEnv(scenario=cfg.scenario, max_steps=cfg.episode_length)
+        policy = Police(
+            env, latent_node_dim=cfg.latent_node_dim, actor_heads=cfg.actor_heads
+        )
         trainer = REINFORCE(env, policy, cfg, output_dir=output_dir)
 
         LOGGER.info("Starting training loop")

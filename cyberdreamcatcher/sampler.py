@@ -5,7 +5,7 @@ import torch
 from joblib import Parallel, delayed
 
 from cyberdreamcatcher.utils import set_all_seeds
-from cyberdreamcatcher.env import GraphWrapper
+from cyberdreamcatcher.env import GraphEnv
 from cyberdreamcatcher.policy import Police
 
 
@@ -71,7 +71,7 @@ def collect_trajectory(env, policy, seed):
             # Store the current observation *before* taking the step.
             # Handle potential complex observation types (e.g., graph data).
             # If obs is a torch tensor, move to CPU. If custom object, ensure pickleable.
-            # Assuming obs is directly appendable for now. Needs verification based on GraphWrapper.
+            # Assuming obs is directly appendable for now. Needs verification based on GraphEnv.
             processed_obs = obs  # Placeholder: Add conversion if needed (e.g., obs.cpu(), obs.to_dict())
             all_obs.append(processed_obs)
 
@@ -123,7 +123,7 @@ class EpisodeSampler:
 
         def _collect_rewards_log_probs(seed, scenario, episode_length, policy_weights):
             "Create an independent environment and policy"
-            env = GraphWrapper(
+            env = GraphEnv(
                 scenario=scenario,
                 max_steps=episode_length,
                 render_mode=None,
@@ -158,9 +158,7 @@ class EpisodeSampler:
         ]
 
         stacked_rewards_to_go = np.vstack([t[0] for t in batch_episodes])
-        stacked_log_probs = torch.stack(
-            [t[1] for t in batch_episodes]
-        )
+        stacked_log_probs = torch.stack([t[1] for t in batch_episodes])
 
         return stacked_rewards_to_go, stacked_log_probs  # a row per episode
 
@@ -173,7 +171,7 @@ class EpisodeSampler:
 
         def _collect_trajectory(seed, scenario, episode_length, policy_weights):
             "Create an independent environment and policy"
-            env = GraphWrapper(
+            env = GraphEnv(
                 scenario=scenario,
                 max_steps=episode_length,
                 render_mode=None,

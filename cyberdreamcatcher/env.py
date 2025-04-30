@@ -1,23 +1,23 @@
 import sys
 from copy import copy
-from collections import defaultdict, namedtuple  # , ChainMap
-from itertools import combinations, product, repeat  # , starmap
+from pprint import pformat
+from collections import defaultdict, namedtuple
+from itertools import combinations, product
 
 import gymnasium as gym
 import matplotlib.pyplot as plt
 import numpy as np
 from bidict import bidict
-from rich.pretty import pprint
 import torch
+import logging
 
 from CybORG import CybORG
 from CybORG.Shared.Enums import TrinaryEnum
-from CybORG.Agents import RedMeanderAgent  # , TestAgent
-from CybORG.Agents.Wrappers import BlueTableWrapper, RedTableWrapper  # , ChallengeWrapper
-
-# NOTE not sure if this limits are actually enforced in CybORG
-from CybORG.Shared.ActionSpace import MAX_PORTS
-from CybORG.Shared.AgentInterface import MAX_CONNECTIONS
+from CybORG.Agents import RedMeanderAgent
+from CybORG.Agents.Wrappers import (
+    BlueTableWrapper,
+    RedTableWrapper,
+)  # , ChallengeWrapper
 
 from torch import tensor
 from torch_geometric.data import Data
@@ -29,26 +29,33 @@ from cyberdreamcatcher.plots import (
     plot_feasible_connections,
 )
 
+LOGGER = logging.getLogger(__name__)
+
 
 # NOTE graph observation are not supported by gymnasium observation space restrictions
-# class GraphWrapper(gym.Env):  # not useful
-class GraphWrapper:
+# class GraphEnv(gym.Env):
+class GraphEnv:
     agent_name = "Blue"
 
-    HostProperties = namedtuple("Host", ("subnet", "num_local_ports", "exploit_port", "malware"))
+    HostProperties = namedtuple(
+        "Host", ("subnet", "num_local_ports", "exploit_port", "malware")
+    )
 
-    host_embedding_size = 4
-    edge_embedding_size = 1
-    global_embedding_size = 3
+    host_encoding_dim = 4
+    edge_encoding_dim = 1
+    global_encoding_dim = 3
 
     metadata = {"render_modes": ["human"]}
 
     def __init__(
-        self, scenario=None, max_steps=100, render_mode="human", verbose=False, track_red_table=False,
+        self,
+        scenario=None,
+        max_steps=100,
+        render_mode="human",
+        track_red_table=False,
     ) -> None:
         self.step_counter = None
         self.max_steps = max_steps
-        self.verbose = verbose
 
         if not scenario:
             self.scenario_path = get_scenario(name="Scenario2", from_cyborg=True)
@@ -129,7 +136,7 @@ class GraphWrapper:
         self.action_space = gym.spaces.MultiDiscrete([self.num_hosts, self.num_actions])
 
         # NOTE  not very useful since unexpected connections appear regardless of layout constraints... and
-        #       nested dict observations are not really supported by stable baselines 3, only super siple plain dicts
+        #       nested dict observations are not supported by stable baselines 3, only plain dicts
         # self.observation_space = self._build_dict_obs_space()
 
         assert render_mode is None or render_mode in self.metadata["render_modes"]
@@ -140,40 +147,6 @@ class GraphWrapper:
             # plt.ioff()
             self.fig, self.axis = plt.subplots(1, 2)
             self._node_positions = plot_feasible_connections(self)
-
-    # TODO use TensorDict instead? https://github.com/pytorch/rl/issues/1154
-    def _build_dict_obs_space(self):
-        raise NotImplementedError("Nested dicts are not supported by gymnasium.spaces")
-        # host_properties[host] = [subnet, num_local_ports, malware]
-        host_props = gym.spaces.Dict(
-            {
-                "host": gym.spaces.Discrete(self.num_hosts),
-                "properties": gym.spaces.Dict(
-                    {
-                        "subnet": gym.spaces.Discrete(self.num_subnets),
-                        "num_local_ports": gym.spaces.Discrete(MAX_PORTS),
-                        "malware": gym.spaces.Discrete(2),  # boolean
-                    }
-                ),
-            }
-        )
-        connection_props = gym.spaces.Dict(
-            {
-                "origin": gym.spaces.Discrete(self.num_hosts),
-                "target": gym.spaces.Discrete(self.num_hosts),
-                "connections": gym.spaces.Discrete(MAX_CONNECTIONS),
-            }
-        )
-        observation_space = gym.spaces.Dict(
-            {
-                "hosts": gym.spaces.Tuple(repeat(host_props, self.num_hosts)),
-                "connections": gym.spaces.Tuple(
-                    repeat(connection_props, self.num_feasible_connections)
-                ),
-                "previous_action": self.action_space,
-            }
-        )
-        return observation_space
 
     def set_feasible_connections(self):
         "Extract graph layout from State object in CybORG, which is populated from the Scenario config."
@@ -316,10 +289,9 @@ class GraphWrapper:
                         remote_address = connection["remote_address"]
                         if local_address == remote_address:
                             # NOTE should self connections be included in the graph encoding?
-                            if self.verbose:
-                                print(
-                                    f"Self-connection observed in {host}: {connection}"
-                                )
+                            LOGGER.debug(
+                                f"Self-connection observed in {host}: {connection}"
+                            )
                             # continue
 
                         local_host_name = self.hostname_ip_map.inv[local_address]
@@ -329,10 +301,9 @@ class GraphWrapper:
                         assert host == local_host_name, "Utter nonsense again!"
                         # assert local_remote in self.feasible_connections, "Unfeasible connection appeared!"
                         if local_remote_tuple not in self.feasible_connections_set:
-                            if self.verbose:
-                                print(
-                                    f"Unfeasible connection appeared! {local_host_name} --> {remote_host_name}"
-                                )
+                            LOGGER.debug(
+                                f"Unfeasible connection appeared! {local_host_name} --> {remote_host_name}"
+                            )
                         connections_between_hosts[local_remote_tuple] += 1
 
                         local_port = connection["local_port"]
@@ -342,14 +313,15 @@ class GraphWrapper:
                             remote_port = connection["remote_port"]
                             remote_ports_counter[remote_port] += 1
                         except KeyError:
-                            if self.verbose:
-                                print(
-                                    f"Connection {local_remote_tuple} has no remote port!"
-                                )
+                            LOGGER.debug(
+                                f"Connection {local_remote_tuple} has no remote port!"
+                            )
 
                 # BlueTable uses unique ports, so we use the number of unique ports
                 # num_local_ports = sum(local_ports_counter.values())  # this is the total number of ports
-                num_local_ports = len(local_ports_counter)  # this is the number of unique ports
+                num_local_ports = len(
+                    local_ports_counter
+                )  # this is the number of unique ports
 
                 if 4444 in remote_ports_counter:
                     exploit_port = True
@@ -375,10 +347,11 @@ class GraphWrapper:
                 for host, processes in anomalies.items()
                 if "Connections" in processes.keys() or "Files" in processes.keys()
             }
-            if relevant_anomalies and self.verbose:
-                pprint(relevant_anomalies)
-                pprint(host_properties)
-                pprint(connections_between_hosts)
+            if relevant_anomalies:
+                LOGGER.debug("Relevant anomalies detected:")
+                LOGGER.debug(pformat(relevant_anomalies))
+                LOGGER.debug(pformat(host_properties))
+                LOGGER.debug(pformat(connections_between_hosts))
 
         return host_properties, connections_between_hosts, success_enum
 
@@ -403,7 +376,12 @@ class GraphWrapper:
             local_ports = props.num_local_ports
             exploit_port = int(props.exploit_port)
             malware_int = int(props.malware)
-            node_matrix[host_idx, :] = (subnet_id, local_ports, exploit_port, malware_int)
+            node_matrix[host_idx, :] = (
+                subnet_id,
+                local_ports,
+                exploit_port,
+                malware_int,
+            )
 
         # This set difference needs to happen before any further access to the
         # connections object because it is a default dict and its keys change upon access
@@ -468,7 +446,6 @@ class GraphWrapper:
     # def graph_to_gym_observation(self) TODO method to adapt graph to gymnasium space
 
     def reset(self, *, seed=None, options=None):
-
         self.step_counter = 0
 
         # CybORG does not expect options as a keyword
@@ -520,7 +497,6 @@ class GraphWrapper:
         return observation, info
 
     def step(self, action):
-
         action_instance = self.gym_to_cyborg_action(action)
         cyborg_result = self.cyborg.step(agent=self.agent_name, action=action_instance)
 
@@ -538,7 +514,9 @@ class GraphWrapper:
             info["red_table"] = red_table
 
         # info["blue_obs"] = cyborg_result.observation  # already stored in "observation"
-        blue_table = self.blue_table.observation_change(cyborg_result.observation, baseline=False)
+        blue_table = self.blue_table.observation_change(
+            cyborg_result.observation, baseline=False
+        )
         info["blue_table"] = blue_table
 
         # cyborg_observation = cyborg_result.observation
@@ -561,13 +539,17 @@ class GraphWrapper:
         # encoding the previous action imitates the logic in BlueTableWrapper._process_last_action()
         self.previous_action = action_instance
         previous_action_name = action_instance.__class__.__name__
-        previous_action_value = self.active_actions_map.get(previous_action_name, 0)  # non-active actions are mapped to 0
+        previous_action_value = self.active_actions_map.get(
+            previous_action_name, 0
+        )  # non-active actions are mapped to 0
         if previous_action_name in self.global_actions_names:
             host_idx = 0
         else:
             host_name = action_instance.hostname
             host_idx = self.host_enumeration[host_name]
-        self.previous_action_encoding = torch.tensor([host_idx, previous_action_value], dtype=torch.float)
+        self.previous_action_encoding = torch.tensor(
+            [host_idx, previous_action_value], dtype=torch.float
+        )
 
         return observation, reward, terminated, truncated, info
 
