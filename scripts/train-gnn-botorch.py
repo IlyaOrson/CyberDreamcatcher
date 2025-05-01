@@ -46,9 +46,10 @@ class Cfg:
     scenario: str = "Scenario2"
     episode_length: int = 30
     num_jobs: int = -1
-    policy_kwargs: dict = field(default_factory=lambda: {"latent_node_dim": 3})
+    latent_node_dim: int = 4
+    actor_heads: int = 1
     num_initial_points: int = 20
-    budget: int = 200
+    budget: int = 1000
     num_episodes_sample: int = 100
     bounds_min: float = -2.0
     bounds_max: float = 2.0
@@ -130,7 +131,9 @@ def train(cfg: Cfg):
     device = torch.device(cfg.device)
 
     env_template = GraphEnv(scenario=cfg.scenario, max_steps=cfg.episode_length)
-    policy_template = Police(env_template, **cfg.policy_kwargs).to(device)
+    policy_template = Police(
+        env_template, latent_node_dim=cfg.latent_node_dim, actor_heads=cfg.actor_heads
+    ).to(device)
     initial_state_dict = policy_template.state_dict()
     initial_params_vector = state_dict_to_vector(initial_state_dict)
     param_dim = len(initial_params_vector)
@@ -324,8 +327,10 @@ def train(cfg: Cfg):
 
             LOGGER.info("Logging final policy model to Comet...")
             temp_policy = Police(
-                env_template, **cfg.policy_kwargs
-            )  # Create a policy instance
+                env_template,
+                latent_node_dim=cfg.latent_node_dim,
+                actor_heads=cfg.actor_heads,
+            )
             temp_policy.load_state_dict(best_state_dict)  # Load the best weights
             log_model(experiment, temp_policy, "BestPolicy")
 

@@ -37,7 +37,8 @@ class Cfg:
     use_mean_reward: bool = True
     optimizer: str = "TwoPointsDE"  # Or "TBPSA", "CMA", "PSO", "NG", etc.
     init_policy_path: str | None = None
-    policy_kwargs: dict = field(default_factory=dict)
+    latent_node_dim: int = 4
+    actor_heads: int = 1
     log_comet: bool = True
 
 
@@ -83,7 +84,9 @@ def main(cfg: Cfg) -> None:
     env = GraphEnv(scenario=cfg.scenario, max_steps=cfg.episode_length)
     # Create a dummy policy instance to get the state dict structure
     # It won't be used for sampling directly in the main thread
-    policy_structure_provider = Police(env, **cfg.policy_kwargs).to(device)
+    policy_structure_provider = Police(
+        env, latent_node_dim=cfg.latent_node_dim, actor_heads=cfg.actor_heads
+    ).to(device)
 
     # Load initial weights if specified into the structure provider policy
     if cfg.init_policy_path:

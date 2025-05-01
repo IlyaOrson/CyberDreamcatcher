@@ -31,7 +31,7 @@ class Cfg:
     learning_rate: float = 1e-3
     optimizer_iterations: int = 300
     latent_node_dim: int = 4
-    actor_heads: int = 1  # FIXME
+    actor_heads: int = 1
     normalize_advantage: bool = False
     device: str = "cuda" if torch.cuda.is_available() else "cpu"
     log_comet: bool = True

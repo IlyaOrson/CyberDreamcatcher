@@ -74,7 +74,7 @@ class Police(torch.nn.Module):
         env,
         latent_node_dim=None,
         train_critic=False,
-        actor_heads=1,
+        actor_heads=1,  # FIXME
         critic_heads=1,
         *args,
         **kwargs,
