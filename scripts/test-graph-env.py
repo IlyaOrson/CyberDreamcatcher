@@ -10,6 +10,7 @@ from rich import inspect
 from rich.console import Console
 from rich.rule import Rule
 from rich.progress import track
+from rich.logging import RichHandler
 import torch
 # import matplotlib.pyplot as plt
 
@@ -28,6 +29,8 @@ class Cfg:
     scenario: Optional[str] = "Scenario2"
     seed: int = 0
     episode_length: int = 30
+    quiet: bool = False
+    log_level: str = "INFO"
 
 
 # Registering the Config class with the expected name 'args'.
@@ -57,7 +60,8 @@ def main(cfg: Cfg):
             scenario = trained_scenario
     print(f"Plotting performance on scenario {scenario}.")
 
-    console = Console()
+    console = Console(quiet=cfg.quiet)
+    logging.basicConfig(level=cfg.log_level, handlers=[RichHandler()])
 
     # plt.show(block=False)
 
@@ -91,7 +95,7 @@ def main(cfg: Cfg):
             # visualise action probability distribution
             # plot_action_probabilities(env, policy, obs)
         else:
-            action = torch.tensor(env.action_space.sample())    
+            action = torch.tensor(env.action_space.sample())
 
         obs, reward, terminated, truncated, info = env.step(action)
         # env.render()

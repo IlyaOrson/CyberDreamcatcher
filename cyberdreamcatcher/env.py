@@ -15,6 +15,7 @@ from CybORG import CybORG
 from CybORG.Shared.Enums import TrinaryEnum
 from CybORG.Agents import RedMeanderAgent
 from CybORG.Agents.Wrappers import (
+    TrueTableWrapper,
     BlueTableWrapper,
     RedTableWrapper,
 )  # , ChallengeWrapper
@@ -32,18 +33,73 @@ from cyberdreamcatcher.plots import (
 LOGGER = logging.getLogger(__name__)
 
 
-# NOTE graph observation are not supported by gymnasium observation space restrictions
-# class GraphEnv(gym.Env):
+# NOTE: override Wrappers basic methods to avoid calling cyborg.reset() (which regenerates IPs)
+#       cyborg is managed directly in our environment instead of through wrappers (to be able to use both blue/red tables)
+
+
+class TrueTable(TrueTableWrapper):
+    def reset(self, cyborg_result):
+        self.scanned_ips = set()
+        self.step_counter = -1
+        obs = cyborg_result.observation
+        obs = self.observation_change(obs)
+        return obs  # do not populate cyborg_result.observation, only return the observation
+
+
+class BlueTable(BlueTableWrapper):
+    def __init__(self, env=None, agent=None, output_mode="table"):
+        self.env = TrueTable(env=env, agent=agent)
+        # self.agent = agent  # not really used in BlueTableWrapper
+
+        self.baseline = None
+        self.output_mode = output_mode
+        self.blue_info = {}
+
+    def reset(self, cyborg_result):
+        obs = self.env.reset(cyborg_result)  # calls TrueTable.reset()
+
+        self._process_initial_obs(obs)  # populates self.blue_info
+
+        obs = self.observation_change(obs, baseline=True)
+        return obs
+
+
+class RedTable(RedTableWrapper):
+    def __init__(self, env=None, agent=None, output_mode="table"):
+        self.env = TrueTable(env=env, agent=agent)
+        # self.agent = agent  # not really used in RedTableWrapper
+
+        self.red_info = {}
+        self.known_subnets = set()
+        self.step_counter = -1
+        self.id_tracker = -1
+        self.output_mode = output_mode
+        self.success = None
+
+    def reset(self, cyborg_result):
+        obs = self.env.reset(cyborg_result)  # calls TrueTable.reset()
+
+        self.red_info = {}
+        self.known_subnets = set()
+        self.step_counter = -1
+        self.id_tracker = -1
+        self.success = None
+
+        obs = self.observation_change(obs)
+        return obs
+
+
+# class GraphEnv(gym.Env):  # graph observation are not supported by gymnasium observation space restrictions
 class GraphEnv:
     agent_name = "Blue"
-
-    HostProperties = namedtuple(
-        "Host", ("subnet", "num_local_ports", "exploit_port", "malware")
-    )
 
     host_encoding_dim = 4
     edge_encoding_dim = 1
     global_encoding_dim = 3
+
+    HostProperties = namedtuple(
+        "Host", ("subnet", "num_local_ports", "exploit_port", "malware")
+    )
 
     metadata = {"render_modes": ["human"]}
 
@@ -68,10 +124,10 @@ class GraphEnv:
         self.env_controller = self.cyborg.environment_controller
         self.scenario = self.env_controller.scenario
 
-        self.blue_table = BlueTableWrapper(env=self.cyborg)
+        self.blue_table = BlueTable(env=self.cyborg)
         self.red_table = None
         if track_red_table:
-            self.red_table = RedTableWrapper(env=self.cyborg)
+            self.red_table = RedTable(env=self.cyborg)
 
         self.host_names = self.scenario.hosts
         self.subnet_names = self.scenario.subnets
@@ -100,9 +156,8 @@ class GraphEnv:
 
         # NOTE this depends on the random IPs assigned so need to be called after each environment reset as well
         # Initialize feasiable connection graph with the structure from the scenario
-        # TODO: Do this through empirical sampling instead,
-        #       since the structure is not really respected by CybORG
         self.set_feasible_connections()
+        # TODO: Do this through empirical sampling instead, since the structure is not really respected by CybORG
 
         # NOTE  the "true" state is not really updated because the observations are updated instead
         #       directly in self.env_controller.observation["Blue"]
@@ -443,20 +498,19 @@ class GraphEnv:
             global_attr=torch.cat((prev_action_encoding, success_encoding)),
         )
 
-    # def graph_to_gym_observation(self) TODO method to adapt graph to gymnasium space
-
-    def reset(self, *, seed=None, options=None):
+    def reset(self, *, seed=None):
         self.step_counter = 0
 
-        # CybORG does not expect options as a keyword
-        if options:
-            result = self.cyborg.reset(seed=seed, **options)
-        else:
-            result = self.cyborg.reset(seed=seed)
+        cyborg_result = self.cyborg.reset(seed=seed)
+        info = vars(cyborg_result)
 
-        self.blue_table.reset(seed=seed)
+        blue_table_obs = self.blue_table.reset(cyborg_result)
+        info["blue_table"] = blue_table_obs
+
         if self.red_table:
-            self.red_table.reset(seed=seed)
+            red_table_obs = self.red_table.reset(cyborg_result)
+            info["red_table"] = red_table_obs
+            info["red_obs"] = self.get_raw_observation("Red")
 
         self.set_feasible_connections()
 
@@ -474,22 +528,7 @@ class GraphEnv:
             "hosts": self.host_properties_baseline,
             "connections": self.connections_baseline,
         }
-        info = vars(result)
         info.update(graph_info)
-
-        # NOTE: cyborg.step() call requires an agent name, which means the red table state
-        #       update is manual and synced with the main cyborg instance at every step
-        if self.red_table:
-            red_obs = self.cyborg.get_observation("Red")
-            red_table = self.red_table.observation_change(red_obs)
-            info["red_obs"] = red_obs
-            info["red_table"] = red_table
-
-        # reset blue state ( from BlueTableWrapper.reset() )
-        self.blue_table._process_initial_obs(result.observation)
-
-        blue_obs = self.blue_table.observation_change(result.observation, baseline=True)
-        info["blue_table"] = blue_obs
 
         info["true_state"] = self.get_true_state()
         info["true_table"] = self.get_true_table()
@@ -508,16 +547,16 @@ class GraphEnv:
         # NOTE: cyborg.step() call requires an agent name, which means the red table state
         #       update is manual and synced with the main cyborg instance at every step
         if self.red_table:
-            red_obs = self.cyborg.get_observation("Red")
-            red_table = self.red_table.observation_change(red_obs)
+            red_obs = self.get_raw_observation("Red")
+            red_table_obs = self.red_table.observation_change(red_obs)
             info["red_obs"] = red_obs
-            info["red_table"] = red_table
+            info["red_table"] = red_table_obs
 
         # info["blue_obs"] = cyborg_result.observation  # already stored in "observation"
-        blue_table = self.blue_table.observation_change(
+        blue_table_obs = self.blue_table.observation_change(
             cyborg_result.observation, baseline=False
         )
-        info["blue_table"] = blue_table
+        info["blue_table"] = blue_table_obs
 
         # cyborg_observation = cyborg_result.observation
         host_properties, connections, success = self.get_graph_observation()
@@ -604,12 +643,18 @@ class GraphEnv:
     def get_blue_table(self):
         return self.blue_table.get_table(output_mode="blue_table")
 
-    # NOTE this does not work because the state is managed by the blue agent
-    # def get_red_table(self):
-    #     return self.red_table.get_table(output_mode="red_table")
+    def get_red_table(self):
+        if self.red_table is None:
+            LOGGER.warning(
+                "Red table was not initialized in the environment: track_red_table=False"
+            )
+            return None
+        return self.red_table.get_table(output_mode="red_table")
 
-    def get_last_action(self):
-        return self.cyborg.get_last_action(self.agent_name)
+    def get_last_action(self, agent=None):
+        if agent is None:
+            agent = self.agent_name
+        return self.cyborg.get_last_action(agent)
 
     # NOTE use previous action in the graph repr with an independent linear transformation
     # def encode_last_action(self):
