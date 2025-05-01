@@ -501,10 +501,23 @@ class GraphEnv:
     def reset(self, *, seed=None):
         self.step_counter = 0
 
-        cyborg_result = self.cyborg.reset(seed=seed)
+        # Subnet key error occurs when the Defender host is not initialized properly for some reason.
+        # Resetting cyborg normally solves this issue on the first try.
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                cyborg_result = self.cyborg.reset(seed=seed)
+                blue_table_obs = self.blue_table.reset(cyborg_result)
+                break
+            except KeyError as e:
+                if e.args and e.args[0] == 'Subnet':
+                    LOGGER.debug(f"Subnet key error during reset (Attempt {attempt + 1}/{max_retries})")
+                    if attempt == max_retries:
+                        LOGGER.error(f"Subnet key error persisted after {max_retries} attempts.")
+                        raise e
+
         info = vars(cyborg_result)
 
-        blue_table_obs = self.blue_table.reset(cyborg_result)
         info["blue_table"] = blue_table_obs
 
         if self.red_table:
