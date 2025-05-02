@@ -8,7 +8,12 @@ from hydra.core.config_store import ConfigStore
 from rich import inspect
 from rich.console import Console
 from rich.rule import Rule
-from rich.progress import Progress, SpinnerColumn, TimeElapsedColumn, TimeRemainingColumn
+from rich.progress import (
+    Progress,
+    SpinnerColumn,
+    TimeElapsedColumn,
+    TimeRemainingColumn,
+)
 from rich.logging import RichHandler
 import torch
 # import matplotlib.pyplot as plt
@@ -31,6 +36,7 @@ class Cfg:
     quiet: bool = False
     log_level: str = "INFO"
     track_history: bool = True
+    render_mode: Optional[str] = "human"
 
 
 # Registering the Config class with the expected name 'args'.
@@ -69,7 +75,9 @@ def main(cfg: Cfg):
     # scenario = "Scenario2"
     # scenario = "Scenario2_-_User2_User4"
     # scenario = "Scenario2_+_User5_User6"
-    env = GraphEnv(scenario=scenario, track_history=cfg.track_history)
+    env = GraphEnv(
+        scenario=scenario, track_history=cfg.track_history, render_mode=cfg.render_mode
+    )
 
     obs, info = env.reset()
     # env.render()
@@ -96,7 +104,9 @@ def main(cfg: Cfg):
         # TimeRemainingColumn(),
         console=console,
     ) as progress:
-        for step in progress.track(range(cfg.episode_length), description="Running steps..."):
+        for step in progress.track(
+            range(cfg.episode_length), description="Running steps..."
+        ):
             if cfg.policy_weights:
                 action, log_prob, entropy, value = policy(obs)
                 # visualise action probability distribution
@@ -109,7 +119,6 @@ def main(cfg: Cfg):
             # plot_observation_encoded(env, obs, show=True)
 
             if env.track_history:
-
                 console.print(Rule(f"Step {step}", style="bold red"))
                 console.print(Rule("Action", style="bold red"))
                 inspect(info["action"], console=console)

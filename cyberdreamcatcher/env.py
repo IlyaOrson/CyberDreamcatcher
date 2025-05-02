@@ -107,7 +107,7 @@ class GraphEnv:
         self,
         scenario=None,
         max_steps=100,
-        render_mode="human",
+        render_mode=None,
         track_history=False,
     ) -> None:
         self.step_counter = None
@@ -511,10 +511,14 @@ class GraphEnv:
                 blue_table_obs = self.blue_table.reset(cyborg_result)
                 break
             except KeyError as e:
-                if e.args and e.args[0] == 'Subnet':
-                    LOGGER.error(f"Subnet key error during reset (Attempt {attempt + 1}/{max_retries})")
+                if e.args and e.args[0] == "Subnet":
+                    LOGGER.error(
+                        f"Subnet key error during reset (Attempt {attempt + 1}/{max_retries})"
+                    )
                     if attempt == max_retries:
-                        LOGGER.exception(f"Subnet key error persisted after {max_retries} attempts.")
+                        LOGGER.exception(
+                            f"Subnet key error persisted after {max_retries} attempts."
+                        )
                         raise e
 
         info = {}
@@ -540,7 +544,6 @@ class GraphEnv:
         )
 
         if self.track_history:
-
             graph_info = {
                 "hosts": self.host_properties_baseline,
                 "connections": self.connections_baseline,
@@ -666,9 +669,7 @@ class GraphEnv:
 
     def get_red_table(self):
         if self.red_table is None:
-            LOGGER.warning(
-                "Red table is not being tracked by the environment."
-            )
+            LOGGER.warning("Red table is not being tracked by the environment.")
             return None
         return self.red_table.get_table(output_mode="red_table")
 
