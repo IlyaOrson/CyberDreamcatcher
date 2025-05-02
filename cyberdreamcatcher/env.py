@@ -108,10 +108,11 @@ class GraphEnv:
         scenario=None,
         max_steps=100,
         render_mode="human",
-        track_red_table=False,
+        track_history=False,
     ) -> None:
         self.step_counter = None
         self.max_steps = max_steps
+        self.track_history = track_history
 
         if not scenario:
             self.scenario_path = get_scenario(name="Scenario2", from_cyborg=True)
@@ -126,7 +127,7 @@ class GraphEnv:
 
         self.blue_table = BlueTable(env=self.cyborg)
         self.red_table = None
-        if track_red_table:
+        if self.track_history:
             self.red_table = RedTable(env=self.cyborg)
 
         self.host_names = self.scenario.hosts
@@ -511,16 +512,17 @@ class GraphEnv:
                 break
             except KeyError as e:
                 if e.args and e.args[0] == 'Subnet':
-                    LOGGER.debug(f"Subnet key error during reset (Attempt {attempt + 1}/{max_retries})")
+                    LOGGER.error(f"Subnet key error during reset (Attempt {attempt + 1}/{max_retries})")
                     if attempt == max_retries:
-                        LOGGER.error(f"Subnet key error persisted after {max_retries} attempts.")
+                        LOGGER.exception(f"Subnet key error persisted after {max_retries} attempts.")
                         raise e
 
-        info = vars(cyborg_result)
+        info = {}
+        if self.track_history:
+            info.update(vars(cyborg_result))
 
-        info["blue_table"] = blue_table_obs
+            info["blue_table"] = blue_table_obs
 
-        if self.red_table:
             red_table_obs = self.red_table.reset(cyborg_result)
             info["red_table"] = red_table_obs
             info["red_obs"] = self.get_raw_observation("Red")
@@ -537,39 +539,44 @@ class GraphEnv:
             self.success_enum,
         )
 
-        graph_info = {
-            "hosts": self.host_properties_baseline,
-            "connections": self.connections_baseline,
-        }
-        info.update(graph_info)
+        if self.track_history:
 
-        info["true_state"] = self.get_true_state()
-        info["true_table"] = self.get_true_table()
+            graph_info = {
+                "hosts": self.host_properties_baseline,
+                "connections": self.connections_baseline,
+            }
+            info.update(graph_info)
+
+            info["true_state"] = self.get_true_state()
+            info["true_table"] = self.get_true_table()
 
         return observation, info
 
     def step(self, action):
+        self.step_counter += 1
+
         action_instance = self.gym_to_cyborg_action(action)
         cyborg_result = self.cyborg.step(agent=self.agent_name, action=action_instance)
 
-        info = vars(cyborg_result)
+        info = {}
+        if self.track_history:
+            info.update(vars(cyborg_result))
 
-        info["true_state"] = self.get_true_state()
-        info["true_table"] = self.get_true_table()
+            info["true_state"] = self.get_true_state()
+            info["true_table"] = self.get_true_table()
 
-        # NOTE: cyborg.step() call requires an agent name, which means the red table state
-        #       update is manual and synced with the main cyborg instance at every step
-        if self.red_table:
+            # NOTE: cyborg.step() call requires an agent name, which means the red table state
+            #       update is manual and synced with the main cyborg instance at every step
             red_obs = self.get_raw_observation("Red")
             red_table_obs = self.red_table.observation_change(red_obs)
             info["red_obs"] = red_obs
             info["red_table"] = red_table_obs
 
-        # info["blue_obs"] = cyborg_result.observation  # already stored in "observation"
-        blue_table_obs = self.blue_table.observation_change(
-            cyborg_result.observation, baseline=False
-        )
-        info["blue_table"] = blue_table_obs
+            # info["blue_obs"] = cyborg_result.observation  # already stored in "observation"
+            blue_table_obs = self.blue_table.observation_change(
+                cyborg_result.observation, baseline=False
+            )
+            info["blue_table"] = blue_table_obs
 
         # cyborg_observation = cyborg_result.observation
         host_properties, connections, success = self.get_graph_observation()
@@ -577,16 +584,17 @@ class GraphEnv:
             host_properties, connections, success
         )
 
+        if self.track_history:
+            graph_info = {"hosts": host_properties, "connections": connections}
+            info.update(graph_info)
+
         reward = cyborg_result.reward
+
         terminated = cyborg_result.done
 
         truncated = False
-        self.step_counter += 1
         if self.max_steps is not None and self.step_counter >= self.max_steps:
             truncated = True
-
-        graph_info = {"hosts": host_properties, "connections": connections}
-        info.update(graph_info)
 
         # encoding the previous action imitates the logic in BlueTableWrapper._process_last_action()
         self.previous_action = action_instance
@@ -659,7 +667,7 @@ class GraphEnv:
     def get_red_table(self):
         if self.red_table is None:
             LOGGER.warning(
-                "Red table was not initialized in the environment: track_red_table=False"
+                "Red table is not being tracked by the environment."
             )
             return None
         return self.red_table.get_table(output_mode="red_table")

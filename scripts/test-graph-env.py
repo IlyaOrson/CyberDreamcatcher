@@ -1,5 +1,4 @@
 import os
-from pathlib import Path
 from dataclasses import dataclass
 from typing import Optional
 import logging
@@ -9,7 +8,7 @@ from hydra.core.config_store import ConfigStore
 from rich import inspect
 from rich.console import Console
 from rich.rule import Rule
-from rich.progress import track
+from rich.progress import Progress, SpinnerColumn, TimeElapsedColumn, TimeRemainingColumn
 from rich.logging import RichHandler
 import torch
 # import matplotlib.pyplot as plt
@@ -31,6 +30,7 @@ class Cfg:
     episode_length: int = 30
     quiet: bool = False
     log_level: str = "INFO"
+    track_history: bool = True
 
 
 # Registering the Config class with the expected name 'args'.
@@ -69,19 +69,19 @@ def main(cfg: Cfg):
     # scenario = "Scenario2"
     # scenario = "Scenario2_-_User2_User4"
     # scenario = "Scenario2_+_User5_User6"
-    env = GraphEnv(scenario=scenario, track_red_table=True)
+    env = GraphEnv(scenario=scenario, track_history=cfg.track_history)
 
     obs, info = env.reset()
     # env.render()
 
-    console.print(Rule("InitialObservation", style="bold red"))
+    # console.print(Rule("InitialObservation", style="bold red"))
     # pprint(info["observation"])
 
-    console.print(Rule("TrueTable", style="bold red"))
-    console.print(info["true_table"])
-    console.print(Rule("BlueTable", style="bold red"))
-    console.print(info["blue_table"])
-    if env.red_table:
+    if env.track_history:
+        console.print(Rule("TrueTable", style="bold red"))
+        console.print(info["true_table"])
+        console.print(Rule("BlueTable", style="bold red"))
+        console.print(info["blue_table"])
         console.print(Rule("RedTable", style="bold red"))
         console.print(info["red_table"])
 
@@ -89,48 +89,56 @@ def main(cfg: Cfg):
         policy = Police(env)
         policy.load_state_dict(policy_weights)
 
-    for step in track(range(30), description="Running steps...", console=console):
-        if cfg.policy_weights:
-            action, log_prob, entropy, value = policy(obs)
-            # visualise action probability distribution
-            # plot_action_probabilities(env, policy, obs)
-        else:
-            action = torch.tensor(env.action_space.sample())
+    with Progress(
+        SpinnerColumn(),
+        *Progress.get_default_columns(),
+        TimeElapsedColumn(),
+        # TimeRemainingColumn(),
+        console=console,
+    ) as progress:
+        for step in progress.track(range(cfg.episode_length), description="Running steps..."):
+            if cfg.policy_weights:
+                action, log_prob, entropy, value = policy(obs)
+                # visualise action probability distribution
+                # plot_action_probabilities(env, policy, obs)
+            else:
+                action = torch.tensor(env.action_space.sample())
 
-        obs, reward, terminated, truncated, info = env.step(action)
-        # env.render()
-        # plot_observation_encoded(env, obs, show=True)
+            obs, reward, terminated, truncated, info = env.step(action)
+            # env.render()
+            # plot_observation_encoded(env, obs, show=True)
 
-        console.print(Rule(f"Step {step}", style="bold red"))
-        console.print(Rule("Action", style="bold red"))
-        inspect(info["action"])
-        console.print(Rule("Observation", style="bold red"))
-        console.print(info["observation"])
+            if env.track_history:
 
-        console.print(Rule("Hosts", style="bold red"))
-        console.print(info["hosts"])
-        console.print(Rule("Connections", style="bold red"))
-        console.print(info["connections"])
+                console.print(Rule(f"Step {step}", style="bold red"))
+                console.print(Rule("Action", style="bold red"))
+                inspect(info["action"], console=console)
+                console.print(Rule("Observation", style="bold red"))
+                console.print(info["observation"])
 
-        console.print(Rule("TrueTable", style="bold red"))
-        console.print(info["true_table"])
+                console.print(Rule("Hosts", style="bold red"))
+                console.print(info["hosts"])
+                console.print(Rule("Connections", style="bold red"))
+                console.print(info["connections"])
 
-        console.print(Rule("Last Blue Action", style="bold red"))
-        inspect(env.cyborg.get_last_action(agent="Blue"))
-        console.print(Rule("BlueTable", style="bold red"))
-        console.print(info["blue_table"])
+                console.print(Rule("TrueTable", style="bold red"))
+                console.print(info["true_table"])
 
-        console.print(Rule("Last Red Action", style="bold red"))
-        inspect(env.cyborg.get_last_action(agent="Red"))
+                console.print(Rule("Last Blue Action", style="bold red"))
+                inspect(env.cyborg.get_last_action(agent="Blue"), console=console)
+                console.print(Rule("BlueTable", style="bold red"))
+                console.print(info["blue_table"])
 
-        if env.red_table:
-            console.print(Rule("RedTable", style="bold red"))
-            console.print(info["red_table"])
-            console.print(Rule("Red Observation", style="bold red"))
-            console.print(info["red_obs"])
+                console.print(Rule("Last Red Action", style="bold red"))
+                inspect(env.cyborg.get_last_action(agent="Red"), console=console)
 
-        console.print(Rule("Reward", style="bold red"))
-        console.print(env.cyborg.get_rewards())
+                console.print(Rule("RedTable", style="bold red"))
+                console.print(info["red_table"])
+                console.print(Rule("Red Observation", style="bold red"))
+                console.print(info["red_obs"])
+
+                console.print(Rule("Reward", style="bold red"))
+                console.print(env.cyborg.get_rewards())
 
     # plt.show()
 
