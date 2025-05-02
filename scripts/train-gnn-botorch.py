@@ -50,7 +50,7 @@ class Cfg:
     actor_heads: int = 1
     num_initial_points: int = 20
     budget: int = 1000
-    num_episodes_sample: int = 100
+    batch_size_episodes: int = 100
     bounds_min: float = -2.0
     bounds_max: float = 2.0
     log_comet: bool = True
@@ -72,7 +72,7 @@ def evaluate_parameters(
 
     # Sample episodes using the updated policy weights stored in the sampler
     batch_rewards_to_go, _ = sampler.sample_episodes(
-        num_episodes=cfg.num_episodes_sample
+        num_episodes=cfg.batch_size_episodes
     )
 
     total_rewards = batch_rewards_to_go[:, 0]

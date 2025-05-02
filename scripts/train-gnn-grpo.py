@@ -31,7 +31,7 @@ LOGGER = logging.getLogger(__name__)
 class Cfg:
     scenario: str = "Scenario2"
     episode_length: int = 30
-    num_episodes_sample: int = 500  # Corresponds to M in GRPO (batch size)
+    batch_size_episodes: int = 500  # Corresponds to M in GRPO (batch size)
     seed: int = 0
     learning_rate: float = 1e-2
     optimizer_iterations: int = 200
@@ -81,7 +81,7 @@ class GRPO:
         Executes multiple episodes, calculates GRPO advantages based on
         normalized total rewards, and computes the policy loss.
         """
-        num_episodes = self.conf.num_episodes_sample
+        num_episodes = self.conf.batch_size_episodes
         batch_total_rewards = np.zeros(num_episodes)
         batch_log_probs = [None for _ in range(num_episodes)]
 

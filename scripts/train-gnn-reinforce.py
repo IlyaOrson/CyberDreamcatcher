@@ -26,7 +26,7 @@ LOGGER = logging.getLogger(__name__)
 class Cfg:
     scenario: str = "Scenario2"
     episode_length: int = 30
-    num_episodes_sample: int = 1000
+    batch_size_episodes: int = 1000
     seed: int = 0
     learning_rate: float = 1e-3
     optimizer_iterations: int = 300
@@ -76,7 +76,7 @@ class REINFORCE:
         and use them to form the baselined loss function to optimize.
         """
 
-        num_episodes = self.conf.num_episodes_sample
+        num_episodes = self.conf.batch_size_episodes
         batch_rewards_to_go = [None for _ in range(num_episodes)]
         batch_log_probs = [None for _ in range(num_episodes)]
 

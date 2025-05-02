@@ -30,7 +30,7 @@ class Cfg:
     seed: int = 0
     scenario: str = "Scenario2"
     episode_length: int = 30
-    num_episodes_sample: int = 200
+    batch_size_episodes: int = 200
     num_jobs: int = -1
     # Nevergrad settings
     budget: int = 500  # Total number of 'ask' calls (parameter sets evaluated)
@@ -127,7 +127,7 @@ def main(cfg: Cfg) -> None:
 
     # --- Run Optimization using Ask/Tell ---
     print(f"Starting Nevergrad optimization with ask/tell interface...")
-    print(f"Budget: {cfg.budget} 'ask' calls, {cfg.num_episodes_sample} episodes/ask.")
+    print(f"Budget: {cfg.budget} 'ask' calls, {cfg.batch_size_episodes} episodes/ask.")
 
     pbar = tqdm(total=cfg.budget, desc="Nevergrad Optimization (Ask calls)")
     best_known_reward = float("-inf")  # Track best reward found so far
@@ -152,10 +152,10 @@ def main(cfg: Cfg) -> None:
         #    This leverages EpisodeSampler's internal parallelism
 
         # sample_episodes returns stacked_rewards_to_go, stacked_log_probs
-        batch_rewards_to_go, _ = sampler.sample_episodes(cfg.num_episodes_sample)
+        batch_rewards_to_go, _ = sampler.sample_episodes(cfg.batch_size_episodes)
 
         # 4. Extract total reward (reward-to-go at step 0) for each episode
-        # Shape: (num_episodes_sample, len_episode)
+        # Shape: (batch_size_episodes, len_episode)
         # The final score for a blue agent is the cumulative reward received by the agent over the course of the scenario run. https://github.com/cage-challenge/cage-challenge-2
         episode_rewards = batch_rewards_to_go[:, 0]  # reward-to-go at step 0
         # episode_rewards = batch_rewards_to_go[:, -1]  # reward at last step
@@ -244,7 +244,7 @@ def main(cfg: Cfg) -> None:
     print("\nEvaluating final recommended policy...")
     sampler.policy_weights = best_state_dict
     final_rewards_to_go, _ = sampler.sample_episodes(
-        num_episodes=cfg.num_episodes_sample * 2
+        num_episodes=cfg.batch_size_episodes * 2
     )
     final_total_rewards = final_rewards_to_go[:, 0]
     final_mean_reward = np.mean(final_total_rewards)

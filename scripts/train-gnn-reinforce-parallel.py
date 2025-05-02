@@ -29,7 +29,7 @@ LOGGER = logging.getLogger(__name__)
 class Cfg:
     scenario: str = "Scenario2"
     episode_length: int = 30
-    num_episodes_sample: int = 1000
+    batch_size_episodes: int = 1000
     seed: int = 0
     learning_rate: float = 1e-2
     optimizer_iterations: int = 300
@@ -73,7 +73,7 @@ class REINFORCEParallel:
         set_all_seeds(conf.seed)
 
     def sample_episodes(self, counter=None):
-        num_episodes = self.conf.num_episodes_sample
+        num_episodes = self.conf.batch_size_episodes
         policy_weights = {k: v.cpu() for k, v in self.policy.state_dict().items()}
         sampler = EpisodeSampler(
             seed=self.conf.seed,
