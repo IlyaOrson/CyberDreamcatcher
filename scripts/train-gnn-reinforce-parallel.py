@@ -233,4 +233,9 @@ def main(cfg: Cfg) -> None:
 
 
 if __name__ == "__main__":
+    raise NotImplementedError(
+        """Parallel REINFORCE works but it is not faster than the serial version
+        because the policy does not work over batches of observations to take advantage of the GPU.
+        """
+    )
     main()
