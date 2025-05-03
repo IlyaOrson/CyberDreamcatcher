@@ -1,4 +1,3 @@
-import sys
 from copy import copy
 from pprint import pformat
 from collections import defaultdict, namedtuple
@@ -23,7 +22,7 @@ from CybORG.Agents.Wrappers import (
 from torch import tensor
 from torch_geometric.data import Data
 
-from cyberdreamcatcher.utils import get_scenario, enumerate_bidict
+from cyberdreamcatcher.utils import get_scenario, enumerate_bidict, instantiate_action
 from cyberdreamcatcher.plots import (
     plot_observation,
     plot_observation_encoded,
@@ -281,25 +280,7 @@ class GraphEnv:
         # Equivalent to the logic in EnumActionWrapper.action_space_change(action_space_dict)
         # self.feasible_action_instances = list(starmap(self.instantiate_action, self.feasible_actions))
 
-    def _get_action_class(self, action_name):
-        "Retrieve the action class defined in CybORG from the action name."
-        action_module = sys.modules["CybORG.Shared.Actions"]
-        action_class = getattr(action_module, action_name)
-        return action_class
-
-    def instantiate_action(self, action_name, host_name):
-        """Create instantiate the class object with the given host."""
-
-        action_class = self._get_action_class(action_name)
-
-        if action_name == "Sleep":
-            action = action_class()
-        elif action_name == "Monitor":
-            action = action_class(session=0, agent=self.agent_name)
-        else:
-            action = action_class(session=0, agent=self.agent_name, hostname=host_name)
-        return action
-
+    # TODO add the reverse mapping
     def gym_to_cyborg_action(self, gym_action):
         "Converts gymnasium action to the equivalent cyborg action."
         host_idx, action_idx = gym_action
@@ -308,7 +289,7 @@ class GraphEnv:
         if action_name in self.global_actions_names:
             host_name = None  # global actions ignore host selection
         assert (action_name, host_name) in self.feasible_actions
-        action_instance = self.instantiate_action(action_name, host_name)
+        action_instance = instantiate_action(action_name, host_name)
         return action_instance
 
     def distill_graph_observation(self, observation):

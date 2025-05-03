@@ -24,6 +24,19 @@ def set_all_seeds(seed):
         torch.cuda.manual_seed_all(seed)
 
 
+def instantiate_action(action_name, host_name, agent_name="Blue"):
+    """Create instantiate the class object with the given host."""
+
+    action_class = getattr(CybORG.Shared.Actions, action_name)
+
+    if action_name == "Sleep":
+        action = action_class()
+    elif action_name == "Monitor":
+        action = action_class(session=0, agent=agent_name)
+    else:
+        action = action_class(session=0, agent=agent_name, hostname=host_name)
+    return action
+
 # Add these helper functions for parameter conversion
 def state_dict_to_vector(state_dict: dict) -> np.ndarray:
     """Converts a PyTorch state_dict to a flat NumPy array."""
