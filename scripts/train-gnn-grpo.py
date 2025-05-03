@@ -143,7 +143,7 @@ class GRPO:
         return mean_policy_loss, reward_mean, reward_std
 
     def learn(self):
-        optimizer = torch.optim.Adam(
+        optimizer = torch.optim.AdamW(
             self.policy.parameters(), lr=self.conf.learning_rate
         )
 
@@ -265,4 +265,5 @@ def main(cfg: Cfg) -> None:
 
 
 if __name__ == "__main__":
+    raise NotImplementedError("WIP: GRPO is not implemented yet.")
     main()

@@ -148,7 +148,7 @@ class REINFORCEParallel:
     def learn(self):
         self.policy.train()
 
-        optimizer = torch.optim.Adam(
+        optimizer = torch.optim.AdamW(
             self.policy.parameters(), lr=self.conf.learning_rate
         )
         pbar = trange(self.conf.optimizer_iterations, desc="Optimizer iteration")

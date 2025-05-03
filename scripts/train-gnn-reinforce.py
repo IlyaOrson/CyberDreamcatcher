@@ -126,7 +126,7 @@ class REINFORCE:
         return mean_log_prob_R, reward_mean, reward_std
 
     def learn(self):
-        optimizer = torch.optim.Adam(
+        optimizer = torch.optim.AdamW(
             self.policy.parameters(), lr=self.conf.learning_rate
         )
 

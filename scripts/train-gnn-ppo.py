@@ -206,7 +206,7 @@ if __name__ == "__main__":
 
         env = GraphEnv(scenario=args.scenario, max_steps=args.num_steps)
         agent = Police(env, train_critic=True).to(device)
-        optimizer = optim.Adam(agent.parameters(), lr=args.learning_rate, eps=1e-5)
+        optimizer = optim.AdamW(agent.parameters(), lr=args.learning_rate, eps=1e-5)
 
         sampler = EpisodeSampler(env, agent, seed=args.seed, writer=writer)  # FIXME
         sampler.sample_episodes(args.num_ep_reward_sample, counter=0)
