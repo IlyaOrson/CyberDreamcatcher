@@ -104,7 +104,7 @@ class GraphEnv:
     global_encoding_dim = 3
 
     HostProperties = namedtuple(
-        "Host", ("subnet", "num_local_ports", "exploit_port", "malware")
+        "Host", ("subnet", "num_local_ports", "exploit", "malware")
     )
 
     metadata = {"render_modes": ["human"]}
@@ -226,8 +226,13 @@ class GraphEnv:
                     # TODO should we add a self loop
                     # self_reference = True
                     continue  # what is the meaning of this?
+
                 origin_remote = (hostname, name)
                 self.internet_connections.append(origin_remote)
+
+                # set bidirectional connections
+                remote_origin = (name, hostname)
+                self.internet_connections.append(remote_origin)
 
         # hostname --> ip network (subnet)
         self.hostname_subnet_map = {}
@@ -294,6 +299,7 @@ class GraphEnv:
         action_instance = instantiate_action(action_name, host_name)
         return action_instance
 
+    # TODO: modify this to update the stateful host_properties, as the BlueTable does.
     def distill_graph_observation(self, observation):
         """Extracts from the raw blue observation the information required
         to reconstruct the the blue table state but in a graph representation.
@@ -309,7 +315,7 @@ class GraphEnv:
                 continue
 
             num_local_ports = 0
-            exploit_port = False
+            exploit = False
             if "Processes" in properties:
                 processes = properties["Processes"]
 
@@ -365,7 +371,7 @@ class GraphEnv:
                 num_local_ports = len(local_ports_counter)
 
                 if 4444 in remote_ports_counter:
-                    exploit_port = True
+                    exploit = True
 
             malware = False
             if "Files" in properties:
@@ -376,7 +382,7 @@ class GraphEnv:
             subnet = self.subnet_cidr_map.inv[subnet_ip]
 
             host_properties[host] = self.HostProperties(
-                subnet, num_local_ports, exploit_port, malware
+                subnet, num_local_ports, exploit, malware
             )
 
             # relevance = self.host_relevance[host]
@@ -419,13 +425,15 @@ class GraphEnv:
             )
             subnet_id = self.subnet_enumeration[props.subnet]
             local_ports = props.num_local_ports
-            exploit_port = int(props.exploit_port)
-            malware_int = int(props.malware)
+            # relevance = props.relevance
+            exploit = int(props.exploit)
+            malware = int(props.malware)
             node_matrix[host_idx, :] = (
                 subnet_id,
                 local_ports,
-                exploit_port,
-                malware_int,
+                # relevance,
+                exploit,
+                malware,
             )
 
         # This set difference needs to happen before any further access to the
@@ -474,10 +482,13 @@ class GraphEnv:
         # edge weights are expected as a matrix of shape num_edges x num_attrs_per_edge
         edge_attr = np.array(edge_weights).reshape((-1, 1))
 
-        if success_enum is None:
-            success_value = TrinaryEnum.UNKNOWN.value
-        else:
-            success_value = success_enum.value
+        # success_enum is None or success_enum == TrinaryEnum.UNKNOWN:
+        success_value = 0  # unknown or not set
+        if success_enum == TrinaryEnum.TRUE:
+            success_value = 1
+        elif success_enum == TrinaryEnum.FALSE:
+            success_value = -1
+
         prev_action_encoding = self.previous_action_encoding.clone().detach()
         success_encoding = torch.tensor([success_value], dtype=torch.float)
 
