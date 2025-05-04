@@ -41,8 +41,9 @@ class TrueTable(TrueTableWrapper):
         self.scanned_ips = set()
         self.step_counter = -1
         obs = cyborg_result.observation
-        obs = self.observation_change(obs)
-        return obs  # do not populate cyborg_result.observation, only return the observation
+        # do not rewrite cyborg_result.observation, only return the observation
+        return self.observation_change(obs)
+
 
 
 class BlueTable(BlueTableWrapper):
@@ -55,12 +56,18 @@ class BlueTable(BlueTableWrapper):
         self.blue_info = {}
 
     def reset(self, cyborg_result):
-        obs = self.env.reset(cyborg_result)  # calls TrueTable.reset()
+        # calls TrueTable.reset() which avoids cyborg.reset()
+        obs = self.env.reset(cyborg_result)
 
         self._process_initial_obs(obs)  # populates self.blue_info
 
-        obs = self.observation_change(obs, baseline=True)
-        return obs
+        return self.observation_change(obs, baseline=True)
+
+    # calling observation_change() is basically cyborg.step() + self.observation_change()
+    # but these patches avoid calling cyborg.step() to manage this separately
+    # def step(self, cyborg_result):
+    #     obs = cyborg_result.observation
+    #     return self.observation_change(obs)
 
 
 class RedTable(RedTableWrapper):
@@ -76,7 +83,8 @@ class RedTable(RedTableWrapper):
         self.success = None
 
     def reset(self, cyborg_result):
-        obs = self.env.reset(cyborg_result)  # calls TrueTable.reset()
+        # calls TrueTable.reset() which avoids cyborg.reset()
+        obs = self.env.reset(cyborg_result)
 
         self.red_info = {}
         self.known_subnets = set()
@@ -84,8 +92,7 @@ class RedTable(RedTableWrapper):
         self.id_tracker = -1
         self.success = None
 
-        obs = self.observation_change(obs)
-        return obs
+        return self.observation_change(obs)
 
 
 # class GraphEnv(gym.Env):  # graph observation are not supported by gymnasium observation space restrictions
@@ -175,11 +182,6 @@ class GraphEnv:
         # self.enum_action = self.openai_gym.env
         # self.blue_table = self.enum_action.env
         # self.true_table = self.blue_table.env
-
-        # This imitates the logic in BlueTable._process_initial_obs()
-        self.blue_baseline = {
-            k: v for k, v in self.get_raw_observation().items() if k != "success"
-        }
 
         self.previous_action = None
         assert str(self.gym_to_cyborg_action([0, 0])) == "Sleep"
@@ -355,10 +357,12 @@ class GraphEnv:
                             )
 
                 # BlueTable uses unique ports, so we use the number of unique ports
-                # num_local_ports = sum(local_ports_counter.values())  # this is the total number of ports
-                num_local_ports = len(
-                    local_ports_counter
-                )  # this is the number of unique ports
+
+                # this is the total number of ports
+                # num_local_ports = sum(local_ports_counter.values())
+
+                # this is the number of unique ports
+                num_local_ports = len(local_ports_counter)
 
                 if 4444 in remote_ports_counter:
                     exploit_port = True
@@ -375,20 +379,24 @@ class GraphEnv:
                 subnet, num_local_ports, exploit_port, malware
             )
 
-        if observation != self.blue_baseline:
-            # extract processes per host
-            anomalies = self.blue_table._detect_anomalies(observation)
-            # flag if processes represent a connection or a file
-            relevant_anomalies = {
-                host: processes
-                for host, processes in anomalies.items()
-                if "Connections" in processes.keys() or "Files" in processes.keys()
-            }
-            if relevant_anomalies:
-                LOGGER.debug("Relevant anomalies detected:")
-                LOGGER.debug(pformat(relevant_anomalies))
-                LOGGER.debug(pformat(host_properties))
-                LOGGER.debug(pformat(connections_between_hosts))
+            # relevance = self.host_relevance[host]
+            # host_properties[host] = self.HostProperties(
+            #     subnet, relevance, exploit, malware
+            # )
+
+        # extract processes per host
+        anomalies = self.blue_table._detect_anomalies(observation)
+        # flag if processes represent a connection or a file
+        relevant_anomalies = {
+            host: processes
+            for host, processes in anomalies.items()
+            if "Connections" in processes.keys() or "Files" in processes.keys()
+        }
+        if relevant_anomalies:
+            LOGGER.debug("Relevant anomalies detected:")
+            LOGGER.debug(pformat(relevant_anomalies))
+            LOGGER.debug(pformat(host_properties))
+            LOGGER.debug(pformat(connections_between_hosts))
 
         return host_properties, connections_between_hosts, success_enum
 
@@ -488,7 +496,8 @@ class GraphEnv:
         max_retries = 3
         for attempt in range(max_retries):
             try:
-                cyborg_result = self.cyborg.reset(seed=seed)
+                cyborg_result = self.cyborg.reset(agent=self.agent_name, seed=seed)
+                # patched BlueTable does not reset cyborg
                 blue_table_obs = self.blue_table.reset(cyborg_result)
                 break
             except KeyError as e:
@@ -508,15 +517,20 @@ class GraphEnv:
 
             info["blue_table"] = blue_table_obs
 
+            # patched RedTable does not reset cyborg
             red_table_obs = self.red_table.reset(cyborg_result)
             info["red_table"] = red_table_obs
             info["red_obs"] = self.get_raw_observation("Red")
 
+            info["true_state"] = self.get_true_state()
+            info["true_table"] = self.get_true_table()
+
+        # NOTE this depends on the random IPs assigned so need to be called after each environment reset
         self.set_feasible_connections()
 
         # Extract graph represention of blue the initial observation of the blue agent
         self.host_properties_baseline, self.connections_baseline, self.success_enum = (
-            self.distill_graph_observation(self.blue_baseline)
+            self.distill_graph_observation(self.get_raw_observation("Blue"))
         )
         observation = self.encode_graph_observation(
             self.host_properties_baseline,
@@ -530,9 +544,6 @@ class GraphEnv:
                 "connections": self.connections_baseline,
             }
             info.update(graph_info)
-
-            info["true_state"] = self.get_true_state()
-            info["true_table"] = self.get_true_table()
 
         return observation, info
 
@@ -562,8 +573,9 @@ class GraphEnv:
             )
             info["blue_table"] = blue_table_obs
 
-        # cyborg_observation = cyborg_result.observation
-        host_properties, connections, success = self.get_graph_observation()
+        host_properties, connections, success = self.distill_graph_observation(
+            self.get_raw_observation("Blue")  # == cyborg_result.observation
+        )
         observation = self.encode_graph_observation(
             host_properties, connections, success
         )
