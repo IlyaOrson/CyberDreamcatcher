@@ -24,6 +24,13 @@ def set_all_seeds(seed):
         torch.cuda.manual_seed_all(seed)
 
 
+def get_action_names(cyborg_action):
+    "Converts action name to the equivalent gymnasium action index."
+    action_name = cyborg_action.__class__.__name__
+    host_name = getattr(cyborg_action, "hostname", None)
+    return action_name, host_name
+
+
 def instantiate_action(action_name, host_name, agent_name="Blue"):
     """Create instantiate the class object with the given host."""
 
@@ -36,6 +43,7 @@ def instantiate_action(action_name, host_name, agent_name="Blue"):
     else:
         action = action_class(session=0, agent=agent_name, hostname=host_name)
     return action
+
 
 # Add these helper functions for parameter conversion
 def state_dict_to_vector(state_dict: dict) -> np.ndarray:

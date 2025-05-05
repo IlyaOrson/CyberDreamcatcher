@@ -22,7 +22,12 @@ from CybORG.Agents.Wrappers import (
 from torch import tensor
 from torch_geometric.data import Data
 
-from cyberdreamcatcher.utils import get_scenario, enumerate_bidict, instantiate_action
+from cyberdreamcatcher.utils import (
+    get_scenario,
+    enumerate_bidict,
+    instantiate_action,
+    get_action_names,
+)
 from cyberdreamcatcher.plots import (
     plot_observation,
     plot_observation_encoded,
@@ -43,7 +48,6 @@ class TrueTable(TrueTableWrapper):
         obs = cyborg_result.observation
         # do not rewrite cyborg_result.observation, only return the observation
         return self.observation_change(obs)
-
 
 
 class BlueTable(BlueTableWrapper):
@@ -161,10 +165,11 @@ class GraphEnv:
         # action_space = self.env_controller.agent_interfaces[self.agent_name].action_space
         self.set_feasible_actions()
 
-        # NOTE this depends on the random IPs assigned so need to be called after each environment reset as well
         # Initialize feasiable connection graph with the structure from the scenario
         self.set_feasible_connections()
-        # TODO: Do this through empirical sampling instead, since the structure is not really respected by CybORG
+
+        # Set the relative importance of each host (by penalty of impact)
+        self.set_host_relevance()
 
         # NOTE  the "true" state is not really updated because the observations are updated instead
         #       directly in self.env_controller.observation["Blue"]
@@ -183,10 +188,7 @@ class GraphEnv:
         # self.blue_table = self.enum_action.env
         # self.true_table = self.blue_table.env
 
-        self.previous_action = None
-        assert str(self.gym_to_cyborg_action([0, 0])) == "Sleep"
-        # always "sleep" in the first move
-        self.previous_action_encoding = torch.tensor([0, 0], dtype=torch.float)
+        self.previous_success = 0  # unknown
 
         # Set gymnasium properties
         # self.reward_range = (float("-inf"), float("inf"))  # not used
@@ -204,6 +206,36 @@ class GraphEnv:
             # plt.ioff()
             self.fig, self.axis = plt.subplots(1, 2)
             self._node_positions = plot_feasible_connections(self)
+
+    def set_host_relevance(self):
+        self.host_relevance = {}
+        for hostname, host in self.scenario._scenario["Hosts"].items():
+            confidentiality = host.get("ConfidentialityValue", None)
+            availability = host.get("AvailabilityValue", None)
+
+            if confidentiality == "None" and availability == "None":  # User0
+                assert hostname == "User0"
+                relevance = 0.0  # 0
+            elif confidentiality is None and availability == "None":  # UsersX
+                assert hostname.startswith("User")
+                relevance = 0.1  # 1
+            elif (
+                confidentiality == "Medium" and availability == "Medium"
+            ):  # EnterpriseX
+                assert hostname.startswith("Enterprise")
+                relevance = 1.0  # 2
+            elif (
+                confidentiality is None and availability is None
+            ):  # Defender / Op_HostX
+                assert hostname == "Defender" or hostname.startswith("Op_Host")
+                relevance = 1.0  # 2
+            elif confidentiality == "Medium" and availability == "High":  # Op_Server0
+                assert hostname.startswith("Op_Server")
+                relevance = 10.0  # 3
+            else:
+                raise ValueError(f"Unknown relevance for host {hostname}: {host}")
+
+            self.host_relevance[hostname] = relevance
 
     def set_feasible_connections(self):
         "Extract graph layout from State object in CybORG, which is populated from the Scenario config."
@@ -274,30 +306,49 @@ class GraphEnv:
         with the parameters available in the action space which match their signature.
         """
 
-        global_signatures = [(action, None) for action in self.global_actions_names]
+        global_signatures = [(None, action) for action in self.global_actions_names]
 
         host_actions = (
             action
             for action in self.action_names
             if action not in self.global_actions_names
         )
-        action_host_signatures = product(host_actions, self.host_names)
+        action_host_signatures = product(self.host_names, host_actions)
         self.feasible_actions = list(action_host_signatures) + global_signatures
 
         # Equivalent to the logic in EnumActionWrapper.action_space_change(action_space_dict)
         # self.feasible_action_instances = list(starmap(self.instantiate_action, self.feasible_actions))
 
-    # TODO add the reverse mapping
-    def gym_to_cyborg_action(self, gym_action):
+    def get_cyborg_action(self, host_idx, action_idx):
         "Converts gymnasium action to the equivalent cyborg action."
-        host_idx, action_idx = gym_action
         action_name = self.action_names[action_idx]
         host_name = self.host_names[host_idx]
         if action_name in self.global_actions_names:
+            LOGGER.debug(
+                f"Global action {action_name} selected. Ignoring host selection {host_name}."
+            )
             host_name = None  # global actions ignore host selection
-        assert (action_name, host_name) in self.feasible_actions
+        assert (host_name, action_name) in self.feasible_actions
         action_instance = instantiate_action(action_name, host_name)
         return action_instance
+
+    def action_to_idx(self, cyborg_action):
+        "Converts action name to the equivalent gymnasium action index."
+        if cyborg_action is None:
+            LOGGER.debug("None action selected. Using Sleep action.")
+            return self.action_name_to_idx(None, "Sleep")
+        action_name, host_name = get_action_names(cyborg_action)
+        return self.action_name_to_idx(host_name, action_name)
+
+    def action_name_to_idx(self, host_name, action_name):
+        "Converts action name to the equivalent gymnasium action index."
+        assert (host_name, action_name) in self.feasible_actions
+        if host_name:
+            host_idx = self.host_enumeration[host_name]
+        else:
+            host_idx = 0  # global actions ignore host selection
+        action_idx = self.action_enumeration[action_name]
+        return (host_idx, action_idx)
 
     # TODO: modify this to update the stateful host_properties, as the BlueTable does.
     def distill_graph_observation(self, observation):
@@ -489,7 +540,11 @@ class GraphEnv:
         elif success_enum == TrinaryEnum.FALSE:
             success_value = -1
 
-        prev_action_encoding = self.previous_action_encoding.clone().detach()
+        self.previous_success = success_value
+
+        previous_action = self.get_last_action()
+        action_idx = self.action_to_idx(previous_action)
+        prev_action_encoding = torch.tensor(action_idx, dtype=torch.float)
         success_encoding = torch.tensor([success_value], dtype=torch.float)
 
         return Data(
@@ -561,7 +616,7 @@ class GraphEnv:
     def step(self, action):
         self.step_counter += 1
 
-        action_instance = self.gym_to_cyborg_action(action)
+        action_instance = self.get_cyborg_action(*action)
         cyborg_result = self.cyborg.step(agent=self.agent_name, action=action_instance)
 
         info = {}
@@ -603,21 +658,6 @@ class GraphEnv:
         if self.max_steps is not None and self.step_counter >= self.max_steps:
             truncated = True
 
-        # encoding the previous action imitates the logic in BlueTableWrapper._process_last_action()
-        self.previous_action = action_instance
-        previous_action_name = action_instance.__class__.__name__
-        previous_action_value = self.active_actions_map.get(
-            previous_action_name, 0
-        )  # non-active actions are mapped to 0
-        if previous_action_name in self.global_actions_names:
-            host_idx = 0
-        else:
-            host_name = action_instance.hostname
-            host_idx = self.host_enumeration[host_name]
-        self.previous_action_encoding = torch.tensor(
-            [host_idx, previous_action_value], dtype=torch.float
-        )
-
         return observation, reward, terminated, truncated, info
 
     def render(self):
@@ -641,10 +681,11 @@ class GraphEnv:
                 axis=self.axis[1],
                 show=True,
             )
-            if self.previous_action is None:
+            previous_action = self.get_last_action()
+            if previous_action is None:
                 self.fig.suptitle("Initial blue observation")
             else:
-                self.fig.suptitle(f"Blue observation after {str(self.previous_action)}")
+                self.fig.suptitle(f"Blue observation after {str(previous_action)}")
             self.fig.set_tight_layout(True)
 
     def get_encoded_observation(self):
