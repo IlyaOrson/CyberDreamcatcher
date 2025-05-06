@@ -103,13 +103,24 @@ class RedTable(RedTableWrapper):
 class GraphEnv:
     agent_name = "Blue"
 
-    host_encoding_dim = 4
+    # FIXME should be 2 if an exploit connection will be flagged on the edge it appears, only flagged on the host for now
+    host_encoding_dim = 5
     edge_encoding_dim = 1
-    global_encoding_dim = 3
+    global_encoding_dim = 1
 
-    HostProperties = namedtuple(
-        "Host", ("subnet", "num_local_ports", "exploit", "malware")
+    HostObs = namedtuple("Host", ("num_local_ports", "exploit", "malware"))
+    # port 4444 is hard-coded to represent exploited ports
+    EdgeObs = namedtuple("Edge", ("connections", "exploit"))
+    PreviousAction = namedtuple(
+        "PreviousAction", ("host_name", "action_name", "success")
     )
+    NodeFeatures = namedtuple(
+        "Node", ("subnet", "relevance", "exploit", "malware", "prev_actuated")
+    )
+
+    # for encoding previous action ( imitates the logic in BlueTableWrapper._process_last_action() )
+    global_actions_names = ("Sleep", "Monitor")
+    active_actions = {"Restore": -1, "Remove": 1}  # any other = 0
 
     metadata = {"render_modes": ["human"]}
 
@@ -145,10 +156,9 @@ class GraphEnv:
         self.action_names = self.scenario._scenario["Agents"][self.agent_name][
             "actions"
         ]
-        self.global_actions_names = ("Sleep", "Monitor")
 
-        # for encoding previous action ( imitates the logic in BlueTableWrapper._process_last_action() )
-        self.active_actions_map = {"Restore": -1, "Remove": 1, "Other": 0}
+        self.hosts_exploited = set()
+        self.hosts_with_malware = set()
 
         # Form enumeration mappings
         self.subnet_enumeration = enumerate_bidict(self.subnet_names)
@@ -187,8 +197,6 @@ class GraphEnv:
         # self.enum_action = self.openai_gym.env
         # self.blue_table = self.enum_action.env
         # self.true_table = self.blue_table.env
-
-        self.previous_success = 0  # unknown
 
         # Set gymnasium properties
         # self.reward_range = (float("-inf"), float("inf"))  # not used
@@ -329,7 +337,7 @@ class GraphEnv:
             )
             host_name = None  # global actions ignore host selection
         assert (host_name, action_name) in self.feasible_actions
-        action_instance = instantiate_action(action_name, host_name)
+        action_instance = instantiate_action(host_name, action_name)
         return action_instance
 
     def action_to_idx(self, cyborg_action):
@@ -337,7 +345,7 @@ class GraphEnv:
         if cyborg_action is None:
             LOGGER.debug("None action selected. Using Sleep action.")
             return self.action_name_to_idx(None, "Sleep")
-        action_name, host_name = get_action_names(cyborg_action)
+        host_name, action_name = get_action_names(cyborg_action)
         return self.action_name_to_idx(host_name, action_name)
 
     def action_name_to_idx(self, host_name, action_name):
@@ -350,18 +358,25 @@ class GraphEnv:
         action_idx = self.action_enumeration[action_name]
         return (host_idx, action_idx)
 
-    # TODO: modify this to update the stateful host_properties, as the BlueTable does.
-    def distill_graph_observation(self, observation):
+    def distill_observation(self, observation):
         """Extracts from the raw blue observation the information required
         to reconstruct the the blue table state but in a graph representation.
         """
 
-        host_properties = {}
-        connections_between_hosts = defaultdict(int)
-        success_enum = None
+        hosts_obs = {}
+        connection_counter = defaultdict(int)
+        exploit_connections = set()
+        success = -1  # unknown or not set
         for host, properties in observation.items():
             if host == "success":
                 success_enum = properties
+                assert isinstance(success_enum, TrinaryEnum)
+
+                if success_enum == TrinaryEnum.TRUE:
+                    success = 1
+                elif success_enum == TrinaryEnum.FALSE:
+                    success = 0
+
                 # NOTE The observation is valuable even if the previous action succeeded/failed
                 continue
 
@@ -379,7 +394,7 @@ class GraphEnv:
                         connection = process["Connections"][0]
 
                         if "Transport Protocol" in connection:
-                            continue  # FIXME double check
+                            continue  # ignored by BlueTableWrapper
 
                         local_address = connection["local_address"]
                         remote_address = connection["remote_address"]
@@ -400,7 +415,7 @@ class GraphEnv:
                             LOGGER.debug(
                                 f"Unfeasible connection appeared! {local_host_name} --> {remote_host_name}"
                             )
-                        connections_between_hosts[local_remote_tuple] += 1
+                        connection_counter[local_remote_tuple] += 1
 
                         local_port = connection["local_port"]
                         local_ports_counter[local_port] += 1
@@ -421,25 +436,26 @@ class GraphEnv:
                 # this is the number of unique ports
                 num_local_ports = len(local_ports_counter)
 
-                if 4444 in remote_ports_counter:
+                if (
+                    4444 in remote_ports_counter
+                    or len(remote_ports_counter) != num_local_ports
+                ):
                     exploit = True
+                    exploit_connections.add(local_remote_tuple)
 
             malware = False
             if "Files" in properties:
                 files = properties["Files"]
                 malware = any(_file["Density"] >= 0.9 for _file in files)
 
-            subnet_ip = self.hostname_subnet_map[host]
-            subnet = self.subnet_cidr_map.inv[subnet_ip]
+            hosts_obs[host] = self.HostObs(num_local_ports, exploit, malware)
 
-            host_properties[host] = self.HostProperties(
-                subnet, num_local_ports, exploit, malware
-            )
-
-            # relevance = self.host_relevance[host]
-            # host_properties[host] = self.HostProperties(
-            #     subnet, relevance, exploit, malware
-            # )
+        connections_obs = {}
+        for connection, count in connection_counter.items():
+            exploit = False
+            if connection in exploit_connections:
+                exploit = True
+            connections_obs[connection] = self.EdgeObs(connections=count, exploit=exploit)
 
         # extract processes per host
         anomalies = self.blue_table._detect_anomalies(observation)
@@ -452,44 +468,77 @@ class GraphEnv:
         if relevant_anomalies:
             LOGGER.debug("Relevant anomalies detected:")
             LOGGER.debug(pformat(relevant_anomalies))
-            LOGGER.debug(pformat(host_properties))
-            LOGGER.debug(pformat(connections_between_hosts))
 
-        return host_properties, connections_between_hosts, success_enum
+        previous_action = self.get_last_action()
+        previous_host_name, previous_action_name = get_action_names(previous_action)
+        previous_action = self.PreviousAction(
+            previous_host_name, previous_action_name, success
+        )
 
-    def encode_graph_observation(
-        self, host_properties, connections_between_hosts, success_enum
-    ):
+        return hosts_obs, connections_obs, previous_action
+
+    def update_host_state(self, hosts_obs, previous_action):
+        # first update the state based on the action taken if it was successful
+        host_name = previous_action.host_name
+        action_name = previous_action.action_name
+        if action_name in self.active_actions and previous_action.success == 1:
+            exploited_host = host_name in self.hosts_exploited
+            privileged_host = host_name in self.hosts_with_malware
+            if action_name == "Restore":  # always works
+                if exploited_host:
+                    self.hosts_exploited.remove(host_name)
+                if privileged_host:
+                    self.hosts_with_malware.remove(host_name)
+            elif (
+                action_name == "Remove"
+            ):  # does not work if red agent has privileged access
+                if exploited_host:
+                    self.hosts_exploited.remove(host_name)
+
+        # then update the state based on the observation
+        for host_name, host_obs in hosts_obs.items():
+            if host_obs.exploit:
+                self.hosts_exploited.add(host_name)
+            if host_obs.malware:
+                self.hosts_with_malware.add(host_name)
+
+    def encode_graph_observation(self, connection_obs, previous_action):
         """Transform the human understandable graph representation to a matrix encoding.
         Categorical values are not one-hot-encoded for now.
         """
 
-        connections = copy(connections_between_hosts)
-
-        node_matrix = np.zeros(
-            (self.num_hosts, len(self.HostProperties._fields)), dtype="i"
-        )  # int32
+        num_features = len(self.NodeFeatures._fields)
+        node_matrix = np.zeros((self.num_hosts, num_features), dtype="i")  # int32
         for host_name in self.host_names:
             host_idx = self.host_enumeration[host_name]
-            props = host_properties.get(
-                host_name, self.host_properties_baseline[host_name]
-            )
-            subnet_id = self.subnet_enumeration[props.subnet]
-            local_ports = props.num_local_ports
-            # relevance = props.relevance
-            exploit = int(props.exploit)
-            malware = int(props.malware)
+
+            subnet_ip = self.hostname_subnet_map[host_name]
+            subnet = self.subnet_cidr_map.inv[subnet_ip]
+            subnet_id = self.subnet_enumeration[subnet]
+
+            relevance = self.host_relevance[host_name]
+
+            exploit = 0
+            if host_name in self.hosts_exploited:
+                exploit = 1
+
+            malware = int(host_name in self.hosts_with_malware)
+
+            prev_actuated = 0
+            if host_name == previous_action.host_name:
+                prev_actuated = self.active_actions.get(previous_action.action_name, 0)
+
             node_matrix[host_idx, :] = (
                 subnet_id,
-                local_ports,
-                # relevance,
+                relevance,
                 exploit,
                 malware,
+                prev_actuated,
             )
 
         # This set difference needs to happen before any further access to the
         # connections object because it is a default dict and its keys change upon access
-        unexpected_connections = connections.keys() - self.feasible_connections_set
+        unexpected_connections = connection_obs.keys() - self.feasible_connections_set
 
         # load fixed layout connections
         edge_tuples = []
@@ -506,8 +555,10 @@ class GraphEnv:
             edge_index[:, idx] = tuple_id
             edge_tuples.append(tuple_id)
 
-            current_connections = connections[(source, target)]
-            edge_weights.append(current_connections)
+            edge_weight = connection_obs.get(
+                (source, target), self.EdgeObs(connections=0, exploit=False)
+            )
+            edge_weights.append(edge_weight.connections)  # FIXME dropped flag for exploit in edges
 
         # append unfeasible connections found
         if unexpected_connections:
@@ -524,7 +575,12 @@ class GraphEnv:
 
                 unexpected_edge_index[:, idx] = tuple_id
                 extra_edge_tuples.append(tuple_id)
-                extra_edge_weights.append(connections[(source, target)])
+                edge_weight = connection_obs.get(
+                    (source, target), self.EdgeObs(connections=0, exploit=False)
+                )
+                extra_edge_weights.append(
+                    edge_weight.connections
+                )  # FIXME dropped flag for exploit in edges
 
             edge_tuples.extend(extra_edge_tuples)
             edge_weights.extend(extra_edge_weights)
@@ -533,29 +589,24 @@ class GraphEnv:
         # edge weights are expected as a matrix of shape num_edges x num_attrs_per_edge
         edge_attr = np.array(edge_weights).reshape((-1, 1))
 
-        # success_enum is None or success_enum == TrinaryEnum.UNKNOWN:
-        success_value = 0  # unknown or not set
-        if success_enum == TrinaryEnum.TRUE:
-            success_value = 1
-        elif success_enum == TrinaryEnum.FALSE:
-            success_value = -1
-
-        self.previous_success = success_value
-
-        previous_action = self.get_last_action()
-        action_idx = self.action_to_idx(previous_action)
-        prev_action_encoding = torch.tensor(action_idx, dtype=torch.float)
-        success_encoding = torch.tensor([success_value], dtype=torch.float)
+        success_encoding = torch.tensor([previous_action.success], dtype=torch.float)
 
         return Data(
             x=tensor(node_matrix, dtype=torch.float),
             edge_index=tensor(edge_index, dtype=torch.long),
             edge_attr=tensor(edge_attr, dtype=torch.float),
-            global_attr=torch.cat((prev_action_encoding, success_encoding)),
+            global_attr=success_encoding,
         )
 
     def reset(self, *, seed=None):
         self.step_counter = 0
+
+        # initialize previous action
+        self.previous_action = self.PreviousAction(
+            host_name=None,
+            action_name="Sleep",
+            success=-1,  # TrinaryEnum.UNKNOWN --> -1
+        )
 
         # Subnet key error occurs when the Defender host is not initialized properly for some reason.
         # Resetting cyborg normally solves this issue on the first try.
@@ -577,37 +628,41 @@ class GraphEnv:
                         )
                         raise e
 
+        # NOTE this depends on the random IPs assigned so need to be called after each environment reset
+        self.set_feasible_connections()
+
+        # extract graph represention of blue the initial observation of the blue agent
+        host_obs, connections_obs, previous_action = self.distill_observation(
+            self.get_raw_observation("Blue")
+        )
+        # self.update_host_state(host_obs, previous_action)  # not needed for initial observation
+        observation = self.encode_graph_observation(
+            connections_obs,
+            previous_action,
+        )
+
         info = {}
         if self.track_history:
-            info.update(vars(cyborg_result))
-
-            info["blue_table"] = blue_table_obs
-
             # patched RedTable does not reset cyborg
             red_table_obs = self.red_table.reset(cyborg_result)
-            info["red_table"] = red_table_obs
-            info["red_obs"] = self.get_raw_observation("Red")
+
+            info["cyborg_result"] = vars(cyborg_result)
 
             info["true_state"] = self.get_true_state()
             info["true_table"] = self.get_true_table()
 
-        # NOTE this depends on the random IPs assigned so need to be called after each environment reset
-        self.set_feasible_connections()
+            info["blue_table"] = blue_table_obs
+            info["blue_obs"] = self.get_raw_observation("Blue")
 
-        # Extract graph represention of blue the initial observation of the blue agent
-        self.host_properties_baseline, self.connections_baseline, self.success_enum = (
-            self.distill_graph_observation(self.get_raw_observation("Blue"))
-        )
-        observation = self.encode_graph_observation(
-            self.host_properties_baseline,
-            self.connections_baseline,
-            self.success_enum,
-        )
+            info["red_table"] = red_table_obs
+            info["red_obs"] = self.get_raw_observation("Red")
 
-        if self.track_history:
             graph_info = {
-                "hosts": self.host_properties_baseline,
-                "connections": self.connections_baseline,
+                "prev_action": previous_action,
+                "hosts_obs": host_obs,
+                "connections_obs": connections_obs,
+                "exploited_hosts": self.hosts_exploited,
+                "malware_hosts": self.hosts_with_malware,
             }
             info.update(graph_info)
 
@@ -619,35 +674,44 @@ class GraphEnv:
         action_instance = self.get_cyborg_action(*action)
         cyborg_result = self.cyborg.step(agent=self.agent_name, action=action_instance)
 
+        # update host state based on the previous action
+
+        host_obs, connections_obs, previous_action = self.distill_observation(
+            self.get_raw_observation("Blue")  # == cyborg_result.observation
+        )
+        self.update_host_state(host_obs, previous_action)
+        observation = self.encode_graph_observation(connections_obs, previous_action)
+
         info = {}
         if self.track_history:
-            info.update(vars(cyborg_result))
-
-            info["true_state"] = self.get_true_state()
-            info["true_table"] = self.get_true_table()
-
             # NOTE: cyborg.step() call requires an agent name, which means the red table state
             #       update is manual and synced with the main cyborg instance at every step
             red_obs = self.get_raw_observation("Red")
             red_table_obs = self.red_table.observation_change(red_obs)
-            info["red_obs"] = red_obs
-            info["red_table"] = red_table_obs
 
             # info["blue_obs"] = cyborg_result.observation  # already stored in "observation"
             blue_table_obs = self.blue_table.observation_change(
                 cyborg_result.observation, baseline=False
             )
+
+            info["cyborg_result"] = vars(cyborg_result)
+
+            info["true_table"] = self.get_true_table()
+            info["true_state"] = self.get_true_state()
+
             info["blue_table"] = blue_table_obs
+            info["blue_obs"] = self.get_raw_observation("Blue")
 
-        host_properties, connections, success = self.distill_graph_observation(
-            self.get_raw_observation("Blue")  # == cyborg_result.observation
-        )
-        observation = self.encode_graph_observation(
-            host_properties, connections, success
-        )
+            info["red_table"] = red_table_obs
+            info["red_obs"] = self.get_raw_observation("Red")
 
-        if self.track_history:
-            graph_info = {"hosts": host_properties, "connections": connections}
+            graph_info = {
+                "prev_action": previous_action,
+                "hosts_obs": host_obs,
+                "connections_obs": connections_obs,
+                "exploited_hosts": self.hosts_exploited,
+                "malware_hosts": self.hosts_with_malware,
+            }
             info.update(graph_info)
 
         reward = cyborg_result.reward
@@ -662,14 +726,12 @@ class GraphEnv:
 
     def render(self):
         # TODO add success status to plot
-        host_properties, connections, success = self.get_graph_observation()
-        observation = self.encode_graph_observation(
-            host_properties, connections, success
-        )
+        host_obs, connections_obs, success = self.get_graph_observation()
+        observation = self.encode_graph_observation(host_obs, connections_obs, success)
         if self.render_mode == "human":
             plot_observation(
-                host_properties,
-                connections,
+                host_obs,
+                connections_obs,
                 axis=self.axis[0],
                 node_positions=self._node_positions,
                 show=True,
@@ -689,12 +751,12 @@ class GraphEnv:
             self.fig.set_tight_layout(True)
 
     def get_encoded_observation(self):
-        host_properties, connections, success = self.get_graph_observation()
-        return self.encode_graph_observation(host_properties, connections, success)
+        host_obs, connections_obs, success = self.get_graph_observation()
+        return self.encode_graph_observation(host_obs, connections_obs, success)
 
     def get_graph_observation(self):
         raw_observation = self.get_raw_observation()
-        return self.distill_graph_observation(raw_observation)
+        return self.distill_observation(raw_observation)
 
     def get_raw_observation(self, agent=None):
         if agent is None:

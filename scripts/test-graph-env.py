@@ -1,4 +1,4 @@
-import os
+from pathlib import Path
 from dataclasses import dataclass
 from typing import Optional
 import logging
@@ -48,7 +48,7 @@ cs.store(name="args", node=Cfg)
 @hydra.main(version_base=None, config_name="args", config_path=None)
 def main(cfg: Cfg):
     # https://hydra.cc/docs/tutorials/basic/running_your_app/working_directory/
-    print(f"Working directory : {os.getcwd()}")
+    print(f"Working directory : {Path.cwd()}")
     output_dir = hydra.core.hydra_config.HydraConfig.get().runtime.output_dir
     print(f"Output directory  : {output_dir}")
 
@@ -56,9 +56,8 @@ def main(cfg: Cfg):
         cfg.policy_weights or cfg.scenario
     ), "Please provide either 'scenario' or 'policy_weights'."
 
-    policy_weights = None
     scenario = cfg.scenario
-    if cfg.policy_weights:
+    if Path(cfg.policy_weights).exists():
         policy_weights, trained_scenario = load_trained_weights(cfg.policy_weights)
         print(f"Loaded policy trained on {trained_scenario}.")
         if trained_scenario != cfg.scenario:
@@ -71,7 +70,7 @@ def main(cfg: Cfg):
 
     # plt.show(block=False)
 
-    scenario = None
+    # scenario = None
     # scenario = "Scenario2"
     # scenario = "Scenario2_-_User2_User4"
     # scenario = "Scenario2_+_User5_User6"
@@ -86,16 +85,21 @@ def main(cfg: Cfg):
     # pprint(info["observation"])
 
     if env.track_history:
-        console.print(Rule("TrueTable", style="bold red"))
+        console.print(Rule("True Table", style="bold red"))
         console.print(info["true_table"])
-        console.print(Rule("BlueTable", style="bold red"))
+        console.print(Rule("Blue Table", style="bold red"))
         console.print(info["blue_table"])
-        console.print(Rule("RedTable", style="bold red"))
+        console.print(Rule("Red Table", style="bold red"))
         console.print(info["red_table"])
 
     if cfg.policy_weights:
         policy = Police(env)
-        policy.load_state_dict(policy_weights)
+        if Path(cfg.policy_weights).exists():
+            policy.load_state_dict(torch.load(cfg.policy_weights))
+        else:
+            console.print(
+                f"Policy weights not found at {cfg.policy_weights}, using random weights instead."
+            )
 
     with Progress(
         SpinnerColumn(),
@@ -120,28 +124,35 @@ def main(cfg: Cfg):
 
             if env.track_history:
                 console.print(Rule(f"Step {step}", style="bold red"))
+
                 console.print(Rule("Action", style="bold red"))
-                inspect(info["action"], console=console)
-                console.print(Rule("Observation", style="bold red"))
-                console.print(info["observation"])
+                inspect(info["prev_action"], console=console)
 
-                console.print(Rule("Hosts", style="bold red"))
-                console.print(info["hosts"])
-                console.print(Rule("Connections", style="bold red"))
-                console.print(info["connections"])
+                console.print(Rule("Blue Observation", style="bold red"))
+                console.print(info["cyborg_result"]["observation"])
+                # console.print(info["blue_obs"])
 
-                console.print(Rule("TrueTable", style="bold red"))
+                console.print(Rule("Hosts Observed", style="bold red"))
+                console.print(info["hosts_obs"])
+                console.print(Rule("Connections Observed", style="bold red"))
+                console.print(info["connections_obs"])
+                console.print(Rule("Exploited Hosts", style="bold red"))
+                console.print(info["exploited_hosts"])
+                console.print(Rule("Malware Hosts", style="bold red"))
+                console.print(info["malware_hosts"])
+
+                console.print(Rule("True Table", style="bold red"))
                 console.print(info["true_table"])
 
                 console.print(Rule("Last Blue Action", style="bold red"))
                 inspect(env.cyborg.get_last_action(agent="Blue"), console=console)
-                console.print(Rule("BlueTable", style="bold red"))
+                console.print(Rule("Blue Table", style="bold red"))
                 console.print(info["blue_table"])
 
                 console.print(Rule("Last Red Action", style="bold red"))
                 inspect(env.cyborg.get_last_action(agent="Red"), console=console)
 
-                console.print(Rule("RedTable", style="bold red"))
+                console.print(Rule("Red Table", style="bold red"))
                 console.print(info["red_table"])
                 console.print(Rule("Red Observation", style="bold red"))
                 console.print(info["red_obs"])

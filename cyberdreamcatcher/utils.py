@@ -28,10 +28,10 @@ def get_action_names(cyborg_action):
     "Converts action name to the equivalent gymnasium action index."
     action_name = cyborg_action.__class__.__name__
     host_name = getattr(cyborg_action, "hostname", None)
-    return action_name, host_name
+    return host_name, action_name
 
 
-def instantiate_action(action_name, host_name, agent_name="Blue"):
+def instantiate_action(host_name, action_name, agent_name="Blue"):
     """Create instantiate the class object with the given host."""
 
     action_class = getattr(CybORG.Shared.Actions, action_name)
