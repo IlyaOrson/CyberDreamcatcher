@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from pathlib import Path
 import gc
 import logging
+import os
 
 from dotenv import load_dotenv
 from rich.logging import RichHandler
@@ -13,6 +14,7 @@ from hydra.core.config_store import ConfigStore
 from omegaconf import OmegaConf
 import numpy as np
 import torch
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 from cyberdreamcatcher.utils import set_all_seeds
 from cyberdreamcatcher.sampler import collect_rewards_log_probs
@@ -26,16 +28,27 @@ LOGGER = logging.getLogger(__name__)
 class Cfg:
     scenario: str = "Scenario2"
     episode_length: int = 30
-    batch_size_episodes: int = 1000
+    batch_size_episodes: int = 500
     seed: int = 0
-    learning_rate: float = 1e-3
-    optimizer_iterations: int = 300
-    latent_node_dim: int = 4
+    learning_rate: float = 5e-1
+    optimizer_iterations: int = 500
+    latent_node_dim: int = 8
     actor_heads: int = 1
-    normalize_advantage: bool = False
+    normalize_advantage: bool = True
     device: str = "cuda" if torch.cuda.is_available() else "cpu"
     log_comet: bool = True
     log_level: str = "INFO"
+
+    # Scheduler parameters
+    use_scheduler: bool = True
+    scheduler_mode: str = "max"  # 'max' because we monitor reward
+    scheduler_factor: float = 0.1
+    scheduler_patience: int = 20
+    scheduler_threshold: float = 1e-4
+    scheduler_threshold_mode: str = "rel"
+    scheduler_cooldown: int = 0
+    scheduler_min_lr: float = 0
+    scheduler_eps: float = 1e-8
 
 
 class REINFORCE:
@@ -114,12 +127,13 @@ class REINFORCE:
         mean_log_prob_R = log_prob_R / num_episodes
 
         if counter and self.experiment:
-            self.experiment.log_histogram_3d(
-                rewards_to_go[:, 0], name="reward-to-go", step=counter
-            )
-            self.experiment.log_histogram_3d(
-                rewards_to_go[:, -1], name="final reward", step=counter
-            )
+            if counter in range(0, self.conf.optimizer_iterations, 20):
+                self.experiment.log_histogram_3d(
+                    rewards_to_go[:, 0], name="reward-to-go", step=counter
+                )
+                self.experiment.log_histogram_3d(
+                    rewards_to_go[:, -1], name="final reward", step=counter
+                )
             self.experiment.log_metric("reward mean", reward_mean, step=counter)
             self.experiment.log_metric("reward std", reward_std, step=counter)
 
@@ -130,6 +144,20 @@ class REINFORCE:
             self.policy.parameters(), lr=self.conf.learning_rate
         )
 
+        scheduler = None
+        if self.conf.use_scheduler:
+            scheduler = ReduceLROnPlateau(
+                optimizer,
+                mode=self.conf.scheduler_mode,
+                factor=self.conf.scheduler_factor,
+                patience=self.conf.scheduler_patience,
+                threshold=self.conf.scheduler_threshold,
+                threshold_mode=self.conf.scheduler_threshold_mode,
+                cooldown=self.conf.scheduler_cooldown,
+                min_lr=self.conf.scheduler_min_lr,
+                eps=self.conf.scheduler_eps,
+            )
+
         pbar = trange(self.conf.optimizer_iterations, desc="Optimizer iteration")
         for it in pbar:
             optimizer.zero_grad()
@@ -139,10 +167,16 @@ class REINFORCE:
             mean_log_prob_R.backward()
             optimizer.step()
 
+            if self.conf.use_scheduler and scheduler is not None:
+                scheduler.step(reward_mean)  # Step the scheduler with the reward
+
             # Log loss and gradient norm if Comet is enabled
             if self.experiment:
                 loss_val = mean_log_prob_R.item()
                 self.experiment.log_metric("loss", loss_val, step=it)
+                # Log current learning rate
+                current_lr = scheduler.get_last_lr()[-1]
+                self.experiment.log_metric("learning_rate", current_lr, step=it)
 
                 total_norm = 0
                 for p in self.policy.parameters():
@@ -185,8 +219,6 @@ class REINFORCE:
 
 
 if __name__ == "__main__":
-    import os
-    from pathlib import Path
 
     import hydra
     from hydra.core.config_store import ConfigStore

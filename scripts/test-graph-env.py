@@ -36,7 +36,7 @@ class Cfg:
     quiet: bool = False
     log_level: str = "INFO"
     track_history: bool = True
-    render_mode: Optional[str] = "human"
+    render_mode: Optional[str] = None
 
 
 # Registering the Config class with the expected name 'args'.
