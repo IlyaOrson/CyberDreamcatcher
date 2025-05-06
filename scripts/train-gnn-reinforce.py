@@ -30,7 +30,7 @@ class Cfg:
     episode_length: int = 30
     batch_size_episodes: int = 500
     seed: int = 0
-    learning_rate: float = 5e-1
+    learning_rate: float = 1e-2
     optimizer_iterations: int = 500
     latent_node_dim: int = 8
     actor_heads: int = 1
@@ -39,15 +39,15 @@ class Cfg:
     log_comet: bool = True
     log_level: str = "INFO"
 
-    # Scheduler parameters
-    use_scheduler: bool = True
+    # Learning rate scheduler
+    use_lr_scheduler: bool = True
     scheduler_mode: str = "max"  # 'max' because we monitor reward
-    scheduler_factor: float = 0.1
+    scheduler_factor: float = 0.5
     scheduler_patience: int = 20
-    scheduler_threshold: float = 1e-4
-    scheduler_threshold_mode: str = "rel"
-    scheduler_cooldown: int = 0
-    scheduler_min_lr: float = 0
+    scheduler_threshold: float = 0.2
+    scheduler_threshold_mode: str = "abs"  # 'abs' --> improvement = new_metric > best_metric + threshold
+    scheduler_cooldown: int = 10
+    scheduler_min_lr: float = 1e-4
     scheduler_eps: float = 1e-8
 
 
@@ -145,7 +145,7 @@ class REINFORCE:
         )
 
         scheduler = None
-        if self.conf.use_scheduler:
+        if self.conf.use_lr_scheduler:
             scheduler = ReduceLROnPlateau(
                 optimizer,
                 mode=self.conf.scheduler_mode,
@@ -167,16 +167,17 @@ class REINFORCE:
             mean_log_prob_R.backward()
             optimizer.step()
 
-            if self.conf.use_scheduler and scheduler is not None:
+            if scheduler is not None:
                 scheduler.step(reward_mean)  # Step the scheduler with the reward
 
             # Log loss and gradient norm if Comet is enabled
             if self.experiment:
                 loss_val = mean_log_prob_R.item()
                 self.experiment.log_metric("loss", loss_val, step=it)
-                # Log current learning rate
-                current_lr = scheduler.get_last_lr()[-1]
-                self.experiment.log_metric("learning_rate", current_lr, step=it)
+                if scheduler is not None:
+                    # Log current learning rate
+                    current_lr = scheduler.get_last_lr()[-1]
+                    self.experiment.log_metric("learning_rate", current_lr, step=it)
 
                 total_norm = 0
                 for p in self.policy.parameters():
