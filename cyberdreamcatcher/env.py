@@ -612,25 +612,9 @@ class GraphEnv:
             success=-1,  # TrinaryEnum.UNKNOWN --> -1
         )
 
-        # Subnet key error occurs when the Defender host is not initialized properly for some reason.
-        # Resetting cyborg normally solves this issue on the first try.
-        max_retries = 3
-        for attempt in range(max_retries):
-            try:
-                cyborg_result = self.cyborg.reset(agent=self.agent_name, seed=seed)
-                # patched BlueTable does not reset cyborg
-                blue_table_obs = self.blue_table.reset(cyborg_result)
-                break
-            except KeyError as e:
-                if e.args and e.args[0] == "Subnet":
-                    LOGGER.error(
-                        f"Subnet key error during reset (Attempt {attempt + 1}/{max_retries})"
-                    )
-                    if attempt == max_retries:
-                        LOGGER.exception(
-                            f"Subnet key error persisted after {max_retries} attempts."
-                        )
-                        raise e
+        cyborg_result = self.cyborg.reset(agent=self.agent_name, seed=seed)
+        # patched BlueTable does not reset cyborg
+        blue_table_obs = self.blue_table.reset(cyborg_result)
 
         # NOTE this depends on the random IPs assigned so need to be called after each environment reset
         self.set_feasible_connections()
