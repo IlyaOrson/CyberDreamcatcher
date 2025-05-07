@@ -106,7 +106,7 @@ class GraphEnv:
     # FIXME should be 2 if an exploit connection will be flagged on the edge it appears, only flagged on the host for now
     host_encoding_dim = 5
     edge_encoding_dim = 1
-    global_encoding_dim = 1
+    global_encoding_dim = 2
 
     HostObs = namedtuple("Host", ("num_local_ports", "exploit", "malware"))
     # port 4444 is hard-coded to represent exploited ports
@@ -116,6 +116,9 @@ class GraphEnv:
     )
     NodeFeatures = namedtuple(
         "Node", ("relevance", "num_local_ports", "exploit", "malware", "prev_actuated")
+    )
+    GlobalFeatures = namedtuple(
+        "Global", ("step", "success")
     )
 
     # for encoding previous action ( imitates the logic in BlueTableWrapper._process_last_action() )
@@ -598,13 +601,16 @@ class GraphEnv:
         # edge weights are expected as a matrix of shape num_edges x num_attrs_per_edge
         edge_attr = np.array(edge_weights).reshape((-1, 1))
 
-        success_encoding = torch.tensor([previous_action.success], dtype=torch.float)
+        global_encoding = self.GlobalFeatures(
+            step=self.step_counter,
+            success=previous_action.success,
+        )
 
         return Data(
             x=tensor(node_matrix, dtype=torch.float),
             edge_index=tensor(edge_index, dtype=torch.long),
             edge_attr=tensor(edge_attr, dtype=torch.float),
-            global_attr=success_encoding,
+            global_attr=tensor(global_encoding, dtype=torch.float),
         )
 
     def reset(self, *, seed=None):
