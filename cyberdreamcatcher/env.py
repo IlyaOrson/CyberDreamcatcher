@@ -455,7 +455,9 @@ class GraphEnv:
             exploit = False
             if connection in exploit_connections:
                 exploit = True
-            connections_obs[connection] = self.EdgeObs(connections=count, exploit=exploit)
+            connections_obs[connection] = self.EdgeObs(
+                connections=count, exploit=exploit
+            )
 
         # extract processes per host
         anomalies = self.blue_table._detect_anomalies(observation)
@@ -558,7 +560,9 @@ class GraphEnv:
             edge_weight = connection_obs.get(
                 (source, target), self.EdgeObs(connections=0, exploit=False)
             )
-            edge_weights.append(edge_weight.connections)  # FIXME dropped flag for exploit in edges
+            edge_weights.append(
+                edge_weight.connections
+            )  # FIXME dropped flag for exploit in edges
 
         # append unfeasible connections found
         if unexpected_connections:

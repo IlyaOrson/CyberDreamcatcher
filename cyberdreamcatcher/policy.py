@@ -162,14 +162,6 @@ class Police(torch.nn.Module):
         #     for param in self.critic_layers.parameters():
         #         param.requires_grad = False
 
-    def count_parameters(self, submodule=None):
-        if submodule:
-            assert isinstance(
-                submodule, str
-            ), "Please provide the name of the submodule."
-            return sum(p.numel() for p in self.get_submodule(submodule).parameters())
-        return sum(p.numel() for p in self.parameters())
-
     def actor(self, nodes_matrix, edge_index, global_vector, edges_matrix):
         # Score each node to select actions
         actor_latent_nodes = self.actor_latent_0(

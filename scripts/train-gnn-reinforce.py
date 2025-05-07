@@ -2,12 +2,10 @@ from dataclasses import dataclass
 from pathlib import Path
 import gc
 import logging
-import os
 
-from dotenv import load_dotenv
 from rich.logging import RichHandler
 import comet_ml
-from comet_ml.integration.pytorch import log_model
+from comet_ml.integration.pytorch import watch, log_model
 from tqdm import trange
 import hydra
 from hydra.core.config_store import ConfigStore
@@ -16,7 +14,7 @@ import numpy as np
 import torch
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
-from cyberdreamcatcher.utils import set_all_seeds
+from cyberdreamcatcher.utils import set_all_seeds, gradient_norm, count_parameters
 from cyberdreamcatcher.sampler import collect_rewards_log_probs
 
 EPS = np.finfo(np.float32).eps.item()
@@ -32,20 +30,23 @@ class Cfg:
     seed: int = 0
     learning_rate: float = 1e-2
     optimizer_iterations: int = 500
+    normalize_advantage: bool = True
+
     latent_node_dim: int = 8
     actor_heads: int = 1
-    normalize_advantage: bool = True
-    device: str = "cuda" if torch.cuda.is_available() else "cpu"
+
     log_comet: bool = True
     log_level: str = "INFO"
 
     # Learning rate scheduler
-    use_lr_scheduler: bool = True
+    use_scheduler: bool = True
     scheduler_mode: str = "max"  # 'max' because we monitor reward
     scheduler_factor: float = 0.5
     scheduler_patience: int = 20
     scheduler_threshold: float = 0.2
-    scheduler_threshold_mode: str = "abs"  # 'abs' --> improvement = new_metric > best_metric + threshold
+    scheduler_threshold_mode: str = (
+        "abs"  # 'abs' --> improvement = new_metric > best_metric + threshold
+    )
     scheduler_cooldown: int = 10
     scheduler_min_lr: float = 1e-4
     scheduler_eps: float = 1e-8
@@ -61,19 +62,27 @@ class REINFORCE:
         self.experiment = None
         if conf.log_comet:
             try:
-                # --- Comet ML Setup ---
-                load_dotenv()
-                self.experiment = comet_ml.Experiment(
-                    api_key=os.getenv("COMET_API_KEY"),
-                    project_name=os.getenv("COMET_PROJECT_NAME"),
-                    auto_param_logging=False,
-                    auto_metric_logging=False,
+                comet_ml.login()
+                self.experiment = comet_ml.start(
+                    project_name="cyberdreamcatcher",
                 )
                 self.experiment.set_name(f"reinforce_seed_{conf.seed}")
+                # self.experiment.add_tags(["reinforce"])
                 self.experiment.log_parameters(
                     OmegaConf.to_container(conf, resolve=True)
                 )
-                # --- End Comet ML Setup ---
+                self.experiment.log_parameters(
+                    {
+                        "host_encoding_dim": env.host_encoding_dim,
+                        "edge_encoding_dim": env.edge_encoding_dim,
+                        "global_encoding_dim": env.global_encoding_dim,
+                    },
+                    prefix="env",
+                )
+                self.experiment.log_parameter(
+                    "policy_parameters", count_parameters(self.policy)
+                )
+                watch(self.policy)
             except Exception as e:
                 LOGGER.warning(f"CometML initialization failed: {e}")
                 self.experiment = None
@@ -145,7 +154,7 @@ class REINFORCE:
         )
 
         scheduler = None
-        if self.conf.use_lr_scheduler:
+        if self.conf.use_scheduler:
             scheduler = ReduceLROnPlateau(
                 optimizer,
                 mode=self.conf.scheduler_mode,
@@ -179,13 +188,8 @@ class REINFORCE:
                     current_lr = scheduler.get_last_lr()[-1]
                     self.experiment.log_metric("learning_rate", current_lr, step=it)
 
-                total_norm = 0
-                for p in self.policy.parameters():
-                    if p.grad is not None:
-                        param_norm = p.grad.detach().data.norm(2)
-                        total_norm += param_norm.item() ** 2
-                total_norm = total_norm**0.5
-                self.experiment.log_metric("gradient_norm", total_norm, step=it)
+                grad_norm = gradient_norm(self.policy)
+                self.experiment.log_metric("gradient_norm", grad_norm, step=it)
 
             # Explicitly delete loss and related tensors to potentially help GC
             del mean_log_prob_R
@@ -208,19 +212,35 @@ class REINFORCE:
                 file_path = self.output_dir / f"policy_step_{it}.pt"
                 torch.save(self.policy.state_dict(), file_path)
                 if self.experiment is not None:
-                    self.experiment.log_asset(
-                        file_path, file_name=f"policy_step_{it}.pt"
+                    # self.experiment.log_asset(
+                    #     file_path, file_name=f"policy_step_{it}.pt"
+                    # )
+                    model_checkpoint = {
+                        "epoch": it,
+                        "model_state_dict": self.policy.state_dict(),
+                        "optimizer_state_dict": optimizer.state_dict(),
+                        "reward_mean": reward_mean,
+                    }
+                    log_model(
+                        experiment=self.experiment,
+                        model=model_checkpoint,
+                        model_name=f"policy",
+                        metadata={
+                            "reward_mean": reward_mean,
+                        },
                     )
+            self.experiment.log_epoch_end(it)
 
         if self.experiment is not None:
+            log_model(
+                experiment=self.experiment, model=self.policy, model_name="policy"
+            )
             self.experiment.end()
-            log_model(self.experiment, self.policy, "Policy")
 
         return
 
 
 if __name__ == "__main__":
-
     import hydra
     from hydra.core.config_store import ConfigStore
 
@@ -237,7 +257,7 @@ if __name__ == "__main__":
         logging.basicConfig(level=cfg.log_level, handlers=[RichHandler()])
         LOGGER.info("Starting REINFORCE GNN Training")
         # https://hydra.cc/docs/tutorials/basic/running_your_app/working_directory/
-        LOGGER.info(f"Working directory : {os.getcwd()}")
+        LOGGER.info(f"Working directory : {Path.cwd()}")
         output_dir = Path(hydra.core.hydra_config.HydraConfig.get().runtime.output_dir)
         LOGGER.info(f"Output directory  : {output_dir}")
         LOGGER.info(f"Config used: {OmegaConf.to_yaml(cfg)}")
@@ -249,6 +269,7 @@ if __name__ == "__main__":
         trainer = REINFORCE(env, policy, cfg, output_dir=output_dir)
 
         LOGGER.info("Starting training loop")
+        LOGGER.info(f"Policy parameters: {count_parameters(policy)}")
         trainer.learn()
 
         # store trained policy

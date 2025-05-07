@@ -45,6 +45,23 @@ def instantiate_action(host_name, action_name, agent_name="Blue"):
     return action
 
 
+def count_parameters(model, submodule=None):
+    if submodule:
+        assert isinstance(submodule, str), "Please provide the name of the submodule."
+        return sum(p.numel() for p in model.get_submodule(submodule).parameters())
+    return sum(p.numel() for p in model.parameters())
+
+
+def gradient_norm(model):
+    total_norm = 0
+    for p in model.parameters():
+        if p.grad is not None:
+            param_norm = p.grad.detach().data.norm(2)
+            total_norm += param_norm.item() ** 2
+    total_norm = total_norm**0.5
+    return total_norm
+
+
 # Add these helper functions for parameter conversion
 def state_dict_to_vector(state_dict: dict) -> np.ndarray:
     """Converts a PyTorch state_dict to a flat NumPy array."""
