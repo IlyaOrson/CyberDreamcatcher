@@ -16,6 +16,7 @@ from rich.progress import (
 )
 from rich.logging import RichHandler
 import torch
+import pandas as pd
 # import matplotlib.pyplot as plt
 
 from cyberdreamcatcher.env import GraphEnv
@@ -57,7 +58,7 @@ def main(cfg: Cfg):
     ), "Please provide either 'scenario' or 'policy_weights'."
 
     scenario = cfg.scenario
-    if Path(cfg.policy_weights).exists():
+    if cfg.policy_weights and Path(cfg.policy_weights).exists():
         policy_weights, trained_scenario = load_trained_weights(cfg.policy_weights)
         print(f"Loaded policy trained on {trained_scenario}.")
         if trained_scenario != cfg.scenario:
@@ -140,6 +141,18 @@ def main(cfg: Cfg):
                 console.print(info["exploited_hosts"])
                 console.print(Rule("Malware Hosts", style="bold red"))
                 console.print(info["malware_hosts"])
+                console.print(Rule("Encoded Observation", style="bold red"))
+                # console.print(info["encoded_observation"].x)
+                df = pd.DataFrame(info["encoded_observation"].x)
+                df.columns = env.NodeFeatures._fields
+                df.index = env.host_names
+                console.print(df)
+                console.print(Rule("Encoded Edges", style="bold red"))
+                console.print(info["encoded_observation"].edge_index)
+                console.print(Rule("Encoded Edge Weights", style="bold red"))
+                console.print(torch.squeeze((info["encoded_observation"].edge_attr)))
+                console.print(Rule("Encoded Global Attributes", style="bold red"))
+                console.print(info["encoded_observation"].global_attr)
 
                 console.print(Rule("True Table", style="bold red"))
                 console.print(info["true_table"])

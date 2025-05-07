@@ -115,7 +115,7 @@ class GraphEnv:
         "PreviousAction", ("host_name", "action_name", "success")
     )
     NodeFeatures = namedtuple(
-        "Node", ("subnet", "relevance", "exploit", "malware", "prev_actuated")
+        "Node", ("relevance", "num_local_ports", "exploit", "malware", "prev_actuated")
     )
 
     # for encoding previous action ( imitates the logic in BlueTableWrapper._process_last_action() )
@@ -504,13 +504,13 @@ class GraphEnv:
             if host_obs.malware:
                 self.hosts_with_malware.add(host_name)
 
-    def encode_graph_observation(self, connection_obs, previous_action):
+    def encode_graph_observation(self, host_obs, connection_obs, previous_action):
         """Transform the human understandable graph representation to a matrix encoding.
         Categorical values are not one-hot-encoded for now.
         """
 
         num_features = len(self.NodeFeatures._fields)
-        node_matrix = np.zeros((self.num_hosts, num_features), dtype="i")  # int32
+        node_matrix = np.zeros((self.num_hosts, num_features), dtype="float32")  # int32
         for host_name in self.host_names:
             host_idx = self.host_enumeration[host_name]
 
@@ -519,6 +519,10 @@ class GraphEnv:
             subnet_id = self.subnet_enumeration[subnet]
 
             relevance = self.host_relevance[host_name]
+
+            num_local_ports = 0
+            if host_name in host_obs:
+                num_local_ports = host_obs[host_name].num_local_ports
 
             exploit = 0
             if host_name in self.hosts_exploited:
@@ -531,8 +535,9 @@ class GraphEnv:
                 prev_actuated = self.active_actions.get(previous_action.action_name, 0)
 
             node_matrix[host_idx, :] = (
-                subnet_id,
+                # subnet_id,
                 relevance,
+                num_local_ports,
                 exploit,
                 malware,
                 prev_actuated,
@@ -625,6 +630,7 @@ class GraphEnv:
         )
         # self.update_host_state(host_obs, previous_action)  # not needed for initial observation
         observation = self.encode_graph_observation(
+            host_obs,
             connections_obs,
             previous_action,
         )
@@ -649,6 +655,7 @@ class GraphEnv:
                 "prev_action": previous_action,
                 "hosts_obs": host_obs,
                 "connections_obs": connections_obs,
+                "encoded_observation": observation,
                 "exploited_hosts": self.hosts_exploited,
                 "malware_hosts": self.hosts_with_malware,
             }
@@ -668,7 +675,9 @@ class GraphEnv:
             self.get_raw_observation("Blue")  # == cyborg_result.observation
         )
         self.update_host_state(host_obs, previous_action)
-        observation = self.encode_graph_observation(connections_obs, previous_action)
+        observation = self.encode_graph_observation(
+            host_obs, connections_obs, previous_action
+        )
 
         info = {}
         if self.track_history:
@@ -697,6 +706,7 @@ class GraphEnv:
                 "prev_action": previous_action,
                 "hosts_obs": host_obs,
                 "connections_obs": connections_obs,
+                "encoded_observation": observation,
                 "exploited_hosts": self.hosts_exploited,
                 "malware_hosts": self.hosts_with_malware,
             }
