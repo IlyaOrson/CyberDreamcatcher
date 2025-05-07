@@ -32,8 +32,8 @@ class Cfg:
     optimizer_iterations: int = 500
     normalize_advantage: bool = True
 
-    latent_node_dim: int = 8
-    actor_heads: int = 1
+    latent_node_dim: int = 5
+    actor_heads: int = 3
 
     log_comet: bool = True
     log_level: str = "INFO"
@@ -211,7 +211,7 @@ class REINFORCE:
             if it % 10 == 0:
                 file_path = self.output_dir / f"policy_step_{it}.pt"
                 torch.save(self.policy.state_dict(), file_path)
-                if self.experiment is not None:
+                if self.experiment:
                     # self.experiment.log_asset(
                     #     file_path, file_name=f"policy_step_{it}.pt"
                     # )
@@ -229,9 +229,10 @@ class REINFORCE:
                             "reward_mean": reward_mean,
                         },
                     )
-            self.experiment.log_epoch_end(it)
+            if self.experiment:
+                self.experiment.log_epoch_end(it)
 
-        if self.experiment is not None:
+        if self.experiment:
             log_model(
                 experiment=self.experiment, model=self.policy, model_name="policy"
             )

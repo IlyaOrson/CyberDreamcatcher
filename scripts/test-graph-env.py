@@ -31,6 +31,8 @@ LOGGER = logging.getLogger(__name__)
 @dataclass
 class Cfg:
     policy_weights: Optional[str] = None
+    policy_latent_node_dim: int = 5
+    policy_actor_heads: int = 3
     scenario: Optional[str] = "Scenario2"
     seed: int = 0
     episode_length: int = 30
@@ -93,8 +95,9 @@ def main(cfg: Cfg):
         console.print(Rule("Red Table", style="bold red"))
         console.print(info["red_table"])
 
+    policy = None
     if cfg.policy_weights:
-        policy = Police(env)
+        policy = Police(env, latent_node_dim=cfg.policy_latent_node_dim, actor_heads=cfg.policy_actor_heads)
         if Path(cfg.policy_weights).exists():
             policy.load_state_dict(torch.load(cfg.policy_weights))
         else:
@@ -112,7 +115,7 @@ def main(cfg: Cfg):
         for step in progress.track(
             range(cfg.episode_length), description="Running steps..."
         ):
-            if cfg.policy_weights:
+            if policy:
                 action, log_prob, entropy, value = policy(obs)
                 # visualise action probability distribution
                 # plot_action_probabilities(env, policy, obs)

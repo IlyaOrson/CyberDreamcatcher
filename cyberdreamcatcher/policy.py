@@ -74,7 +74,7 @@ class Police(torch.nn.Module):
         env,
         latent_node_dim=None,
         train_critic=False,
-        actor_heads=1,  # FIXME
+        actor_heads=1,
         critic_heads=1,
         *args,
         **kwargs,
@@ -94,7 +94,7 @@ class Police(torch.nn.Module):
             share_weights=False,
         )
         self.actor_latent_1 = GATGlobalConv(
-            in_channels=latent_node_dim,
+            in_channels=actor_heads*latent_node_dim,
             out_channels=latent_node_dim,
             global_channels=env.global_encoding_dim,
             edge_dim=env.edge_encoding_dim,
@@ -103,11 +103,12 @@ class Police(torch.nn.Module):
         )
         # Returns logits in a matrix of shape (nodes x actions)
         self.actor_head = GATGlobalConv(
-            in_channels=latent_node_dim,
+            in_channels=actor_heads*latent_node_dim,
             out_channels=env.num_actions,  # one score per host/node and per action
             global_channels=env.global_encoding_dim,
             edge_dim=env.edge_encoding_dim,
             heads=actor_heads,
+            concat=False,  # average instead of concat
             share_weights=False,
         )
         self.actor_layers = ModuleDict(
