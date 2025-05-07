@@ -103,19 +103,20 @@ class RedTable(RedTableWrapper):
 class GraphEnv:
     agent_name = "Blue"
 
-    # FIXME should be 2 if an exploit connection will be flagged on the edge it appears, only flagged on the host for now
     host_encoding_dim = 5
-    edge_encoding_dim = 1
+    edge_encoding_dim = 2
     global_encoding_dim = 2
 
     HostObs = namedtuple("Host", ("num_local_ports", "exploit", "malware"))
-    # port 4444 is hard-coded to represent exploited ports
-    EdgeObs = namedtuple("Edge", ("connections", "exploit"))
     PreviousAction = namedtuple(
         "PreviousAction", ("host_name", "action_name", "success")
     )
     NodeFeatures = namedtuple(
         "Node", ("relevance", "num_local_ports", "exploit", "malware", "prev_actuated")
+    )
+    # remote port 4444 is hard-coded to represent an exploit connection
+    EdgeFeatures = namedtuple(
+        "Edge", ("connections", "exploit")
     )
     GlobalFeatures = namedtuple(
         "Global", ("step", "success")
@@ -458,7 +459,7 @@ class GraphEnv:
             exploit = False
             if connection in exploit_connections:
                 exploit = True
-            connections_obs[connection] = self.EdgeObs(
+            connections_obs[connection] = self.EdgeFeatures(
                 connections=count, exploit=exploit
             )
 
@@ -566,11 +567,9 @@ class GraphEnv:
             edge_tuples.append(tuple_id)
 
             edge_weight = connection_obs.get(
-                (source, target), self.EdgeObs(connections=0, exploit=False)
+                (source, target), self.EdgeFeatures(connections=0, exploit=False)
             )
-            edge_weights.append(
-                edge_weight.connections
-            )  # FIXME dropped flag for exploit in edges
+            edge_weights.append(edge_weight)
 
         # append unfeasible connections found
         if unexpected_connections:
@@ -588,18 +587,13 @@ class GraphEnv:
                 unexpected_edge_index[:, idx] = tuple_id
                 extra_edge_tuples.append(tuple_id)
                 edge_weight = connection_obs.get(
-                    (source, target), self.EdgeObs(connections=0, exploit=False)
+                    (source, target), self.EdgeFeatures(connections=0, exploit=False)
                 )
-                extra_edge_weights.append(
-                    edge_weight.connections
-                )  # FIXME dropped flag for exploit in edges
+                extra_edge_weights.append(edge_weight)
 
             edge_tuples.extend(extra_edge_tuples)
             edge_weights.extend(extra_edge_weights)
             edge_index = np.hstack((edge_index, unexpected_edge_index))
-
-        # edge weights are expected as a matrix of shape num_edges x num_attrs_per_edge
-        edge_attr = np.array(edge_weights).reshape((-1, 1))
 
         global_encoding = self.GlobalFeatures(
             step=self.step_counter,
@@ -609,7 +603,7 @@ class GraphEnv:
         return Data(
             x=tensor(node_matrix, dtype=torch.float),
             edge_index=tensor(edge_index, dtype=torch.long),
-            edge_attr=tensor(edge_attr, dtype=torch.float),
+            edge_attr=tensor(edge_weights, dtype=torch.float),  # expected shape: num_edges x num_attrs_per_edge
             global_attr=tensor(global_encoding, dtype=torch.float),
         )
 
