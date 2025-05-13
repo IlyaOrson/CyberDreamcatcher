@@ -13,11 +13,20 @@ class ActionLogits:
     Global action logits are the sum of the last 2 columns of the per-node action logits.
     """
 
-    def __init__(self, action_logits):
+    def __init__(self, action_logits, mask_node=None):
         self._raw_logits = action_logits
 
         self.node_logits = action_logits[:, :-2]
 
+        if mask_node is not None:
+            assert 0 <= mask_node < self.node_logits.shape[0], "Invalid mask_node"
+            # Create a mask of the same shape as the tensor
+            mask = torch.zeros_like(self.node_logits, dtype=torch.bool)
+            mask[mask_node, :] = True  # Set True for the entire row you want to mask
+            # Apply masked_fill
+            self.node_logits = self.node_logits.masked_fill(mask, float("-inf"))
+
+        # TODO mask sleep action and use sum for monitor?
         self.sleep_logit = torch.mean(action_logits[:, -1]).unsqueeze(-1)
         self.monitor_logit = torch.mean(action_logits[:, -2]).unsqueeze(-1)
 
@@ -76,10 +85,13 @@ class Police(torch.nn.Module):
         train_critic=False,
         actor_heads=1,
         critic_heads=1,
+        mask_node="User0",
         *args,
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
+
+        self.mask_node = env.host_enumeration[mask_node]
 
         if latent_node_dim is None:
             latent_node_dim = env.host_encoding_dim
@@ -206,7 +218,7 @@ class Police(torch.nn.Module):
         else:
             value = None
 
-        return ActionLogits(action_logits), value
+        return ActionLogits(action_logits, mask_node=self.mask_node), value
 
     def forward(self, graph, action=None):
         action_logits, value = self.get_action_logits(graph)
