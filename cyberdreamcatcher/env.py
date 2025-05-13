@@ -115,12 +115,8 @@ class GraphEnv:
         "Node", ("relevance", "num_local_ports", "exploit", "malware", "prev_actuated")
     )
     # remote port 4444 is hard-coded to represent an exploit connection
-    EdgeFeatures = namedtuple(
-        "Edge", ("connections", "exploit")
-    )
-    GlobalFeatures = namedtuple(
-        "Global", ("step", "success")
-    )
+    EdgeFeatures = namedtuple("Edge", ("connections", "exploit"))
+    GlobalFeatures = namedtuple("Global", ("step", "success"))
 
     # for encoding previous action ( imitates the logic in BlueTableWrapper._process_last_action() )
     global_actions_names = ("Sleep", "Monitor")
@@ -603,7 +599,9 @@ class GraphEnv:
         return Data(
             x=tensor(node_matrix, dtype=torch.float),
             edge_index=tensor(edge_index, dtype=torch.long),
-            edge_attr=tensor(edge_weights, dtype=torch.float),  # expected shape: num_edges x num_attrs_per_edge
+            edge_attr=tensor(
+                edge_weights, dtype=torch.float
+            ),  # expected shape: num_edges x num_attrs_per_edge
             global_attr=tensor(global_encoding, dtype=torch.float),
         )
 

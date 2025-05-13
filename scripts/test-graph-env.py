@@ -98,7 +98,11 @@ def main(cfg: Cfg):
 
     policy = None
     if cfg.policy_weights:
-        policy = Police(env, latent_node_dim=cfg.policy_latent_node_dim, actor_heads=cfg.policy_actor_heads)
+        policy = Police(
+            env,
+            latent_node_dim=cfg.policy_latent_node_dim,
+            actor_heads=cfg.policy_actor_heads,
+        )
         if Path(cfg.policy_weights).exists():
             policy.load_state_dict(torch.load(cfg.policy_weights))
         else:
@@ -112,7 +116,7 @@ def main(cfg: Cfg):
         TimeElapsedColumn(),
         # TimeRemainingColumn(),
         console=console,
-        disable= not cfg.progress_bar
+        disable=not cfg.progress_bar,
     ) as progress:
         for step in progress.track(
             range(cfg.episode_length), description="Running steps..."

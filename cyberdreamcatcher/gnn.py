@@ -303,7 +303,9 @@ class GATGlobalConv(NoTemplateMessagePassing):
         if self.bias is not None:
             out = out + self.bias
 
-        if isinstance(return_attention_weights, bool):  # TODO: use attention weights for explainability
+        if isinstance(
+            return_attention_weights, bool
+        ):  # TODO: use attention weights for explainability
             if isinstance(edge_index, Tensor):
                 if is_torch_sparse_tensor(edge_index):
                     # TODO TorchScript requires to return a tuple
