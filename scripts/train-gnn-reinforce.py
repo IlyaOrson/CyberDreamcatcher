@@ -28,14 +28,15 @@ class Cfg:
     episode_length: int = 30
     batch_size_episodes: int = 500
     seed: int = 0
-    learning_rate: float = 1e-2
+    learning_rate: float = 5e-3
     optimizer_iterations: int = 500
     normalize_advantage: bool = True
 
     latent_node_dim: int = 5
-    actor_heads: int = 3
+    actor_heads: int = 5
 
     log_comet: bool = True
+    log_freq: int = 10
     log_level: str = "INFO"
 
     # Learning rate scheduler
@@ -46,6 +47,7 @@ class Cfg:
     scheduler_threshold: float = 0.2
     scheduler_threshold_mode: str = (
         "abs"  # 'abs' --> improvement = new_metric > best_metric + threshold
+        # "rel"  # 'rel' --> improvement = new_metric > best_metric * (1 + threshold)
     )
     scheduler_cooldown: int = 10
     scheduler_min_lr: float = 1e-4
@@ -65,6 +67,7 @@ class REINFORCE:
                 comet_ml.login()
                 self.experiment = comet_ml.start(
                     project_name="cyberdreamcatcher",
+                    auto_metric_logging=True,
                 )
                 self.experiment.set_name(f"reinforce_seed_{conf.seed}")
                 # self.experiment.add_tags(["reinforce"])
@@ -73,6 +76,9 @@ class REINFORCE:
                 )
                 self.experiment.log_parameters(
                     {
+                        "host_encoding": env.NodeFeatures._fields,
+                        "edge_encoding": env.EdgeFeatures._fields,
+                        "global_encoding": env.GlobalFeatures._fields,
                         "host_encoding_dim": env.host_encoding_dim,
                         "edge_encoding_dim": env.edge_encoding_dim,
                         "global_encoding_dim": env.global_encoding_dim,
@@ -82,7 +88,7 @@ class REINFORCE:
                 self.experiment.log_parameter(
                     "policy_parameters", count_parameters(self.policy)
                 )
-                watch(self.policy)
+                watch(self.policy, log_step_interval=self.conf.log_freq)
             except Exception as e:
                 LOGGER.warning(f"CometML initialization failed: {e}")
                 self.experiment = None
@@ -165,6 +171,7 @@ class REINFORCE:
                 cooldown=self.conf.scheduler_cooldown,
                 min_lr=self.conf.scheduler_min_lr,
                 eps=self.conf.scheduler_eps,
+                verbose=True,
             )
 
         pbar = trange(self.conf.optimizer_iterations, desc="Optimizer iteration")
@@ -186,7 +193,7 @@ class REINFORCE:
                 if scheduler is not None:
                     # Log current learning rate
                     current_lr = scheduler.get_last_lr()[-1]
-                    self.experiment.log_metric("learning_rate", current_lr, step=it)
+                    self.experiment.log_metric("current_learning_rate", current_lr, step=it)
 
                 grad_norm = gradient_norm(self.policy)
                 self.experiment.log_metric("gradient_norm", grad_norm, step=it)
@@ -195,7 +202,7 @@ class REINFORCE:
             del mean_log_prob_R
 
             # Periodically run garbage collection
-            if it % 10 == 0:
+            if it % self.conf.log_freq == 0:
                 gc.collect()
                 if torch.cuda.is_available():
                     torch.cuda.empty_cache()
@@ -208,7 +215,7 @@ class REINFORCE:
                 }
             )
 
-            if it % 10 == 0:
+            if it % self.conf.log_freq == 0:
                 file_path = self.output_dir / f"policy_step_{it}.pt"
                 torch.save(self.policy.state_dict(), file_path)
                 if self.experiment:
