@@ -37,6 +37,7 @@ class Cfg:
     seed: int = 0
     episode_length: int = 30
     quiet: bool = False
+    progress_bar: bool = True
     log_level: str = "INFO"
     track_history: bool = True
     render_mode: Optional[str] = None
@@ -111,6 +112,7 @@ def main(cfg: Cfg):
         TimeElapsedColumn(),
         # TimeRemainingColumn(),
         console=console,
+        disable= not cfg.progress_bar
     ) as progress:
         for step in progress.track(
             range(cfg.episode_length), description="Running steps..."
