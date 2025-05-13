@@ -12,6 +12,7 @@ from hydra.core.config_store import ConfigStore
 from omegaconf import OmegaConf
 import numpy as np
 import torch
+from torch.nn.utils import clip_grad_norm_
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 from cyberdreamcatcher.utils import set_all_seeds, gradient_norm, count_parameters
@@ -28,8 +29,9 @@ class Cfg:
     episode_length: int = 30
     batch_size_episodes: int = 500
     seed: int = 0
-    learning_rate: float = 5e-3
+    learning_rate: float = 7e-3
     optimizer_iterations: int = 500
+    grad_clipping: float = 5
     normalize_advantage: bool = True
 
     latent_node_dim: int = 5
@@ -42,12 +44,12 @@ class Cfg:
     # Learning rate scheduler
     use_scheduler: bool = True
     scheduler_mode: str = "max"  # 'max' because we monitor reward
-    scheduler_factor: float = 0.5
-    scheduler_patience: int = 20
-    scheduler_threshold: float = 0.2
+    scheduler_factor: float = 0.8
+    scheduler_patience: int = 50
+    scheduler_threshold: float = 0.1
     scheduler_threshold_mode: str = (
-        "abs"  # 'abs' --> improvement = new_metric > best_metric + threshold
-        # "rel"  # 'rel' --> improvement = new_metric > best_metric * (1 + threshold)
+        # "abs"  # 'abs' --> improvement = new_metric > best_metric + threshold
+        "rel"  # 'rel' --> improvement = new_metric > best_metric * (1 + threshold)
     )
     scheduler_cooldown: int = 10
     scheduler_min_lr: float = 1e-4
@@ -180,6 +182,16 @@ class REINFORCE:
             mean_log_prob_R, reward_mean, reward_std = self.sample_episodes(counter=it)
 
             mean_log_prob_R.backward()
+
+            # Apply gradient clipping if enabled
+            if self.conf.grad_clipping > 0:
+                clip_grad_norm_(
+                    self.policy.parameters(),
+                    max_norm=self.conf.grad_clipping,
+                    norm_type=2,
+                    error_if_nonfinite=True,
+                )
+
             optimizer.step()
 
             if scheduler is not None:
