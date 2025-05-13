@@ -107,7 +107,7 @@ class Police(torch.nn.Module):
             out_channels=env.num_actions,  # one score per host/node and per action
             global_channels=env.global_encoding_dim,
             edge_dim=env.edge_encoding_dim,
-            heads=actor_heads,
+            heads=1,
             concat=False,  # average instead of concat
             share_weights=False,
         )
