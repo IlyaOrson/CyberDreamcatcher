@@ -36,7 +36,7 @@ class Cfg:
     actor_heads: int = 5
 
     log_comet: bool = True
-    log_freq: int = 10
+    log_freq: int = 20
     log_level: str = "INFO"
 
     # Learning rate scheduler
@@ -141,7 +141,7 @@ class REINFORCE:
         mean_log_prob_R = log_prob_R / num_episodes
 
         if counter and self.experiment:
-            if counter in range(0, self.conf.optimizer_iterations, 20):
+            if counter in range(0, self.conf.optimizer_iterations, self.conf.log_freq):
                 self.experiment.log_histogram_3d(
                     rewards_to_go[:, 0], name="reward-to-go", step=counter
                 )
@@ -192,7 +192,9 @@ class REINFORCE:
                 if scheduler is not None:
                     # Log current learning rate
                     current_lr = scheduler.get_last_lr()[-1]
-                    self.experiment.log_metric("current_learning_rate", current_lr, step=it)
+                    self.experiment.log_metric(
+                        "current_learning_rate", current_lr, step=it
+                    )
 
                 grad_norm = gradient_norm(self.policy)
                 self.experiment.log_metric("gradient_norm", grad_norm, step=it)
