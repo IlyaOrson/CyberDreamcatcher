@@ -126,12 +126,18 @@ This script trains a MLP policy with PPO using Stable Baselines 3.
 The observation space used is the original CAGE 2 observation space - a flattened high-level representation of the network.
 
 ```bash
-pixi run train-flat-sb3-ppo  # see --help for hyperparameters
+# see --help for hyperparameters
+
+# patched CAGE 2 challenge without 'compromised' information in observations
+pixi run train-sb3-cage2-stateless
+
+# original CAGE 2 challenge (not directly comparable to our approach)
+pixi run train-sb3-cage2
 ```
 
 > [!IMPORTANT]
 > This SB3 MLP serves as a reference for performance, but cannot extrapolate to different network dimensions.
-> A major caveat for a performance comparison with this or the CAGE 2 submissions is that the observation spaces are fundamentally different: the flattened version is a higher level representation designed for the CAGE 2 Challenge, whereas our custom graph observation uses low-level information from the CybORG simulator.
+> A major caveat for a performance comparison with the SB3 agent or the CAGE 2 submissions is that the observation spaces are fundamentally different to the one used in our work: the flattened version is a higher level representation designed for the CAGE 2 Challenge (tracks the 'compromised' status of hosts at the BlueTable level), whereas our custom graph observation uses low-level information from the CybORG simulator.
 > See below for a performance comparison with CAGE 2 Challenge submissions.
 
 ### Performance

@@ -1,10 +1,9 @@
-import os
 from pathlib import Path
 from dataclasses import dataclass
 
 import hydra
 from hydra.core.config_store import ConfigStore
-from stable_baselines3 import PPO  # A2C
+from stable_baselines3 import PPO
 
 from CybORG import CybORG
 from CybORG.Agents import RedMeanderAgent
@@ -31,9 +30,9 @@ cs.store(name="args", node=Cfg)
 
 
 @hydra.main(version_base=None, config_name="hydra", config_path="conf")
-def script(cfg: Cfg) -> None:
+def main(cfg: Cfg) -> None:
     # https://hydra.cc/docs/tutorials/basic/running_your_app/working_directory/
-    print(f"Working directory : {os.getcwd()}")
+    print(f"Working directory : {Path.cwd()}")
     output_dir = hydra.core.hydra_config.HydraConfig.get().runtime.output_dir
     print(f"Output directory  : {output_dir}")
 
@@ -48,7 +47,7 @@ def script(cfg: Cfg) -> None:
         env,
         verbose=cfg.policy_verbosity,
         device=cfg.policy_device,
-        tensorboard_log=output_dir,
+        # tensorboard_log=output_dir,
     )
     model.learn(total_timesteps=cfg.total_policy_steps, progress_bar=cfg.progress_bar)
 
@@ -67,4 +66,4 @@ def script(cfg: Cfg) -> None:
     #     print(10*"-")
 
 
-script()
+main()
