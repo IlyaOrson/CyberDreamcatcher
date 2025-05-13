@@ -67,7 +67,6 @@ class REINFORCE:
                 comet_ml.login()
                 self.experiment = comet_ml.start(
                     project_name="cyberdreamcatcher",
-                    auto_metric_logging=True,
                 )
                 self.experiment.set_name(f"reinforce_seed_{conf.seed}")
                 # self.experiment.add_tags(["reinforce"])
