@@ -50,7 +50,7 @@ def create_vector(self, success, see_activity=True, see_compromised=True):
             proto_vector.extend(value)
 
     # test if patch is being used
-    raise RuntimeError(f'Flat observation length: {len(proto_vector)}')
+    # raise RuntimeError(f'Flat observation length: {len(proto_vector)}')
 
     return np.array(proto_vector)
 

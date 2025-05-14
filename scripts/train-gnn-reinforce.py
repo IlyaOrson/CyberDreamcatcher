@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from pathlib import Path
 import gc
 import logging
+from typing import Optional
 
 from rich.logging import RichHandler
 import comet_ml
