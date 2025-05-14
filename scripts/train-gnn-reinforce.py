@@ -87,7 +87,7 @@ class REINFORCE:
                 self.experiment.log_parameters(
                     {
                         "host_encoding": env.NodeFeatures._fields,
-                        "edge_encoding": env.EdgeFeatures._fields,
+                        "edge_encoding": env.EdgeFeatures._fields if env.EdgeFeatures else None,
                         "global_encoding": env.GlobalFeatures._fields,
                         "host_encoding_dim": env.host_encoding_dim,
                         "edge_encoding_dim": env.edge_encoding_dim,
