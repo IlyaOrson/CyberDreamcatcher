@@ -15,8 +15,15 @@ import torch
 from torch.nn.utils import clip_grad_norm_
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
-from cyberdreamcatcher.utils import set_all_seeds, gradient_norm, count_parameters
+from cyberdreamcatcher.utils import (
+    set_all_seeds,
+    gradient_norm,
+    count_parameters,
+    load_trained_weights,
+)
 from cyberdreamcatcher.sampler import collect_rewards_log_probs
+from cyberdreamcatcher.env import GraphEnv
+from cyberdreamcatcher.policy import Police
 
 EPS = np.finfo(np.float32).eps.item()
 
@@ -34,8 +41,9 @@ class Cfg:
     grad_clipping: float = 5
     normalize_advantage: bool = True
 
-    latent_node_dim: int = 5
-    actor_heads: int = 5
+    policy_weights: Optional[str] = None
+    policy_latent_node_dim: int = 5
+    policy_actor_heads: int = 5
 
     log_comet: bool = True
     log_freq: int = 20
@@ -262,12 +270,6 @@ class REINFORCE:
 
 
 if __name__ == "__main__":
-    import hydra
-    from hydra.core.config_store import ConfigStore
-
-    from cyberdreamcatcher.env import GraphEnv
-    from cyberdreamcatcher.policy import Police
-
     # Registering the Config class with the expected name 'args'.
     # https://hydra.cc/docs/tutorials/structured_config/minimal_example/
     cs = ConfigStore.instance()
@@ -283,10 +285,29 @@ if __name__ == "__main__":
         LOGGER.info(f"Output directory  : {output_dir}")
         LOGGER.info(f"Config used: {OmegaConf.to_yaml(cfg)}")
 
-        env = GraphEnv(scenario=cfg.scenario, max_steps=cfg.episode_length)
+        assert (
+            cfg.policy_weights or cfg.scenario
+        ), "Please provide either 'scenario' or 'policy_weights'."
+
+        scenario = cfg.scenario
+        policy_weights = None
+        if cfg.policy_weights and Path(cfg.policy_weights).exists():
+            policy_weights, trained_scenario = load_trained_weights(cfg.policy_weights)
+            LOGGER.info(f"Found policy trained on {trained_scenario}.")
+            if trained_scenario != cfg.scenario:
+                LOGGER.warning(f"Will ignore the provided scenario {cfg.scenario}.")
+                scenario = trained_scenario
+
+        env = GraphEnv(scenario=scenario, max_steps=cfg.episode_length)
         policy = Police(
-            env, latent_node_dim=cfg.latent_node_dim, actor_heads=cfg.actor_heads
+            env,
+            latent_node_dim=cfg.policy_latent_node_dim,
+            actor_heads=cfg.policy_actor_heads,
         )
+
+        if policy_weights:
+            policy.load_state_dict(policy_weights)
+
         trainer = REINFORCE(env, policy, cfg, output_dir=output_dir)
 
         LOGGER.info("Starting training loop")
