@@ -103,20 +103,24 @@ class RedTable(RedTableWrapper):
 class GraphEnv:
     agent_name = "Blue"
 
-    host_encoding_dim = 5
-    edge_encoding_dim = 2
-    global_encoding_dim = 2
-
     HostObs = namedtuple("Host", ("num_local_ports", "exploit", "malware"))
+    # remote port 4444 is hard-coded to represent an exploit connection
+    EdgeObs = namedtuple("Edge", ("connections", "exploit"))
     PreviousAction = namedtuple(
         "PreviousAction", ("host_name", "action_name", "success")
     )
+
     NodeFeatures = namedtuple(
-        "Node", ("relevance", "num_local_ports", "exploit", "malware", "prev_actuated")
+        # "Node", ("relevance", "num_local_ports", "exploit", "malware", "prev_restored")
+        "Node", ("relevance", "num_local_ports", "exploit", "malware")
     )
-    # remote port 4444 is hard-coded to represent an exploit connection
-    EdgeFeatures = namedtuple("Edge", ("connections", "exploit"))
-    GlobalFeatures = namedtuple("Global", ("step", "success"))
+    EdgeFeatures = None
+    # GlobalFeatures = namedtuple("Global", ("step", "success"))
+    GlobalFeatures = namedtuple("Global", ("step"))
+
+    host_encoding_dim = len(NodeFeatures._fields)
+    edge_encoding_dim = len(EdgeFeatures._fields) if EdgeFeatures is not None else None
+    global_encoding_dim = len(GlobalFeatures._fields)
 
     # for encoding previous action ( imitates the logic in BlueTableWrapper._process_last_action() )
     global_actions_names = ("Sleep", "Monitor")
@@ -398,6 +402,10 @@ class GraphEnv:
 
                         local_address = connection["local_address"]
                         remote_address = connection["remote_address"]
+                        # NOTE  User0 is used as a dummy recipient of connections from any node in the network,
+                        #       as a hackish way to communicate to the table wrappers about scans/exploits
+                        #       detected in a host (hard coded rules in the connections/ports).
+                        assert remote_address == self.hostname_ip_map["User0"]  # :'(
                         if local_address == remote_address:
                             # NOTE should self connections be included in the graph encoding?
                             LOGGER.debug(
@@ -455,21 +463,22 @@ class GraphEnv:
             exploit = False
             if connection in exploit_connections:
                 exploit = True
-            connections_obs[connection] = self.EdgeFeatures(
+            connections_obs[connection] = self.EdgeObs(
                 connections=count, exploit=exploit
             )
 
-        # extract processes per host
-        anomalies = self.blue_table._detect_anomalies(observation)
-        # flag if processes represent a connection or a file
-        relevant_anomalies = {
-            host: processes
-            for host, processes in anomalies.items()
-            if "Connections" in processes.keys() or "Files" in processes.keys()
-        }
-        if relevant_anomalies:
-            LOGGER.debug("Relevant anomalies detected:")
-            LOGGER.debug(pformat(relevant_anomalies))
+        # for debugging purposes only
+        # # extract processes per host
+        # anomalies = self.blue_table._detect_anomalies(observation)
+        # # flag if processes represent a connection or a file
+        # relevant_anomalies = {
+        #     host: processes
+        #     for host, processes in anomalies.items()
+        #     if "Connections" in processes.keys() or "Files" in processes.keys()
+        # }
+        # if relevant_anomalies:
+        #     LOGGER.debug("Relevant anomalies detected:")
+        #     LOGGER.debug(pformat(relevant_anomalies))
 
         previous_action = self.get_last_action()
         previous_host_name, previous_action_name = get_action_names(previous_action)
@@ -510,7 +519,7 @@ class GraphEnv:
         """
 
         num_features = len(self.NodeFeatures._fields)
-        node_matrix = np.zeros((self.num_hosts, num_features), dtype="float32")  # int32
+        node_matrix = np.zeros((self.num_hosts, num_features), dtype="float32")
         for host_name in self.host_names:
             host_idx = self.host_enumeration[host_name]
 
@@ -530,9 +539,9 @@ class GraphEnv:
 
             malware = int(host_name in self.hosts_with_malware)
 
-            prev_actuated = 0
-            if host_name == previous_action.host_name:
-                prev_actuated = self.active_actions.get(previous_action.action_name, 0)
+            # prev_restored = 0
+            # if host_name == previous_action.host_name:
+            #     prev_restored = self.active_actions.get(previous_action.action_name, 0)
 
             node_matrix[host_idx, :] = (
                 # subnet_id,
@@ -540,7 +549,7 @@ class GraphEnv:
                 num_local_ports,
                 exploit,
                 malware,
-                prev_actuated,
+                # prev_restored,
             )
 
         # This set difference needs to happen before any further access to the
@@ -562,13 +571,14 @@ class GraphEnv:
             edge_index[:, idx] = tuple_id
             edge_tuples.append(tuple_id)
 
-            edge_weight = connection_obs.get(
-                (source, target), self.EdgeFeatures(connections=0, exploit=False)
-            )
-            edge_weights.append(edge_weight)
+            if self.EdgeFeatures:
+                edge_weight = connection_obs.get(
+                    (source, target), self.EdgeFeatures(connections=0, exploit=False)
+                )
+                edge_weights.append(edge_weight)
 
-        # append unfeasible connections found
-        if unexpected_connections:
+        # append unfeasible connections found (if EdgeFeatures is not None)
+        if unexpected_connections and self.EdgeFeatures:
             extra_edge_tuples = []
             extra_edge_weights = []
             unexpected_edge_index = np.zeros(
@@ -593,15 +603,14 @@ class GraphEnv:
 
         global_encoding = self.GlobalFeatures(
             step=self.step_counter,
-            success=previous_action.success,
+            # success=previous_action.success,
         )
 
         return Data(
             x=tensor(node_matrix, dtype=torch.float),
             edge_index=tensor(edge_index, dtype=torch.long),
-            edge_attr=tensor(
-                edge_weights, dtype=torch.float
-            ),  # expected shape: num_edges x num_attrs_per_edge
+            # edge_attr shape: num_edges x num_attrs_per_edge
+            edge_attr=tensor(edge_weights, dtype=torch.float) if self.EdgeFeatures else None,
             global_attr=tensor(global_encoding, dtype=torch.float),
         )
 
