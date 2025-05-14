@@ -128,11 +128,11 @@ The observation space used is the original CAGE 2 observation space - a flattene
 ```bash
 # see --help for hyperparameters
 
-# patched CAGE 2 challenge without 'compromised' information in observations
-pixi run train-sb3-cage2-stateless
-
 # original CAGE 2 challenge (not directly comparable to our approach)
 pixi run train-sb3-cage2
+
+# patched CAGE 2 challenge without 'compromised' information in observations
+pixi run train-sb3-cage2 see_compromised=False
 ```
 
 > [!IMPORTANT]
