@@ -113,7 +113,7 @@ class GraphEnv:
     NodeFeatures = namedtuple(
         # "Node", ("relevance", "num_local_ports", "exploit", "malware", "prev_restored")
         "Node",
-        ("relevance", "num_local_ports", "exploit", "malware"),
+        ("subnet_id", "relevance", "num_local_ports", "exploit", "malware"),
     )
     EdgeFeatures = None
     # GlobalFeatures = namedtuple("Global", ("step", "success"))
@@ -547,12 +547,12 @@ class GraphEnv:
             #     prev_restored = self.active_actions.get(previous_action.action_name, 0)
 
             node_matrix[host_idx, :] = (
-                # subnet_id,
+                subnet_id,
                 relevance,
                 num_local_ports,
                 exploit,
                 malware,
-                # prev_restored,
+                # prev_restored,  # TODO: figure out if useful information
             )
 
         # This set difference needs to happen before any further access to the

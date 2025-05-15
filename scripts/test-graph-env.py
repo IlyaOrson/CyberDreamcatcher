@@ -181,6 +181,7 @@ def main(cfg: Cfg):
                 console.print(Rule("Red Observation", style="bold red"))
                 console.print(info["red_obs"])
 
+                # TODO: "Remove" in str(env.cyborg.get_last_action(agent="Blue")) and info["cyborg_result"]["observation"]["success"].value == 3
                 console.print(Rule("Reward", style="bold red"))
                 console.print(env.cyborg.get_rewards())
 
