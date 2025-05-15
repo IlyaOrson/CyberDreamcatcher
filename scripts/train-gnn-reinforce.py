@@ -35,7 +35,7 @@ LOGGER = logging.getLogger(__name__)
 class Cfg:
     scenario: str = "Scenario2"
     episode_length: int = 30
-    batch_size_episodes: int = 500
+    batch_size_episodes: int = 300
     seed: int = 0
     learning_rate: float = 7e-3
     optimizer_iterations: int = 500
@@ -51,7 +51,7 @@ class Cfg:
     log_level: str = "INFO"
 
     # Learning rate scheduler
-    use_scheduler: bool = True
+    use_scheduler: bool = False
     scheduler_mode: str = "max"  # 'max' because we monitor reward
     scheduler_factor: float = 0.8
     scheduler_patience: int = 50
@@ -87,8 +87,12 @@ class REINFORCE:
                 self.experiment.log_parameters(
                     {
                         "host_encoding": env.NodeFeatures._fields,
-                        "edge_encoding": env.EdgeFeatures._fields if env.EdgeFeatures else None,
-                        "global_encoding": env.GlobalFeatures._fields,
+                        "edge_encoding": env.EdgeFeatures._fields
+                        if env.EdgeFeatures
+                        else None,
+                        "global_encoding": env.GlobalFeatures._fields
+                        if env.GlobalFeatures
+                        else None,
                         "host_encoding_dim": env.host_encoding_dim,
                         "edge_encoding_dim": env.edge_encoding_dim,
                         "global_encoding_dim": env.global_encoding_dim,
@@ -181,7 +185,6 @@ class REINFORCE:
                 cooldown=self.conf.scheduler_cooldown,
                 min_lr=self.conf.scheduler_min_lr,
                 eps=self.conf.scheduler_eps,
-                verbose=True,
             )
 
         pbar = trange(self.conf.optimizer_iterations, desc="Optimizer iteration")

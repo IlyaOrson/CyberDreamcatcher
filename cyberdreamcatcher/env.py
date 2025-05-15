@@ -112,15 +112,18 @@ class GraphEnv:
 
     NodeFeatures = namedtuple(
         # "Node", ("relevance", "num_local_ports", "exploit", "malware", "prev_restored")
-        "Node", ("relevance", "num_local_ports", "exploit", "malware")
+        "Node",
+        ("relevance", "num_local_ports", "exploit", "malware"),
     )
     EdgeFeatures = None
     # GlobalFeatures = namedtuple("Global", ("step", "success"))
-    GlobalFeatures = namedtuple("Global", ("step"))
+    GlobalFeatures = None
 
     host_encoding_dim = len(NodeFeatures._fields)
     edge_encoding_dim = len(EdgeFeatures._fields) if EdgeFeatures is not None else None
-    global_encoding_dim = len(GlobalFeatures._fields)
+    global_encoding_dim = (
+        len(GlobalFeatures._fields) if GlobalFeatures is not None else None
+    )
 
     # for encoding previous action ( imitates the logic in BlueTableWrapper._process_last_action() )
     global_actions_names = ("Sleep", "Monitor")
@@ -577,7 +580,7 @@ class GraphEnv:
                 )
                 edge_weights.append(edge_weight)
 
-        # append unfeasible connections found (if EdgeFeatures is not None)
+        # append unfeasible connections found (only if EdgeFeatures is not None)
         if unexpected_connections and self.EdgeFeatures:
             extra_edge_tuples = []
             extra_edge_weights = []
@@ -601,18 +604,27 @@ class GraphEnv:
             edge_weights.extend(extra_edge_weights)
             edge_index = np.hstack((edge_index, unexpected_edge_index))
 
-        global_encoding = self.GlobalFeatures(
-            step=self.step_counter,
-            # success=previous_action.success,
-        )
+        edge_attr = None
+        if self.EdgeFeatures:
+            edge_attr = tensor(edge_weights, dtype=torch.float)
 
-        return Data(
+        global_attr = None
+        if self.GlobalFeatures:
+            global_encoding = self.GlobalFeatures(
+                step=self.step_counter,
+                success=previous_action.success,
+            )
+            global_attr = tensor(global_encoding, dtype=torch.float)
+
+        obs = Data(
             x=tensor(node_matrix, dtype=torch.float),
             edge_index=tensor(edge_index, dtype=torch.long),
             # edge_attr shape: num_edges x num_attrs_per_edge
-            edge_attr=tensor(edge_weights, dtype=torch.float) if self.EdgeFeatures else None,
-            global_attr=tensor(global_encoding, dtype=torch.float),
+            edge_attr=edge_attr,
         )
+        obs.global_attr = global_attr
+
+        return obs
 
     def reset(self, *, seed=None):
         self.step_counter = 0

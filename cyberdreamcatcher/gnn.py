@@ -34,108 +34,14 @@ from cyberdreamcatcher.message_passing import NoTemplateMessagePassing
 class GATGlobalConv(NoTemplateMessagePassing):
     r"""The GATv2 operator from the `"How Attentive are Graph Attention
     Networks?" <https://arxiv.org/abs/2105.14491>`_ paper,
-    plus a global node channel as in the TacticsAI paper,
+
+    + plus a global node channel as in the TacticsAI paper,
     https://doi.org/10.1038/s41467-024-45965-x.
-
-    TODO update equations to include global graph encoding.
-
-    .. math::
-        \mathbf{x}^{\prime}_i = \alpha_{i,i}\mathbf{\Theta}_{s}\mathbf{x}_{i} +
-        \sum_{j \in \mathcal{N}(i)}
-        \alpha_{i,j}\mathbf{\Theta}_{t}\mathbf{x}_{j},
-
-    where the attention coefficients :math:`\alpha_{i,j}` are computed as
-
-    .. math::
-        \alpha_{i,j} =
-        \frac{
-        \exp\left(\mathbf{a}^{\top}\mathrm{LeakyReLU}\left(
-        \mathbf{\Theta}_{s} \mathbf{x}_i + \mathbf{\Theta}_{t} \mathbf{x}_j + \mathbf{\Theta}_{g} \mathbf{g}
-        \right)\right)}
-        {\sum_{k \in \mathcal{N}(i) \cup \{ i \}}
-        \exp\left(\mathbf{a}^{\top}\mathrm{LeakyReLU}\left(
-        \mathbf{\Theta}_{s} \mathbf{x}_i + \mathbf{\Theta}_{t} \mathbf{x}_k + \mathbf{\Theta}_{g} \mathbf{g}
-        \right)\right)}.
-
-    If the graph has multi-dimensional edge features :math:`\mathbf{e}_{i,j}`,
-    the attention coefficients :math:`\alpha_{i,j}` are computed as
-
-    .. math::
-        \alpha_{i,j} =
-        \frac{
-        \exp\left(\mathbf{a}^{\top}\mathrm{LeakyReLU}\left(
-        \mathbf{\Theta}_{s} \mathbf{x}_i
-        + \mathbf{\Theta}_{t} \mathbf{x}_j
-        + \mathbf{\Theta}_{e} \mathbf{e}_{i,j}
-        + \mathbf{\Theta}_{g} \mathbf{g}
-        \right)\right)}
-        {\sum_{k \in \mathcal{N}(i) \cup \{ i \}}
-        \exp\left(\mathbf{a}^{\top}\mathrm{LeakyReLU}\left(
-        \mathbf{\Theta}_{s} \mathbf{x}_i
-        + \mathbf{\Theta}_{t} \mathbf{x}_k
-        + \mathbf{\Theta}_{e} \mathbf{e}_{i,k}
-        + \mathbf{\Theta}_{g} \mathbf{g}
-        \right)\right)}.
-
-    Args:
-        in_channels (int or tuple): Size of each input sample, or :obj:`-1` to
-            derive the size from the first input(s) to the forward method.
-            A tuple corresponds to the sizes of source and target
-            dimensionalities in case of a bipartite graph.
-        out_channels (int): Size of each output sample.
-        global_channels (int): Size of the global vector encoding.
-        heads (int, optional): Number of multi-head-attentions.
-            (default: :obj:`1`)
-        concat (bool, optional): If set to :obj:`False`, the multi-head
-            attentions are averaged instead of concatenated.
-            (default: :obj:`True`)
-        negative_slope (float, optional): LeakyReLU angle of the negative
-            slope. (default: :obj:`0.2`)
-        dropout (float, optional): Dropout probability of the normalized
-            attention coefficients which exposes each node to a stochastically
-            sampled neighborhood during training. (default: :obj:`0`)
-        add_self_loops (bool, optional): If set to :obj:`False`, will not add
-            self-loops to the input graph. (default: :obj:`True`)
-        edge_dim (int, optional): Edge feature dimensionality (in case
-            there are any). (default: :obj:`None`)
-        fill_value (float or torch.Tensor or str, optional): The way to
-            generate edge features of self-loops
-            (in case :obj:`edge_dim != None`).
-            If given as :obj:`float` or :class:`torch.Tensor`, edge features of
-            self-loops will be directly given by :obj:`fill_value`.
-            If given as :obj:`str`, edge features of self-loops are computed by
-            aggregating all features of edges that point to the specific node,
-            according to a reduce operation. (:obj:`"add"`, :obj:`"mean"`,
-            :obj:`"min"`, :obj:`"max"`, :obj:`"mul"`). (default: :obj:`"mean"`)
-        bias (bool, optional): If set to :obj:`False`, the layer will not learn
-            an additive bias. (default: :obj:`True`)
-        share_weights (bool, optional): If set to :obj:`True`, the same matrix
-            will be applied to the source and the target node of every edge,
-            *i.e.* :math:`\mathbf{\Theta}_{s} = \mathbf{\Theta}_{t}`.
-            (default: :obj:`False`)
-        **kwargs (optional): Additional arguments of
-            :class:`torch_geometric.nn.conv.MessagePassing`.
-
-    Shapes:
-        - **input:**
-          node features :math:`(|\mathcal{V}|, F_{in})` or
-          :math:`((|\mathcal{V_s}|, F_{s}), (|\mathcal{V_t}|, F_{t}))`
-          if bipartite,
-          edge indices :math:`(2, |\mathcal{E}|)`,
-          edge features :math:`(|\mathcal{E}|, D)` *(optional)*
-        - **output:** node features :math:`(|\mathcal{V}|, H * F_{out})` or
-          :math:`((|\mathcal{V}_t|, H * F_{out})` if bipartite.
-          If :obj:`return_attention_weights=True`, then
-          :math:`((|\mathcal{V}|, H * F_{out}),
-          ((2, |\mathcal{E}|), (|\mathcal{E}|, H)))`
-          or :math:`((|\mathcal{V_t}|, H * F_{out}), ((2, |\mathcal{E}|),
-          (|\mathcal{E}|, H)))` if bipartite
     """
 
     def __init__(
         self,
         in_channels: int,
-        global_channels: int,
         out_channels: int,
         heads: int = 1,
         concat: bool = True,
@@ -143,6 +49,7 @@ class GATGlobalConv(NoTemplateMessagePassing):
         dropout: float = 0.0,
         add_self_loops: bool = True,
         edge_dim: Optional[int] = None,
+        global_dim: Optional[int] = None,
         fill_value: Union[float, Tensor, str] = "mean",
         bias: bool = True,
         share_weights: bool = False,
@@ -152,13 +59,13 @@ class GATGlobalConv(NoTemplateMessagePassing):
 
         self.in_channels = in_channels
         self.out_channels = out_channels
-        self.global_channels = global_channels
         self.heads = heads
         self.concat = concat
         self.negative_slope = negative_slope
         self.dropout = dropout
         self.add_self_loops = add_self_loops
         self.edge_dim = edge_dim
+        self.global_dim = global_dim
         self.fill_value = fill_value
         self.share_weights = share_weights
 
@@ -178,13 +85,6 @@ class GATGlobalConv(NoTemplateMessagePassing):
                 weight_initializer="glorot",
             )
 
-        self.lin_glob = Linear(
-            global_channels,
-            heads * out_channels,
-            bias=bias,
-            weight_initializer="glorot",
-        )
-
         self.att = Parameter(torch.empty(1, heads, out_channels))
 
         if edge_dim is not None:
@@ -193,6 +93,16 @@ class GATGlobalConv(NoTemplateMessagePassing):
             )
         else:
             self.lin_edge = None
+
+        if global_dim is not None:
+            self.lin_glob = Linear(
+                global_dim,
+                heads * out_channels,
+                bias=bias,
+                weight_initializer="glorot",
+            )
+        else:
+            self.lin_glob = None
 
         if bias and concat:
             self.bias = Parameter(torch.empty(heads * out_channels))
@@ -207,7 +117,8 @@ class GATGlobalConv(NoTemplateMessagePassing):
         super().reset_parameters()
         self.lin_l.reset_parameters()
         self.lin_r.reset_parameters()
-        self.lin_glob.reset_parameters()
+        if self.lin_glob is not None:
+            self.lin_glob.reset_parameters()
         if self.lin_edge is not None:
             self.lin_edge.reset_parameters()
         glorot(self.att)
@@ -217,8 +128,8 @@ class GATGlobalConv(NoTemplateMessagePassing):
         self,
         x: Union[Tensor, PairTensor],
         edge_index: Adj,
-        global_attr: Tensor,
         edge_attr: OptTensor = None,
+        global_attr: OptTensor = None,
         return_attention_weights: Optional[bool] = None,
     ) -> Union[
         Tensor,
@@ -282,14 +193,12 @@ class GATGlobalConv(NoTemplateMessagePassing):
                         "'edge_index' in a 'SparseTensor' form"
                     )
 
-        global_latent = self.lin_glob(global_attr).view(-1, H, C)
-
         # edge_updater_type: (x: PairTensor, edge_attr: OptTensor)
         alpha = self.edge_updater(
             edge_index,
             x=(x_l, x_r),
             edge_attr=edge_attr,
-            global_latent=global_latent,
+            global_attr=global_attr,
         )
 
         # propagate_type: (x: PairTensor, alpha: Tensor)
@@ -323,7 +232,7 @@ class GATGlobalConv(NoTemplateMessagePassing):
         x_j: Tensor,
         x_i: Tensor,
         edge_attr: OptTensor,
-        global_latent: Tensor,
+        global_attr: OptTensor,
         index: Tensor,
         ptr: OptTensor,
         dim_size: Optional[int],
@@ -340,7 +249,11 @@ class GATGlobalConv(NoTemplateMessagePassing):
 
         # NOTE sum/product broadcasts over incompatible dimensions and
         # its done per element over matching dimensions
-        x += global_latent
+        if global_attr is not None:
+            assert self.lin_glob is not None
+            global_latent = self.lin_glob(global_attr)
+            global_latent = global_latent.view(-1, self.heads, self.out_channels)
+            x = x + global_latent
 
         x = F.leaky_relu(x, self.negative_slope)
         alpha = (x * self.att).sum(dim=-1)

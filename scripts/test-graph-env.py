@@ -158,11 +158,12 @@ def main(cfg: Cfg):
                 console.print(df)
                 console.print(Rule("Encoded Edges", style="bold red"))
                 console.print(info["encoded_observation"].edge_index)
-                if info["encoded_observation"].edge_attr is not None:
+                if info["encoded_observation"].edge_attr:
                     console.print(Rule("Encoded Edge Weights", style="bold red"))
                     console.print(info["encoded_observation"].edge_attr.T)
                 console.print(Rule("Encoded Global Attributes", style="bold red"))
-                console.print(info["encoded_observation"].global_attr)
+                if getattr(info["encoded_observation"], "global_attr", None):
+                    console.print(info["encoded_observation"].global_attr)
 
                 console.print(Rule("True Table", style="bold red"))
                 console.print(info["true_table"])

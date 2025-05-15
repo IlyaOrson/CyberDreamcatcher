@@ -100,7 +100,7 @@ class Police(torch.nn.Module):
         self.actor_latent_0 = GATGlobalConv(
             in_channels=env.host_encoding_dim,
             out_channels=latent_node_dim,
-            global_channels=env.global_encoding_dim,
+            global_dim=env.global_encoding_dim,
             edge_dim=env.edge_encoding_dim,
             heads=actor_heads,
             share_weights=False,
@@ -108,7 +108,7 @@ class Police(torch.nn.Module):
         self.actor_latent_1 = GATGlobalConv(
             in_channels=actor_heads * latent_node_dim,
             out_channels=latent_node_dim,
-            global_channels=env.global_encoding_dim,
+            global_dim=env.global_encoding_dim,
             edge_dim=env.edge_encoding_dim,
             heads=actor_heads,
             share_weights=False,
@@ -117,7 +117,7 @@ class Police(torch.nn.Module):
         self.actor_head = GATGlobalConv(
             in_channels=actor_heads * latent_node_dim,
             out_channels=env.num_actions,  # one score per host/node and per action
-            global_channels=env.global_encoding_dim,
+            global_dim=env.global_encoding_dim,
             edge_dim=env.edge_encoding_dim,
             heads=1,
             concat=False,  # average instead of concat
@@ -140,7 +140,7 @@ class Police(torch.nn.Module):
             self.critic_latent_0 = GATGlobalConv(
                 in_channels=env.host_encoding_dim,
                 out_channels=latent_node_dim,
-                global_channels=env.global_encoding_dim,
+                global_dim=env.global_encoding_dim,
                 edge_dim=env.edge_encoding_dim,
                 heads=critic_heads,
                 share_weights=False,
@@ -148,7 +148,7 @@ class Police(torch.nn.Module):
             self.critic_latent_1 = GATGlobalConv(
                 in_channels=latent_node_dim,
                 out_channels=latent_node_dim,
-                global_channels=env.global_encoding_dim,
+                global_dim=env.global_encoding_dim,
                 edge_dim=env.edge_encoding_dim,
                 heads=critic_heads,
                 share_weights=False,
@@ -156,7 +156,7 @@ class Police(torch.nn.Module):
             self.critic_head = GATGlobalConv(
                 in_channels=latent_node_dim,
                 out_channels=1,  # one score per node
-                global_channels=env.global_encoding_dim,
+                global_dim=env.global_encoding_dim,
                 edge_dim=env.edge_encoding_dim,
                 heads=critic_heads,
                 share_weights=False,
@@ -175,29 +175,47 @@ class Police(torch.nn.Module):
         #     for param in self.critic_layers.parameters():
         #         param.requires_grad = False
 
-    def actor(self, nodes_matrix, edge_index, global_vector, edges_matrix):
+    def actor(self, nodes_matrix, edge_index, edge_matrix, global_matrix):
         # Score each node to select actions
         actor_latent_nodes = self.actor_latent_0(
-            nodes_matrix, edge_index, global_vector, edges_matrix
+            nodes_matrix,
+            edge_index,
+            edge_attr=edge_matrix,
+            global_attr=global_matrix,
         )
         actor_latent_nodes = self.actor_latent_1(
-            actor_latent_nodes, edge_index, global_vector, edges_matrix
+            actor_latent_nodes,
+            edge_index,
+            edge_attr=edge_matrix,
+            global_attr=global_matrix,
         )
         action_logits = self.actor_head(
-            actor_latent_nodes, edge_index, global_vector, edges_matrix
+            actor_latent_nodes,
+            edge_index,
+            edge_attr=edge_matrix,
+            global_attr=global_matrix,
         )
         return action_logits
 
-    def critic(self, nodes_matrix, edge_index, global_vector, edges_matrix):
+    def critic(self, nodes_matrix, edge_index, edges_matrix, global_matrix):
         # Score each node to value state
         critic_latent_nodes = self.critic_latent_0(
-            nodes_matrix, edge_index, global_vector, edges_matrix
+            nodes_matrix,
+            edge_index,
+            edge_attr=edges_matrix,
+            global_attr=global_matrix,
         )
         critic_latent_nodes = self.critic_latent_1(
-            critic_latent_nodes, edge_index, global_vector, edges_matrix
+            critic_latent_nodes,
+            edge_index,
+            edge_attr=edges_matrix,
+            global_attr=global_matrix,
         )
         node_values = self.critic_head(
-            critic_latent_nodes, edge_index, global_vector, edges_matrix
+            critic_latent_nodes,
+            edge_index,
+            edge_attr=edges_matrix,
+            global_attr=global_matrix,
         )
         value = torch.sum(node_values)
         return value
@@ -207,14 +225,23 @@ class Police(torch.nn.Module):
         nodes_matrix = graph.x
         edge_index = graph.edge_index
         edges_matrix = graph.edge_attr
-        global_vector = graph.global_attr
+
+        global_matrix = graph.get("global_attr", None)
 
         action_logits = self.actor(
-            nodes_matrix, edge_index, global_vector, edges_matrix
+            nodes_matrix,
+            edge_index,
+            edges_matrix,
+            global_matrix,
         )
 
         if self.train_critic:
-            value = self.critic(nodes_matrix, edge_index, global_vector, edges_matrix)
+            value = self.critic(
+                nodes_matrix,
+                edge_index,
+                edges_matrix,
+                global_matrix,
+            )
         else:
             value = None
 
