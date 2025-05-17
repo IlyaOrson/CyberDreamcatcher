@@ -1,5 +1,3 @@
-from copy import copy
-from pprint import pformat
 from collections import defaultdict, namedtuple
 from itertools import combinations, product
 
@@ -111,13 +109,14 @@ class GraphEnv:
     )
 
     NodeFeatures = namedtuple(
-        # "Node", ("relevance", "num_local_ports", "exploit", "malware", "prev_restored")
         "Node",
         ("subnet_id", "relevance", "num_local_ports", "exploit", "malware"),
     )
     EdgeFeatures = None
-    # GlobalFeatures = namedtuple("Global", ("step", "success"))
+    # EdgeFeatures = namedtuple("Edge", ("connections"))
+
     GlobalFeatures = None
+    # GlobalFeatures = namedtuple("Global", ("step", "success"))
 
     host_encoding_dim = len(NodeFeatures._fields)
     edge_encoding_dim = len(EdgeFeatures._fields) if EdgeFeatures is not None else None
@@ -127,7 +126,7 @@ class GraphEnv:
 
     # for encoding previous action ( imitates the logic in BlueTableWrapper._process_last_action() )
     global_actions_names = ("Sleep", "Monitor")
-    active_actions = {"Restore": -1, "Remove": 1}  # any other = 0
+    restorative_actions = ("Restore", "Remove")
 
     metadata = {"render_modes": ["human"]}
 
@@ -493,21 +492,29 @@ class GraphEnv:
 
     def update_host_state(self, hosts_obs, previous_action):
         # first update the state based on the action taken if it was successful
+        self.previous_action = previous_action
         host_name = previous_action.host_name
         action_name = previous_action.action_name
-        if action_name in self.active_actions and previous_action.success == 1:
+        if action_name in self.restorative_actions:
             exploited_host = host_name in self.hosts_exploited
             privileged_host = host_name in self.hosts_with_malware
-            if action_name == "Restore":  # always works
-                if exploited_host:
+            if action_name == "Restore":  # always works (except in User0)
+                if previous_action.success == 1:
+                    if exploited_host:
+                        self.hosts_exploited.remove(host_name)
+                    if privileged_host:
+                        self.hosts_with_malware.remove(host_name)
+                else:
+                    LOGGER.error(f"Restore failed for {host_name}")
+                    # raise ValueError(f"Restore failed for {host_name}")
+            elif action_name == "Remove" and exploited_host:
+                # does not work if red agent has privileged access
+                if previous_action.success == 1:
                     self.hosts_exploited.remove(host_name)
-                if privileged_host:
-                    self.hosts_with_malware.remove(host_name)
-            elif (
-                action_name == "Remove"
-            ):  # does not work if red agent has privileged access
-                if exploited_host:
-                    self.hosts_exploited.remove(host_name)
+                else:
+                    self.hosts_with_malware.add(host_name)
+            else:
+                pass  # Remove fails when the host is not exploited
 
         # then update the state based on the observation
         for host_name, host_obs in hosts_obs.items():
@@ -542,17 +549,12 @@ class GraphEnv:
 
             malware = int(host_name in self.hosts_with_malware)
 
-            # prev_restored = 0
-            # if host_name == previous_action.host_name:
-            #     prev_restored = self.active_actions.get(previous_action.action_name, 0)
-
             node_matrix[host_idx, :] = (
                 subnet_id,
                 relevance,
                 num_local_ports,
                 exploit,
                 malware,
-                # prev_restored,  # TODO: figure out if useful information
             )
 
         # This set difference needs to happen before any further access to the
