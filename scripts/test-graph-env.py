@@ -36,6 +36,7 @@ class Cfg:
     scenario: Optional[str] = "Scenario2"
     seed: int = 0
     episode_length: int = 30
+    failed_action_penalty: float = -0.1
     quiet: bool = False
     progress_bar: bool = True
     log_level: str = "INFO"
@@ -79,21 +80,24 @@ def main(cfg: Cfg):
     # scenario = "Scenario2_-_User2_User4"
     # scenario = "Scenario2_+_User5_User6"
     env = GraphEnv(
-        scenario=scenario, track_history=cfg.track_history, render_mode=cfg.render_mode
+        scenario=scenario,
+        track_history=cfg.track_history,
+        render_mode=cfg.render_mode,
+        failed_action_penalty=cfg.failed_action_penalty,
     )
 
     obs, info = env.reset()
     # env.render()
 
-    # console.print(Rule("InitialObservation", style="bold red"))
+    # console.print(Rule("InitialObservation", style="yellow"))
     # pprint(info["observation"])
 
     if env.track_history:
-        console.print(Rule("True Table", style="bold red"))
+        console.print(Rule("True Table", style="yellow"))
         console.print(info["true_table"])
-        console.print(Rule("Blue Table", style="bold red"))
+        console.print(Rule("Blue Table", style="yellow"))
         console.print(info["blue_table"])
-        console.print(Rule("Red Table", style="bold red"))
+        console.print(Rule("Red Table", style="yellow"))
         console.print(info["red_table"])
 
     policy = None
@@ -133,57 +137,60 @@ def main(cfg: Cfg):
             # plot_observation_encoded(env, obs, show=True)
 
             if env.track_history:
-                console.print(Rule(f"Step {step}", style="bold red"))
+                console.print(Rule(f"STEP {step}", style="bold red"))
 
-                console.print(Rule("Action", style="bold red"))
-                inspect(info["prev_action"], console=console)
+                console.print(Rule("Action", style="yellow"))
+                # inspect(info["prev_action"], console=console)
+                console.print(env.previous_action)
 
-                console.print(Rule("Blue Observation", style="bold red"))
+                console.print(Rule("Blue Observation", style="yellow"))
                 console.print(info["cyborg_result"]["observation"])
                 # console.print(info["blue_obs"])
 
-                console.print(Rule("Hosts Observed", style="bold red"))
+                console.print(Rule("Hosts Observed", style="yellow"))
                 console.print(info["hosts_obs"])
-                console.print(Rule("Connections Observed", style="bold red"))
+                console.print(Rule("Connections Observed", style="yellow"))
                 console.print(info["connections_obs"])
-                console.print(Rule("Exploited Hosts", style="bold red"))
+                console.print(Rule("Exploited Hosts", style="yellow"))
                 console.print(info["exploited_hosts"])
-                console.print(Rule("Malware Hosts", style="bold red"))
+                console.print(Rule("Malware Hosts", style="yellow"))
                 console.print(info["malware_hosts"])
-                console.print(Rule("Encoded Observation", style="bold red"))
+                console.print(Rule("Encoded Observation", style="yellow"))
                 # console.print(info["encoded_observation"].x)
                 df = pd.DataFrame(info["encoded_observation"].x)
                 df.columns = env.NodeFeatures._fields
                 df.index = env.host_names
                 console.print(df)
-                console.print(Rule("Encoded Edges", style="bold red"))
+                console.print(Rule("Encoded Edges", style="yellow"))
                 console.print(info["encoded_observation"].edge_index)
                 if info["encoded_observation"].edge_attr:
-                    console.print(Rule("Encoded Edge Weights", style="bold red"))
+                    console.print(Rule("Encoded Edge Weights", style="yellow"))
                     console.print(info["encoded_observation"].edge_attr.T)
-                console.print(Rule("Encoded Global Attributes", style="bold red"))
                 if getattr(info["encoded_observation"], "global_attr", None):
+                    console.print(Rule("Encoded Global Attributes", style="yellow"))
                     console.print(info["encoded_observation"].global_attr)
 
-                console.print(Rule("True Table", style="bold red"))
+                console.print(Rule("True Table", style="yellow"))
                 console.print(info["true_table"])
 
-                console.print(Rule("Last Blue Action", style="bold red"))
+                console.print(Rule("Last Blue Action", style="yellow"))
                 inspect(env.cyborg.get_last_action(agent="Blue"), console=console)
-                console.print(Rule("Blue Table", style="bold red"))
+                console.print(Rule("Blue Table", style="yellow"))
                 console.print(info["blue_table"])
 
-                console.print(Rule("Last Red Action", style="bold red"))
+                console.print(Rule("Last Red Action", style="yellow"))
                 inspect(env.cyborg.get_last_action(agent="Red"), console=console)
 
-                console.print(Rule("Red Table", style="bold red"))
+                console.print(Rule("Red Table", style="yellow"))
                 console.print(info["red_table"])
-                console.print(Rule("Red Observation", style="bold red"))
+                console.print(Rule("Red Observation", style="yellow"))
                 console.print(info["red_obs"])
 
-                # TODO: "Remove" in str(env.cyborg.get_last_action(agent="Blue")) and info["cyborg_result"]["observation"]["success"].value == 3
-                console.print(Rule("Reward", style="bold red"))
+                console.print(Rule("Reward", style="yellow"))
+
                 console.print(env.cyborg.get_rewards())
+                if env.previous_action.success == 0:
+                    console.print(f"Failed action penalty: {env.failed_action_penalty}")
 
     # plt.show()
 

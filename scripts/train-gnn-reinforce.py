@@ -35,6 +35,7 @@ LOGGER = logging.getLogger(__name__)
 class Cfg:
     scenario: str = "Scenario2"
     episode_length: int = 30
+    failed_action_penalty: float = 0
     batch_size_episodes: int = 300
     seed: int = 0
     learning_rate: float = 3e-3
@@ -302,7 +303,11 @@ if __name__ == "__main__":
                 LOGGER.warning(f"Will ignore the provided scenario {cfg.scenario}.")
                 scenario = trained_scenario
 
-        env = GraphEnv(scenario=scenario, max_steps=cfg.episode_length)
+        env = GraphEnv(
+            scenario=scenario,
+            max_steps=cfg.episode_length,
+            failed_action_penalty=cfg.failed_action_penalty,
+        )
         policy = Police(
             env,
             latent_node_dim=cfg.policy_latent_node_dim,

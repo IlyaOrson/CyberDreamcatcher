@@ -136,10 +136,13 @@ class GraphEnv:
         max_steps=100,
         render_mode=None,
         track_history=False,
+        failed_action_penalty=0,
     ) -> None:
         self.step_counter = None
         self.max_steps = max_steps
         self.track_history = track_history
+        assert failed_action_penalty <= 0, "Failed action penalty must be negative."
+        self.failed_action_penalty = failed_action_penalty
 
         if not scenario:
             self.scenario_path = get_scenario(name="Scenario2", from_cyborg=True)
@@ -663,7 +666,6 @@ class GraphEnv:
 
             info["cyborg_result"] = vars(cyborg_result)
 
-            info["true_state"] = self.get_true_state()
             info["true_table"] = self.get_true_table()
 
             info["blue_table"] = blue_table_obs
@@ -715,7 +717,6 @@ class GraphEnv:
             info["cyborg_result"] = vars(cyborg_result)
 
             info["true_table"] = self.get_true_table()
-            info["true_state"] = self.get_true_state()
 
             info["blue_table"] = blue_table_obs
             info["blue_obs"] = self.get_raw_observation("Blue")
@@ -734,6 +735,8 @@ class GraphEnv:
             info.update(graph_info)
 
         reward = cyborg_result.reward
+        if self.failed_action_penalty and cyborg_result.reward == 0:
+            reward += self.failed_action_penalty
 
         terminated = cyborg_result.done
 
@@ -782,8 +785,11 @@ class GraphEnv:
             agent = self.agent_name
         return self.cyborg.get_observation(agent=agent)
 
-    def get_true_state(self):
-        return self.cyborg.get_agent_state("True")
+    # def get_raw_state(self, agent=None):
+    #     if agent is None:
+    #         # agent = self.agent_name
+    #         agent = "True"
+    #     return self.cyborg.get_agent_state(agent)
 
     def get_true_table(self):
         # NOTE: true table is managed by the blue agent
