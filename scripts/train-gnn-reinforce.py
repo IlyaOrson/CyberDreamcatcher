@@ -37,14 +37,14 @@ class Cfg:
     episode_length: int = 30
     batch_size_episodes: int = 300
     seed: int = 0
-    learning_rate: float = 7e-3
-    optimizer_iterations: int = 500
+    learning_rate: float = 3e-3
+    optimizer_iterations: int = 1000
     grad_clipping: float = 5
     normalize_advantage: bool = True
 
     policy_weights: Optional[str] = None
     policy_latent_node_dim: int = 5
-    policy_actor_heads: int = 5
+    policy_actor_heads: int = 3
 
     log_comet: bool = True
     log_freq: int = 20
@@ -54,8 +54,8 @@ class Cfg:
     use_scheduler: bool = False
     scheduler_mode: str = "max"  # 'max' because we monitor reward
     scheduler_factor: float = 0.8
-    scheduler_patience: int = 50
-    scheduler_threshold: float = 0.1
+    scheduler_patience: int = 30
+    scheduler_threshold: float = 0.01
     scheduler_threshold_mode: str = (
         # "abs"  # 'abs' --> improvement = new_metric > best_metric + threshold
         "rel"  # 'rel' --> improvement = new_metric > best_metric * (1 + threshold)
