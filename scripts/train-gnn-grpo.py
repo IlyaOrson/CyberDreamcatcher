@@ -1,5 +1,4 @@
-from dataclasses import dataclass, asdict
-import os
+from dataclasses import dataclass
 from pathlib import Path
 import logging
 import gc
@@ -10,7 +9,6 @@ from omegaconf import OmegaConf
 
 import comet_ml
 from comet_ml.integration.pytorch import log_model
-from dotenv import load_dotenv
 from rich.logging import RichHandler
 
 import numpy as np
@@ -55,11 +53,8 @@ class GRPO:
         self.experiment = None
         if conf.log_comet:
             try:
-                # --- Comet ML Setup ---
-                load_dotenv()
                 self.experiment = comet_ml.Experiment(
-                    api_key=os.getenv("COMET_API_KEY"),
-                    project_name=os.getenv("COMET_PROJECT_NAME"),
+                    project_name="cyberdreamcatcher",
                     auto_param_logging=False,
                     auto_metric_logging=False,
                 )
@@ -69,7 +64,6 @@ class GRPO:
                     OmegaConf.to_container(conf, resolve=True)
                 )
                 self.experiment.log_html(f"<p>Output Directory: {self.output_dir}</p>")
-                # --- End Comet ML Setup ---
             except Exception as e:
                 LOGGER.warning(f"CometML initialization failed: {e}")
                 self.experiment = None

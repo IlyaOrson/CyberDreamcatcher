@@ -1,9 +1,7 @@
-import os
 from pathlib import Path
 import logging
 import time
-from dataclasses import dataclass, field
-# import warnings
+from dataclasses import dataclass
 
 import hydra
 from hydra.core.config_store import ConfigStore
@@ -11,7 +9,6 @@ from omegaconf import OmegaConf
 
 import comet_ml
 from comet_ml.integration.pytorch import log_model
-from dotenv import load_dotenv
 from rich.logging import RichHandler
 
 import torch
@@ -109,18 +106,14 @@ def train(cfg: Cfg):
     experiment = None
     if cfg.log_comet:
         try:
-            # --- Comet ML Setup ---
-            load_dotenv()
             experiment = comet_ml.Experiment(
-                api_key=os.getenv("COMET_API_KEY"),
-                project_name=os.getenv("COMET_PROJECT_NAME"),
+                project_name="cyberdreamcatcher",
                 auto_param_logging=False,
                 auto_metric_logging=False,
             )
             experiment.set_name(f"botorch_seed_{cfg.seed}")
             experiment.log_parameters(OmegaConf.to_container(cfg, resolve=True))
             experiment.log_html(f"<p>Output Directory: {output_dir}</p>")
-            # --- End Comet ML Setup ---
         except Exception as e:
             LOGGER.warning(f"CometML initialization failed: {e}")
             experiment = None

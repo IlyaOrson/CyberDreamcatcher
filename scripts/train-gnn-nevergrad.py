@@ -8,7 +8,6 @@ from hydra.core.config_store import ConfigStore
 from omegaconf import OmegaConf
 
 import comet_ml
-from dotenv import load_dotenv
 
 from tqdm import tqdm
 import nevergrad as ng
@@ -56,11 +55,8 @@ def main(cfg: Cfg) -> None:
     experiment = None  # Initialize experiment to None
     if cfg.log_comet:
         try:
-            # --- Comet ML Setup ---
-            load_dotenv()
             experiment = comet_ml.Experiment(
-                api_key=os.getenv("COMET_API_KEY"),
-                project_name=os.getenv("COMET_PROJECT_NAME"),
+                project_name="cyberdreamcatcher",
                 auto_param_logging=False,
                 auto_metric_logging=False,
             )
@@ -68,7 +64,6 @@ def main(cfg: Cfg) -> None:
             # Use OmegaConf for consistency
             experiment.log_parameters(OmegaConf.to_container(cfg, resolve=True))
             experiment.log_html(f"<p>Output Directory: {output_dir}</p>")
-            # --- End Comet ML Setup ---
         except Exception as e:
             print(f"WARNING: CometML initialization failed: {e}")
             experiment = None  # Ensure it's None on failure

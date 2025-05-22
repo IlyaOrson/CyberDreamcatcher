@@ -1,4 +1,3 @@
-import os
 from pathlib import Path
 from dataclasses import dataclass
 import logging
@@ -9,7 +8,6 @@ from tqdm import trange, tqdm
 import torch
 import comet_ml
 from comet_ml.integration.pytorch import log_model
-from dotenv import load_dotenv
 import hydra
 from hydra.core.config_store import ConfigStore
 from omegaconf import OmegaConf
@@ -54,10 +52,8 @@ class REINFORCEParallel:
         self.experiment = None
         if conf.log_comet:
             try:
-                load_dotenv()
                 self.experiment = comet_ml.Experiment(
-                    api_key=os.getenv("COMET_API_KEY"),
-                    project_name=os.getenv("COMET_PROJECT_NAME"),
+                    project_name="cyberdreamcatcher",
                     auto_param_logging=False,
                     auto_metric_logging=False,
                 )
@@ -93,7 +89,7 @@ class REINFORCEParallel:
 
         self.policy.eval()
 
-        # TODO: use batch processing on GPU
+        # TODO: use batch processing on GPU (requires calling policy on batch of observations to get only logits)
         for _, episode in enumerate(batch_trajectories):
             obs_seq, actions_seq, rewards_seq, log_probs_seq = episode
             rewards_to_go = np.flip(np.cumsum(np.flip(np.array(rewards_seq))))
@@ -235,7 +231,7 @@ def main(cfg: Cfg) -> None:
 if __name__ == "__main__":
     raise NotImplementedError(
         """Parallel REINFORCE works but it is not faster than the serial version
-        because the policy does not work over batches of observations to take advantage of the GPU.
+        because the policy does not work over batches of observations to take advantage of the GPU...
         """
     )
     main()
