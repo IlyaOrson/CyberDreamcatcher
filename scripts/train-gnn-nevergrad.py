@@ -117,6 +117,8 @@ def main(cfg: Cfg) -> None:
         scenario=cfg.scenario,
         episode_length=cfg.episode_length,
         num_jobs=cfg.num_jobs,
+        latent_node_dim=cfg.latent_node_dim,  # Added
+        actor_heads=cfg.actor_heads,  # Added
         # policy_weights are set dynamically per 'ask' call
     )
 

@@ -140,6 +140,8 @@ def train(cfg: Cfg):
         scenario=cfg.scenario,
         episode_length=cfg.episode_length,
         num_jobs=cfg.num_jobs,
+        latent_node_dim=cfg.latent_node_dim,  # Added
+        actor_heads=cfg.actor_heads,  # Added
     )
 
     bounds = torch.tensor(

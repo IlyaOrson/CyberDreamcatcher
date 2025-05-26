@@ -104,10 +104,14 @@ class EpisodeSampler:
         episode_length,
         policy_weights=None,
         num_jobs=1,
+        latent_node_dim=None,  # Added
+        actor_heads=1,  # Added
     ):
         self.seed = seed
         self.scenario = scenario
         self.episode_length = episode_length
+        self.latent_node_dim = latent_node_dim  # Added
+        self.actor_heads = actor_heads  # Added
 
         self.policy_weights = policy_weights
         self.num_jobs = num_jobs
@@ -121,14 +125,18 @@ class EpisodeSampler:
         and use them to form the baselined loss function to optimize.
         """
 
-        def _collect_rewards_log_probs(seed, scenario, episode_length, policy_weights):
+        def _collect_rewards_log_probs(
+            seed, scenario, episode_length, policy_weights, latent_node_dim, actor_heads
+        ):
             "Create an independent environment and policy"
             env = GraphEnv(
                 scenario=scenario,
                 max_steps=episode_length,
                 render_mode=None,
             )
-            policy = Police(env)
+            policy = Police(
+                env, latent_node_dim=latent_node_dim, actor_heads=actor_heads
+            )
 
             # load trained policy
             if policy_weights:
@@ -143,7 +151,12 @@ class EpisodeSampler:
             n_jobs=self.num_jobs, return_as="generator_unordered"
         )(
             delayed(_collect_rewards_log_probs)(
-                self.seed + i, self.scenario, self.episode_length, self.policy_weights
+                self.seed + i,
+                self.scenario,
+                self.episode_length,
+                self.policy_weights,
+                self.latent_node_dim,
+                self.actor_heads,
             )
             for i in range(num_episodes)
         )
@@ -169,14 +182,18 @@ class EpisodeSampler:
         and use them to form the baselined loss function to optimize.
         """
 
-        def _collect_trajectory(seed, scenario, episode_length, policy_weights):
+        def _collect_trajectory(
+            seed, scenario, episode_length, policy_weights, latent_node_dim, actor_heads
+        ):
             "Create an independent environment and policy"
             env = GraphEnv(
                 scenario=scenario,
                 max_steps=episode_length,
                 render_mode=None,
             )
-            policy = Police(env)
+            policy = Police(
+                env, latent_node_dim=latent_node_dim, actor_heads=actor_heads
+            )
 
             # load trained policy
             if policy_weights:
@@ -202,7 +219,12 @@ class EpisodeSampler:
         # Use joblib with tqdm  https://github.com/joblib/joblib/issues/972#issuecomment-1623366702
         parallel_generator = Parallel(n_jobs=self.num_jobs, return_as="generator")(
             delayed(_collect_trajectory)(
-                self.seed + i, self.scenario, self.episode_length, self.policy_weights
+                self.seed + i,
+                self.scenario,
+                self.episode_length,
+                self.policy_weights,
+                self.latent_node_dim,
+                self.actor_heads,
             )
             for i in range(num_episodes)
         )

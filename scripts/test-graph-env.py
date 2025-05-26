@@ -31,7 +31,7 @@ LOGGER = logging.getLogger(__name__)
 @dataclass
 class Cfg:
     policy_weights: Optional[str] = None
-    policy_latent_node_dim: int = 3
+    policy_latent_node_dim: int = 5
     policy_actor_heads: int = 3
     scenario: Optional[str] = "Scenario2"
     seed: int = 0
