@@ -1,28 +1,20 @@
-import os
 from pathlib import Path
 from dataclasses import dataclass
 from typing import Optional, List
 import logging
-
 
 import hydra
 from hydra.core.config_store import ConfigStore
 from omegaconf import OmegaConf
 import torch
 import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
 
 from cyberdreamcatcher.utils import (
     load_trained_weights,
     long_format_dataframe,
-    downsample_dataframe,
 )
 from cyberdreamcatcher.sampler import EpisodeSampler
-from cyberdreamcatcher.plots import plot_split_distributions
 
-# sns.set_theme(style="ticks")
-sns.set_theme(style="white", rc={"axes.facecolor": (0, 0, 0, 0)})
 
 # Disable specific loggers
 logging.getLogger("CybORGLog-Process").setLevel(logging.CRITICAL)
@@ -50,7 +42,7 @@ cs.store(name="args", node=Cfg)
 @hydra.main(version_base=None, config_name="args", config_path=None)
 def main(cfg: Cfg):
     # https://hydra.cc/docs/tutorials/basic/running_your_app/working_directory/
-    print(f"Working directory : {os.getcwd()}")
+    print(f"Working directory : {Path.cwd()}")
     output_dir = hydra.core.hydra_config.HydraConfig.get().runtime.output_dir
     print(f"Output directory  : {output_dir}")
 
@@ -126,16 +118,6 @@ def main(cfg: Cfg):
     data_filename = Path(output_dir) / "rewards_to_go.csv"
     df.to_csv(data_filename, index=False)
     print(f"Stored results in {data_filename}")
-
-    last_timestep = df["timestep"].max()
-    final_rewards = df.query(f"timestep == {last_timestep}")
-
-    plot_split_distributions(final_rewards)
-
-    plot_filename = Path(output_dir) / "generalisation.png"
-    # Save figure with high DPI for publication
-    plt.savefig(plot_filename, dpi=300, bbox_inches="tight", pad_inches=0.2)
-    print(f"Saved figure at {plot_filename}")
 
 
 main()

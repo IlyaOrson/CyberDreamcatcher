@@ -153,11 +153,11 @@ Specify a scenario to sample episodes from and optionally the weights of a pretr
 
 ```bash
 # The default behaviour is to use a random policy on "Scenario2".
-pixi run plot-performance
+pixi run sample-performance
 
-# This will compare the performance of a trained policy
+# This will compare the performance of a trained policy
 # with a random policy on the scenario used for training
-pixi run plot-performance policy_weights="path/to/trained_params.pt"
+pixi run sample-performance policy_weights="path/to/trained_params.pt"
 ```
 
 <div align="center">
@@ -176,7 +176,7 @@ Specify the path to the trained policy to be tested and array of paths of the sp
 
 ```bash
 # add --help to see the available options
-pixi run plot-generalisation policy_weights=path/to/trained_params.pt local_policies=[path/to/0/trained_params.pt,path/to/1/trained_params.pt,path/to/3/trained_params.pt, ...]
+pixi run sample-generalisation policy_weights=path/to/trained_params.pt local_policies=[path/to/0/trained_params.pt,path/to/1/trained_params.pt,path/to/3/trained_params.pt, ...]
 ```
 
 <div align="center">
