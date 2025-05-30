@@ -44,8 +44,8 @@ class Cfg:
     normalize_advantage: bool = True
 
     policy_weights: Optional[str] = None
-    policy_latent_node_dim: int = 5
-    policy_actor_heads: int = 3
+    latent_node_dim: int = 8
+    actor_heads: int = 3
 
     log_comet: bool = True
     log_freq: int = 20
@@ -310,8 +310,8 @@ if __name__ == "__main__":
         )
         policy = Police(
             env,
-            latent_node_dim=cfg.policy_latent_node_dim,
-            actor_heads=cfg.policy_actor_heads,
+            latent_node_dim=cfg.latent_node_dim,
+            actor_heads=cfg.actor_heads,
         )
 
         if policy_weights:

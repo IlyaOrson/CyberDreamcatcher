@@ -31,8 +31,8 @@ LOGGER = logging.getLogger(__name__)
 @dataclass
 class Cfg:
     policy_weights: Optional[str] = None
-    policy_latent_node_dim: int = 5
-    policy_actor_heads: int = 3
+    latent_node_dim: int = 8
+    actor_heads: int = 3
     scenario: Optional[str] = "Scenario2"
     seed: int = 0
     episode_length: int = 30
@@ -62,12 +62,25 @@ def main(cfg: Cfg):
     ), "Please provide either 'scenario' or 'policy_weights'."
 
     scenario = cfg.scenario
-    if cfg.policy_weights and Path(cfg.policy_weights).exists():
-        policy_weights, trained_scenario = load_trained_weights(cfg.policy_weights)
-        print(f"Loaded policy trained on {trained_scenario}.")
-        if trained_scenario != cfg.scenario:
-            print("Will ignore the provided scenario.")
-            scenario = trained_scenario
+    latent_node_dim = cfg.latent_node_dim
+    actor_heads = cfg.actor_heads
+
+    if cfg.policy_weights:
+        policy_weights, logged_cfg = load_trained_weights(
+            cfg.policy_weights, weights_only=False
+        )
+        if logged_cfg:
+            # Logged policy parameters should match the provided config parameters
+            assert (
+                logged_cfg.scenario == scenario
+            ), "Logged scenario does not match provided scenario."
+            assert (
+                logged_cfg.latent_node_dim == latent_node_dim
+            ), "Logged latent_node_dim does not match provided latent_node_dim."
+            assert (
+                logged_cfg.actor_heads == actor_heads
+            ), "Logged actor_heads does not match provided actor_heads."
+
     print(f"Plotting performance on scenario {scenario}.")
 
     console = Console(quiet=cfg.quiet)
@@ -104,15 +117,10 @@ def main(cfg: Cfg):
     if cfg.policy_weights:
         policy = Police(
             env,
-            latent_node_dim=cfg.policy_latent_node_dim,
-            actor_heads=cfg.policy_actor_heads,
+            latent_node_dim=latent_node_dim,
+            actor_heads=actor_heads,
         )
-        if Path(cfg.policy_weights).exists():
-            policy.load_state_dict(torch.load(cfg.policy_weights))
-        else:
-            console.print(
-                f"Policy weights not found at {cfg.policy_weights}, using random weights instead."
-            )
+        policy.load_state_dict(policy_weights)
 
     with Progress(
         SpinnerColumn(),

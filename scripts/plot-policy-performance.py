@@ -28,8 +28,10 @@ logging.getLogger("CybORGLog-Process").setLevel(logging.CRITICAL)
 
 @dataclass
 class Cfg:
+    scenario: Optional[str] = None
     policy_weights: Optional[str] = None
-    scenario: Optional[str] = "Scenario2"
+    latent_node_dim: int = 8
+    actor_heads: int = 3
     seed: int = 0
     episode_length: int = 30
     num_episodes: int = 1000
@@ -54,20 +56,31 @@ def main(cfg: Cfg):
     ), "Please provide either 'scenario' or 'policy_weights'."
 
     policy_weights = None
-    scenario = cfg.scenario
     if cfg.policy_weights:
-        policy_weights, trained_scenario = load_trained_weights(cfg.policy_weights)
-        print(f"Loaded policy trained on {trained_scenario}.")
-        if trained_scenario != cfg.scenario:
-            print("Will ignore the provided scenario.")
-            scenario = trained_scenario
-    print(f"Plotting performance on scenario {scenario}.")
+        policy_weights, logged_cfg = load_trained_weights(
+            cfg.policy_weights, weights_only=False
+        )
+        if logged_cfg:
+            # If any of the logged policy parameters are different from the provided config,
+            # print a warning and use the logged config parameters.
+            for key in ["scenario", "latent_node_dim", "actor_heads"]:
+                provided_value = getattr(cfg, key)
+                logged_value = getattr(logged_cfg, key)
+                if provided_value and provided_value != logged_value:
+                    print(
+                        f"Warning: {key} in logged config ({logged_value}) "
+                        f"differs from provided {key} ({provided_value}). "
+                        f"Using logged {key}."
+                    )
+                    setattr(cfg, key, logged_value)
 
     dfs = []
     random_sampler = EpisodeSampler(
         cfg.seed,
         cfg.scenario,
         cfg.episode_length,
+        latent_node_dim=cfg.latent_node_dim,
+        actor_heads=cfg.actor_heads,
         policy_weights=None,
         num_jobs=cfg.num_jobs,
     )
@@ -78,11 +91,13 @@ def main(cfg: Cfg):
     df_long["Policy"] = "Random"
     dfs.append(df_long)
 
-    if cfg.policy_weights:
+    if policy_weights:
         loaded_sampler = EpisodeSampler(
             cfg.seed,
             cfg.scenario,
             cfg.episode_length,
+            latent_node_dim=cfg.latent_node_dim,
+            actor_heads=cfg.actor_heads,
             policy_weights=policy_weights,
             num_jobs=cfg.num_jobs,
         )

@@ -33,6 +33,8 @@ logging.getLogger("cyberdreamcatcher.utils").setLevel(logging.CRITICAL)
 class Cfg:
     local_policies: Optional[List[str]] = None
     policy_weights: Optional[str] = None
+    latent_node_dim: int = 8
+    actor_heads: int = 3
     seed: int = 31415
     episode_length: int = 30
     num_episodes: int = 1000
@@ -81,6 +83,8 @@ def main(cfg: Cfg):
             trained_scenario,
             cfg.episode_length,
             policy_weights=policy_weights,
+            latent_node_dim=logged_cfg.latent_node_dim,
+            actor_heads=logged_cfg.actor_heads,
             num_jobs=cfg.num_jobs,
         )
         stacked_rewards_to_go, _ = specialised_policy_sampler.sample_episodes(
@@ -94,6 +98,8 @@ def main(cfg: Cfg):
             trained_scenario,
             cfg.episode_length,
             policy_weights=foreign_policy_weights,
+            latent_node_dim=logged_cfg.latent_node_dim,
+            actor_heads=logged_cfg.actor_heads,
             num_jobs=cfg.num_jobs,
         )
         stacked_rewards_to_go, _ = foreign_policy_sampler.sample_episodes(

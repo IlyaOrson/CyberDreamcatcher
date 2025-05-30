@@ -34,7 +34,8 @@ class Cfg:
     num_jobs: int = -1
     normalize_advantage: bool = False
     device: str = "cuda" if torch.cuda.is_available() else "cpu"
-    latent_node_dim: int = 3
+    latent_node_dim: int = 8
+    actor_heads: int = 3
     log_comet: bool = True
     log_level: str = "INFO"
 
@@ -75,6 +76,8 @@ class REINFORCEParallel:
             seed=self.conf.seed,
             scenario=self.conf.scenario,
             episode_length=self.conf.episode_length,
+            latent_node_dim=self.conf.latent_node_dim,
+            actor_heads=self.conf.actor_heads,
             policy_weights=policy_weights,
             num_jobs=self.conf.num_jobs,
         )

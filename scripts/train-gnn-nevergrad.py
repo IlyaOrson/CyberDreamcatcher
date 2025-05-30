@@ -36,8 +36,8 @@ class Cfg:
     use_mean_reward: bool = True
     optimizer: str = "TwoPointsDE"  # Or "TBPSA", "CMA", "PSO", "NG", etc.
     init_policy_path: str | None = None
-    latent_node_dim: int = 4
-    actor_heads: int = 1
+    latent_node_dim: int = 8
+    actor_heads: int = 3
     log_comet: bool = True
 
 
@@ -117,8 +117,8 @@ def main(cfg: Cfg) -> None:
         scenario=cfg.scenario,
         episode_length=cfg.episode_length,
         num_jobs=cfg.num_jobs,
-        latent_node_dim=cfg.latent_node_dim,  # Added
-        actor_heads=cfg.actor_heads,  # Added
+        latent_node_dim=cfg.latent_node_dim,
+        actor_heads=cfg.actor_heads,
         # policy_weights are set dynamically per 'ask' call
     )
 

@@ -43,8 +43,8 @@ class Cfg:
     scenario: str = "Scenario2"
     episode_length: int = 30
     num_jobs: int = -1
-    latent_node_dim: int = 4
-    actor_heads: int = 1
+    latent_node_dim: int = 8
+    actor_heads: int = 3
     num_initial_points: int = 20
     budget: int = 1000
     batch_size_episodes: int = 100
@@ -140,8 +140,8 @@ def train(cfg: Cfg):
         scenario=cfg.scenario,
         episode_length=cfg.episode_length,
         num_jobs=cfg.num_jobs,
-        latent_node_dim=cfg.latent_node_dim,  # Added
-        actor_heads=cfg.actor_heads,  # Added
+        latent_node_dim=cfg.latent_node_dim,
+        actor_heads=cfg.actor_heads,
     )
 
     bounds = torch.tensor(

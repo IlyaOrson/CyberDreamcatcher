@@ -58,8 +58,8 @@ class Cfg:
     norm_rewards: bool = True
     # Policy settings
     policy_weights: Optional[str] = None
-    policy_latent_node_dim: int = 5
-    policy_actor_heads: int = 3
+    latent_node_dim: int = 8
+    actor_heads: int = 3
     train_critic: bool = True
 
     # Logging
@@ -602,8 +602,8 @@ def main(cfg: Cfg) -> None:
     env = GraphEnv(scenario=scenario, max_steps=cfg.episode_length)
     policy = Police(
         env,
-        latent_node_dim=cfg.policy_latent_node_dim,
-        actor_heads=cfg.policy_actor_heads,
+        latent_node_dim=cfg.latent_node_dim,
+        actor_heads=cfg.actor_heads,
         train_critic=True,  # Enable critic for PPO
     )
 

@@ -153,34 +153,34 @@ def available_scenarios():
     module_dir = Path(__file__).parent.absolute()
     project_dir = module_dir.parent
     scenarios_dir = project_dir / "scenarios"
-    scenarios = [file.name for file in scenarios_dir.iterdir() if file.is_file()]
+    scenarios = [file.stem for file in scenarios_dir.iterdir() if file.is_file()]
     return scenarios
 
 
-def load_trained_weights(policy_weights_path, trained_scenario=None):
+def load_trained_weights(policy_weights_path, weights_only=True):
     """Load trained weights safely and extract scenario
     from logged training file if not specified"""
 
     policy_path = Path(policy_weights_path)
     assert policy_path.is_file()
 
-    policy_weights = torch.load(policy_path, weights_only=True)
+    policy_weights = torch.load(policy_path, weights_only=weights_only)
 
-    if trained_scenario:
-        assert (
-            trained_scenario in available_scenarios()
-        ), "Provided scenario is not predefined in scenarios/"
-    else:
-        # load scenario from configuration file
-        policy_dir = policy_path.parent
-        logged_cfg_path = policy_dir / ".hydra" / "config.yaml"
-        assert logged_cfg_path.is_file()
+    # load scenario from configuration file
+    policy_dir = policy_path.parent
+    logged_cfg_path = policy_dir / ".hydra" / "config.yaml"
+
+    logged_cfg = None
+    if logged_cfg_path.is_file():
         logged_cfg = OmegaConf.load(logged_cfg_path)
-        LOGGER.info("Configuration used to train loaded policy.")
+        LOGGER.info("Configuration used to train loaded policy:")
         LOGGER.info(OmegaConf.to_yaml(logged_cfg))
-        trained_scenario = logged_cfg.scenario
+    else:
+        LOGGER.warning(
+            f"Configuration file was not found at the same directory as the policy weights: {logged_cfg_path}."
+        )
 
-    return policy_weights, trained_scenario
+    return policy_weights, logged_cfg
 
 
 def long_format_dataframe(stacked_rewards_to_go):

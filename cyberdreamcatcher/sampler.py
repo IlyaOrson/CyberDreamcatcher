@@ -102,16 +102,16 @@ class EpisodeSampler:
         seed,
         scenario,
         episode_length,
+        latent_node_dim,
+        actor_heads,
         policy_weights=None,
         num_jobs=1,
-        latent_node_dim=None,  # Added
-        actor_heads=1,  # Added
     ):
         self.seed = seed
         self.scenario = scenario
         self.episode_length = episode_length
-        self.latent_node_dim = latent_node_dim  # Added
-        self.actor_heads = actor_heads  # Added
+        self.latent_node_dim = latent_node_dim
+        self.actor_heads = actor_heads
 
         self.policy_weights = policy_weights
         self.num_jobs = num_jobs
