@@ -106,6 +106,7 @@ class EpisodeSampler:
         actor_heads,
         policy_weights=None,
         num_jobs=1,
+        use_single_seed: bool = False,
     ):
         self.seed = seed
         self.scenario = scenario
@@ -115,6 +116,7 @@ class EpisodeSampler:
 
         self.policy_weights = policy_weights
         self.num_jobs = num_jobs
+        self.use_single_seed = use_single_seed
 
         set_all_seeds(self.seed)
 
@@ -140,7 +142,7 @@ class EpisodeSampler:
 
             # load trained policy
             if policy_weights:
-                policy.load_state_dict(policy_weights)
+                policy.load_state_dict(policy_weights, strict=True)
 
             return collect_rewards_log_probs(env, policy, seed)
 
@@ -151,7 +153,7 @@ class EpisodeSampler:
             n_jobs=self.num_jobs, return_as="generator_unordered"
         )(
             delayed(_collect_rewards_log_probs)(
-                self.seed + i,
+                self.seed if self.use_single_seed else self.seed + i,
                 self.scenario,
                 self.episode_length,
                 self.policy_weights,
@@ -197,7 +199,7 @@ class EpisodeSampler:
 
             # load trained policy
             if policy_weights:
-                policy.load_state_dict(policy_weights)
+                policy.load_state_dict(policy_weights, strict=True)
 
             return collect_trajectory(env, policy, seed)
 

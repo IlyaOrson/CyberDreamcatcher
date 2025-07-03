@@ -21,7 +21,9 @@ import pandas as pd
 
 from cyberdreamcatcher.env import GraphEnv
 from cyberdreamcatcher.policy import Police
-from cyberdreamcatcher.utils import load_trained_weights
+from cyberdreamcatcher.utils import (
+    get_policy_weights_and_config,
+)
 # from cyberdreamcatcher.plots import plot_action_probabilities, plot_observation_encoded
 
 
@@ -30,10 +32,14 @@ LOGGER = logging.getLogger(__name__)
 
 @dataclass
 class Cfg:
+    use_policy: bool = True
     policy_weights: Optional[str] = None
+    comet_experiment_key: Optional[str] = None
+    comet_model_name: Optional[str] = None
+    comet_model_step: Optional[int] = None
     latent_node_dim: int = 8
     actor_heads: int = 3
-    scenario: Optional[str] = "Scenario2"
+    scenario: str = "Scenario2"
     seed: int = 0
     episode_length: int = 30
     failed_action_penalty: float = -0.1
@@ -57,31 +63,20 @@ def main(cfg: Cfg):
     output_dir = hydra.core.hydra_config.HydraConfig.get().runtime.output_dir
     print(f"Output directory  : {output_dir}")
 
-    assert (
-        cfg.policy_weights or cfg.scenario
-    ), "Please provide either 'scenario' or 'policy_weights'."
+    policy_weights, logged_cfg = get_policy_weights_and_config(cfg, output_dir)
 
     scenario = cfg.scenario
     latent_node_dim = cfg.latent_node_dim
     actor_heads = cfg.actor_heads
 
-    if cfg.policy_weights:
-        policy_weights, logged_cfg = load_trained_weights(
-            cfg.policy_weights, weights_only=False
-        )
-        if logged_cfg:
-            # Logged policy parameters should match the provided config parameters
-            assert (
-                logged_cfg.scenario == scenario
-            ), "Logged scenario does not match provided scenario."
-            assert (
-                logged_cfg.latent_node_dim == latent_node_dim
-            ), "Logged latent_node_dim does not match provided latent_node_dim."
-            assert (
-                logged_cfg.actor_heads == actor_heads
-            ), "Logged actor_heads does not match provided actor_heads."
+    if logged_cfg:
+        # Logged policy parameters should match the provided config parameters
+        if logged_cfg.scenario != scenario:
+            LOGGER.info(
+                f"Logged scenario {logged_cfg.scenario} is different from provided scenario {scenario}."
+            )
 
-    print(f"Plotting performance on scenario {scenario}.")
+    LOGGER.info(f"Simulating scenario {scenario}.")
 
     console = Console(quiet=cfg.quiet)
     logging.basicConfig(level=cfg.log_level, handlers=[RichHandler()])
@@ -102,9 +97,32 @@ def main(cfg: Cfg):
     obs, info = env.reset()
     # env.render()
 
+    policy = None
+    if cfg.use_policy:
+        policy = Police(
+            env,
+            latent_node_dim=latent_node_dim,
+            actor_heads=actor_heads,
+        )
+        if policy_weights is not None:
+            if (
+                isinstance(policy_weights, dict)
+                and "model_state_dict" in policy_weights
+            ):
+                LOGGER.info(
+                    f"CometML checkpoint found. Loading 'model_state_dict' with epoch {policy_weights['epoch']} and reward mean {policy_weights['reward_mean']}"
+                )
+                policy.load_state_dict(policy_weights["model_state_dict"])
+            else:
+                policy.load_state_dict(policy_weights)
+            policy.eval()
+        else:
+            LOGGER.warning("Policy weights not provided. Using random policy.")
+    else:
+        LOGGER.warning("Policy not used. Using random actions.")
+
     # console.print(Rule("InitialObservation", style="yellow"))
     # pprint(info["observation"])
-
     if env.track_history:
         console.print(Rule("True Table", style="yellow"))
         console.print(info["true_table"])
@@ -112,15 +130,6 @@ def main(cfg: Cfg):
         console.print(info["blue_table"])
         console.print(Rule("Red Table", style="yellow"))
         console.print(info["red_table"])
-
-    policy = None
-    if cfg.policy_weights:
-        policy = Police(
-            env,
-            latent_node_dim=latent_node_dim,
-            actor_heads=actor_heads,
-        )
-        policy.load_state_dict(policy_weights)
 
     with Progress(
         SpinnerColumn(),
@@ -130,6 +139,7 @@ def main(cfg: Cfg):
         console=console,
         disable=not cfg.progress_bar,
     ) as progress:
+        rewards = []
         for step in progress.track(
             range(cfg.episode_length), description="Running steps..."
         ):
@@ -143,6 +153,8 @@ def main(cfg: Cfg):
             obs, reward, terminated, truncated, info = env.step(action)
             # env.render()
             # plot_observation_encoded(env, obs, show=True)
+
+            rewards.append(reward)
 
             if env.track_history:
                 console.print(Rule(f"STEP {step}", style="bold red"))
@@ -195,12 +207,14 @@ def main(cfg: Cfg):
                 console.print(info["red_obs"])
 
                 console.print(Rule("Reward", style="yellow"))
-
                 console.print(env.cyborg.get_rewards())
                 if env.previous_action.success == 0:
                     console.print(f"Failed action penalty: {env.failed_action_penalty}")
 
     # plt.show()
+    console.print(Rule("Total Reward", style="purple"))
+    console.print(rewards)
+    console.print(sum(rewards))
 
 
 main()

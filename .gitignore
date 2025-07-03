@@ -192,3 +192,6 @@ multirun/
 
 # logs
 logs/
+
+# temp files
+_*/
