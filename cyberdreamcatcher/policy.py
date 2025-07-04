@@ -75,7 +75,7 @@ class Police(torch.nn.Module):
     "Defensive blue agent - TacticsAI GAT"
 
     PoliceReport = namedtuple(
-        "PoliceReport", ["action", "log_prob", "entropy", "value"]
+        "PoliceReport", ["action", "log_prob", "entropy", "value", "attention"]
     )
 
     def __init__(
@@ -175,7 +175,7 @@ class Police(torch.nn.Module):
         #     for param in self.critic_layers.parameters():
         #         param.requires_grad = False
 
-    def actor(self, nodes_matrix, edge_index, edge_matrix, global_matrix):
+    def actor(self, nodes_matrix, edge_index, edge_matrix, global_matrix, return_attention_weights=False):
         # Score each node to select actions
         actor_latent_nodes = self.actor_latent_0(
             nodes_matrix,
@@ -189,13 +189,24 @@ class Police(torch.nn.Module):
             edge_attr=edge_matrix,
             global_attr=global_matrix,
         )
+        # In case we want to visualise the attention weights
+        if return_attention_weights:
+            action_logits, attention_weights = self.actor_head(
+                actor_latent_nodes,
+                edge_index,
+                edge_attr=edge_matrix,
+                global_attr=global_matrix,
+                return_attention_weights=True,
+            )
+            return action_logits, attention_weights
+
         action_logits = self.actor_head(
             actor_latent_nodes,
             edge_index,
             edge_attr=edge_matrix,
             global_attr=global_matrix,
         )
-        return action_logits
+        return action_logits, None
 
     def critic(self, nodes_matrix, edge_index, edges_matrix, global_matrix):
         # Score each node to value state
@@ -220,7 +231,7 @@ class Police(torch.nn.Module):
         value = torch.sum(node_values)
         return value
 
-    def get_action_logits(self, graph):
+    def get_action_logits(self, graph, return_attention_weights=False):
         # Destructure Data() object from pytorch geometric
         nodes_matrix = graph.x
         edge_index = graph.edge_index
@@ -228,11 +239,12 @@ class Police(torch.nn.Module):
 
         global_matrix = graph.get("global_attr", None)
 
-        action_logits = self.actor(
+        action_logits, attention = self.actor(
             nodes_matrix,
             edge_index,
             edges_matrix,
             global_matrix,
+            return_attention_weights=return_attention_weights,
         )
 
         if self.train_critic:
@@ -245,10 +257,12 @@ class Police(torch.nn.Module):
         else:
             value = None
 
-        return ActionLogits(action_logits, mask_node=self.mask_node), value
+        return ActionLogits(action_logits, mask_node=self.mask_node), value, attention
 
-    def forward(self, graph, action=None):
-        action_logits, value = self.get_action_logits(graph)
+    def forward(self, graph, action=None, return_attention_weights=False):
+        action_logits, value, attention = self.get_action_logits(
+            graph, return_attention_weights=return_attention_weights
+        )
 
         # Flatten the logits array to use a one-dimensional categorical distribution.
         # distribution = Categorical(logits=action_logits.flatten())
@@ -270,4 +284,4 @@ class Police(torch.nn.Module):
 
         action_log_prob = distribution.log_prob(action_flat)
 
-        return self.PoliceReport(action, action_log_prob, entropy, value)
+        return self.PoliceReport(action, action_log_prob, entropy, value, attention)

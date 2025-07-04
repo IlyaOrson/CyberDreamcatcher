@@ -2,13 +2,29 @@ from pathlib import Path
 
 from matplotlib.cm import get_cmap
 import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
 from matplotlib.ticker import StrMethodFormatter
 import networkx as nx
 import numpy as np
 import seaborn as sns
 
+# Apply a global Seaborn theme suitable for presentations
+sns.set_theme(context="talk", style="dark")
+
 import torch
 from torch.nn.functional import softmax
+
+
+def compute_node_positions(env, multipartite: bool = False):
+    """Return a layout dict (string keyed) for the environment's feasible graph without plotting."""
+    graph = nx.DiGraph()
+    for subnet, hostnames in env.subnet_hostnames_map.items():
+        graph.add_nodes_from(hostnames, subnet=subnet)
+    graph.add_edges_from(env.feasible_connections)
+
+    if multipartite:
+        return nx.multipartite_layout(graph, subset_key="subnet", align="horizontal")
+    return nx.kamada_kawai_layout(graph)
 
 
 def plot_feasible_connections(
@@ -69,17 +85,21 @@ def plot_feasible_connections(
             # cmap=cmap
         )
 
+    # Draw edges with no arrows for the main line
     nx.draw_networkx_edges(
         graph,
         pos=node_positions,
         ax=axis,
         alpha=0.25,
-        connectionstyle="Arc3, rad = 0.3",
+        connectionstyle="Arc3, rad=0.3",
+        width=1.0,
+        arrows=False,  # We'll add arrows separately
+        node_size=1200,  # Match the node size
     )
     nx.draw_networkx_labels(graph, pos=node_positions, ax=axis, font_size=8, alpha=0.5)
 
     plt.title(f"{env.scenario_name}")
-    plt.legend(markerscale=0.5)
+    plt.legend(markerscale=0.5, loc="lower center", bbox_to_anchor=(0.5, -0.05), ncol=max(1, n_colors // 2))
     plt.tight_layout()
     if show:
         plt.show(block=block)
@@ -192,7 +212,7 @@ def _plot_observation(
             "facecolor": "yellowgreen",
         },
         label_pos=0.25,  # (0=head, 0.5=center, 1=tail)
-        font_size=6,
+        font_size=4,
         alpha=0.5,
     )
 
@@ -423,6 +443,255 @@ def plot_joyplot(
     # g.tight_layout()
 
     return g
+
+
+def plot_attention_graph(
+    env,
+    attention_data,
+    action,
+    node_positions=None,
+    axis=None,
+    show=False,
+    block=False,
+    colorbar_theme=sns.color_palette("flare_r", as_cmap=True),
+):
+    """Plots the graph with edge colors corresponding to attention weights."""
+    edge_index, attention_weights = attention_data
+    if node_positions is None:
+        # Obtain layout positions without plotting
+        string_keyed_positions = compute_node_positions(env)
+        # Convert string keys to integer keys using the environment's enumeration
+        node_positions = {
+            env.host_enumeration[name]: pos
+            for name, pos in string_keyed_positions.items()
+        }
+
+    if axis is None:
+        _, axis = plt.subplots(figsize=(10, 10))
+    else:
+        axis.cla()
+
+    axis.axis("off")
+
+    # Create graph with integer nodes
+    num_nodes = len(env.host_names)
+    graph = nx.DiGraph()
+    graph.add_nodes_from(range(num_nodes))
+    # Edges are already in integer format
+    graph.add_edges_from(edge_index.T.tolist())
+
+    # Process attention weights - handle multi-head attention
+    # attention_weights shape: [num_edges, num_heads] or [num_edges]
+    weights = attention_weights.detach().cpu()
+    
+    # If we have multiple attention heads, average them
+    if weights.dim() > 1:
+        weights = weights.mean(dim=1)  # Average across attention heads
+    
+    # Convert to numpy for percentile calculation
+    weights_np = weights.numpy()
+    
+    # Calculate percentile-based threshold (top 5% by default)
+    percentile = 10  # Show top 5% of edges by attention weight
+    attention_threshold = np.percentile(weights_np, 100 - percentile)
+    
+    # Get edges and their corresponding weights
+    edges_with_weights = list(zip(edge_index.T.tolist(), weights_np))
+    
+    # Split edges into colored (above threshold) and uncolored (below threshold)
+    colored_edges = [
+        edge for edge, weight in edges_with_weights if weight >= attention_threshold
+    ]
+    colored_weights = [
+        weight for _, weight in edges_with_weights if weight >= attention_threshold
+    ]
+    uncolored_edges = [
+        edge for edge, weight in edges_with_weights if weight < attention_threshold
+    ]
+
+    _encoded_table = env.get_encoded_observation().x
+
+    def get_node_encoding(node_name):
+        node_idx = env.host_enumeration[node_name]
+        encoding = _encoded_table[node_idx]
+        return env.HostObs(*encoding[-3:])
+
+    # does not work because this only returns the observed hosts, not all the network
+    # def get_node_encoding(node_name):
+    #     # returns a named tuple like Host(num_local_ports=0, exploit=False, malware=False)
+    #     return env.get_graph_observation()[0][node_name]
+
+    # Create labels and colors based on node properties
+    labels = {}
+    node_colors = []
+
+    # Use colormap for node states
+    # cmap_nodes = plt.get_cmap("PuRd", 4)
+    # cmap_nodes = plt.get_cmap("plasma", 4)
+    # cmap_nodes = sns.color_palette("crest", 4, as_cmap=True)
+    cmap_nodes = sns.color_palette("Spectral_r", 4, as_cmap=True)
+    state_colors = {
+        "Normal": cmap_nodes(0.15),
+        "Ports": cmap_nodes(0.25),
+        "Exploited": cmap_nodes(0.7),
+        "Malware": cmap_nodes(0.9),
+    }
+
+    for i, name in enumerate(env.host_names):
+        props = get_node_encoding(name)
+
+        # Create label with newlines for better formatting
+        labels[i] = (
+            f"P:{int(props.num_local_ports)}\nE:{int(props.exploit)}\nM:{int(props.malware)}"
+        )
+
+        # Determine color with priority: malware > exploit > ports
+        if props.malware:
+            node_colors.append(state_colors["Malware"])
+        elif props.exploit:
+            node_colors.append(state_colors["Exploited"])
+        elif props.num_local_ports > 0:
+            node_colors.append(state_colors["Ports"])
+        else:
+            node_colors.append(state_colors["Normal"])
+
+    nx.draw_networkx_nodes(
+        graph,
+        pos=node_positions,
+        ax=axis,
+        node_color=node_colors,
+        alpha=0.7,
+        node_shape="8",
+        node_size=1200,  # Increased node size
+        linewidths=2,
+    )
+
+    nx.draw_networkx_labels(
+        graph, pos=node_positions, labels=labels, ax=axis, font_size=10, alpha=0.9
+    )
+
+    # Draw uncolored edges (low attention)
+    if uncolored_edges:
+        nx.draw_networkx_edges(
+            graph,
+            pos=node_positions,
+            ax=axis,
+            edgelist=uncolored_edges,
+            edge_color="grey",
+            width=1.0,
+            alpha=0.3,
+            arrows=True,
+            arrowstyle="-|>",
+            arrowsize=15,  # Increased arrow size
+            node_size=1200,  # Match node size
+            connectionstyle="arc3,rad=0.2",
+            min_source_margin=12,  # Distance from source node
+            min_target_margin=12,  # Distance from target node
+        )
+
+    # Draw colored edges (high attention)
+    if colored_edges:
+        nx.draw_networkx_edges(
+            graph,
+            pos=node_positions,
+            ax=axis,
+            edgelist=colored_edges,
+            edge_color=colored_weights,
+            edge_cmap=plt.get_cmap(colorbar_theme),
+            width=2.5,
+            alpha=0.8,
+            arrows=True,
+            arrowstyle="-|>",  # More visible arrow style
+            arrowsize=20,  # Increased arrow size
+            node_size=1200,  # Match node size
+            connectionstyle="arc3,rad=0.2",
+            min_source_margin=15,  # Distance from source node
+            min_target_margin=15,  # Distance from target node
+        )
+
+        # Add colorbar for edges
+        sm = plt.cm.ScalarMappable(
+            cmap=plt.get_cmap(colorbar_theme),
+            norm=plt.Normalize(vmin=min(colored_weights), vmax=max(colored_weights)),
+        )
+        sm.set_array([])
+        plt.colorbar(
+            sm,
+            ax=axis,
+            label="Attention Weight",
+            orientation="horizontal",
+            shrink=0.8,
+            extend="max",
+            pad=0.12,  # Increased padding for more space below
+            aspect=30,  # Makes the colorbar wider
+        )
+
+    host_name, action_name = env.action_to_name(action)
+    action_str = f"Host: {host_name}   Action: {action_name}"
+    plt.title(action_str)
+
+    # Add legend for node colors
+    legend_elements = [
+        Line2D(
+            [0],
+            [0],
+            marker="8",
+            color="w",
+            label="Normal",
+            markerfacecolor=state_colors["Normal"],
+            markersize=15,
+        ),
+        Line2D(
+            [0],
+            [0],
+            marker="8",
+            color="w",
+            label="Ports > 0",
+            markerfacecolor=state_colors["Ports"],
+            markersize=15,
+        ),
+        Line2D(
+            [0],
+            [0],
+            marker="8",
+            color="w",
+            label="Exploited",
+            markerfacecolor=state_colors["Exploited"],
+            markersize=15,
+        ),
+        Line2D(
+            [0],
+            [0],
+            marker="8",
+            color="w",
+            label="Malware",
+            markerfacecolor=state_colors["Malware"],
+            markersize=15,
+        ),
+    ]
+    # Add smaller legend
+    # Create larger legend with better spacing
+    legend = axis.legend(
+        handles=legend_elements,
+        title="Node Status",
+        loc="lower center",
+        bbox_to_anchor=(0.5, -0.15),  # Move legend further down
+        ncol=4,
+        prop={'size': 10},  # Increased font size
+        title_fontsize=12,  # Larger title
+        frameon=True,
+        framealpha=0.9,
+        borderpad=1.0,  # More padding inside legend box
+        handletextpad=0.5,  # Space between symbol and text
+        labelspacing=0.5,  # Vertical space between entries
+        handlelength=1.5,  # Longer line for legend symbols
+    )
+    legend.get_frame().set_linewidth(1.5)  # Thicker border
+
+    plt.tight_layout()
+
+    if show:
+        plt.show(block=block)
 
 
 def plot_split_distributions(df_long):

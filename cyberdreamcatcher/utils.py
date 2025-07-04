@@ -12,7 +12,7 @@ import numpy as np
 import pandas as pd
 import torch
 from torch.profiler import profile, ProfilerActivity, record_function
-from torch_geometric.data import Data
+from torch_geometric.data import Data, Batch
 
 import CybORG
 
@@ -374,3 +374,18 @@ def profile_inference(data: Data, model: torch.nn.Module, device: str):
             sort_by="cuda_time_total" if device == "cuda" else "cpu_time_total"
         )
     )
+
+
+def get_scenario(name="Scenario2", from_cyborg=True):
+    if from_cyborg:
+        # scenario_path = inspect.getfile(CybORG)[:-10] + f"/Shared/Scenarios/{self.scenario}.yaml"
+        cyborg_path = Path(inspect.getfile(CybORG)).resolve()
+        scenario_dir = cyborg_path.parent / "Shared" / "Scenarios"
+    else:
+        scenario_dir = Path(__file__).resolve().parent.parent / "scenarios"
+
+    scenario_path = scenario_dir / Path(name).with_suffix(".yaml")
+
+    assert scenario_path.exists()
+
+    return scenario_path

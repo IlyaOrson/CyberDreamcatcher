@@ -367,6 +367,19 @@ class GraphEnv:
         action_idx = self.action_enumeration[action_name]
         return (host_idx, action_idx)
 
+    def action_to_name(self, action_tensor):
+        """Converts an action tensor to a tuple of (host_name, action_name)."""
+        host_idx, action_idx = action_tensor
+        host_name = self.host_enumeration.inv[host_idx.item()]
+        action_name = self.action_enumeration.inv[action_idx.item()]
+        return host_name, action_name
+
+    def action_name_to_tensor(self, host_name, action_name):
+        """Converts a host_name and action_name to an action tensor."""
+        host_idx = self.host_enumeration[host_name]
+        action_idx = self.action_enumeration[action_name]
+        return torch.tensor([host_idx, action_idx])
+
     def distill_observation(self, observation):
         """Extracts from the raw blue observation the information required
         to reconstruct the the blue table state but in a graph representation.

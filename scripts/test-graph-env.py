@@ -17,13 +17,14 @@ from rich.progress import (
 from rich.logging import RichHandler
 import torch
 import pandas as pd
-# import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 
 from cyberdreamcatcher.env import GraphEnv
 from cyberdreamcatcher.policy import Police
 from cyberdreamcatcher.utils import (
     get_policy_weights_and_config,
 )
+from cyberdreamcatcher.plots import plot_attention_graph, plot_feasible_connections
 # from cyberdreamcatcher.plots import plot_action_probabilities, plot_observation_encoded
 
 
@@ -48,6 +49,8 @@ class Cfg:
     log_level: str = "INFO"
     track_history: bool = True
     render_mode: Optional[str] = None
+    plot_attention: bool = False
+    plot_only_restore_remove: bool = False  # Only plot attention for Restore/Remove actions
 
 
 # Registering the Config class with the expected name 'args'.
@@ -93,7 +96,9 @@ def main(cfg: Cfg):
         render_mode=cfg.render_mode,
         failed_action_penalty=cfg.failed_action_penalty,
     )
-
+    # if cfg.plot_attention:
+    #     with plt.xkcd():
+    #         plot_feasible_connections(env)
     obs, info = env.reset()
     # env.render()
 
@@ -144,9 +149,22 @@ def main(cfg: Cfg):
             range(cfg.episode_length), description="Running steps..."
         ):
             if policy:
-                action, log_prob, entropy, value = policy(obs)
-                # visualise action probability distribution
-                # plot_action_probabilities(env, policy, obs)
+                report = policy(obs, return_attention_weights=cfg.plot_attention)
+                action = report.action
+
+                if cfg.plot_attention and report.attention is not None:
+                    # Get action name and check if we should plot based on configuration
+                    action_name = env.action_to_name(action)
+                    should_plot = True
+
+                    if cfg.plot_only_restore_remove:
+                        should_plot = action_name[1] in ["Restore", "Remove"]
+                        if not should_plot:
+                            LOGGER.debug(f"Skipping attention plot for action (plot_only_restore_remove=True): {action_name}")
+
+                    if should_plot:
+                        # with plt.xkcd():
+                        plot_attention_graph(env, report.attention, action, show=True, block=True)
             else:
                 action = torch.tensor(env.action_space.sample())
 
