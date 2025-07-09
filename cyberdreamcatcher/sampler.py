@@ -24,13 +24,17 @@ def collect_rewards_log_probs(env, policy, seed):
 
     log_probs = []
     rewards = []
+    entropies = []
     done = False
     while not done:
-        action, log_prob, entropy, value = policy(obs)
+        report = policy(obs)
+        action = report.action
+        log_prob = report.log_prob
         obs, reward, terminated, truncated, info = env.step(action)
 
         log_probs.append(log_prob)
         rewards.append(reward)
+        entropies.append(report.entropy)
 
         done = terminated or truncated
 
@@ -38,7 +42,7 @@ def collect_rewards_log_probs(env, policy, seed):
     # (no discount because episodes have fixed length)
     rewards_to_go = np.flip(np.cumsum(np.flip(np.array(rewards))))
 
-    return rewards_to_go, torch.stack(log_probs)
+    return rewards_to_go, torch.stack(log_probs), torch.stack(entropies)
 
 
 def collect_trajectory(env, policy, seed):
@@ -76,7 +80,9 @@ def collect_trajectory(env, policy, seed):
             all_obs.append(processed_obs)
 
             # Get action from the policy
-            action, log_prob, entropy, value = policy(obs)
+            report = policy(obs)
+            action = report.action
+            log_prob = report.log_prob
 
             # Convert action tensor to a basic type or CPU tensor for storage/serialization
             # Assuming action_tensor is a single value tensor. Adjust if multi-dimensional.
@@ -115,10 +121,14 @@ class EpisodeSampler:
         self.actor_heads = actor_heads
 
         self.policy_weights = policy_weights
-        self.num_jobs = num_jobs
+        self.num_jobs = num_jobs if num_jobs > 0 else Parallel().effective_n_jobs()
         self.use_single_seed = use_single_seed
 
         set_all_seeds(self.seed)
+
+    def update_policy_weights(self, policy_weights: dict) -> None:
+        """Update the policy weights for the sampler."""
+        self.policy_weights = policy_weights
 
     def sample_episodes(self, num_episodes):
         """

@@ -175,10 +175,10 @@ class PPO:
 
             # Get action from policy
             with torch.no_grad():
-                action, log_prob, _, value = self.policy(obs)
-                action = action.detach()
-                log_prob = log_prob.detach()
-                value = value.detach()
+                report = self.policy(obs)
+                action = report.action.detach()
+                log_prob = report.log_prob.detach()
+                value = report.value.detach()
 
             # Take step in environment
             next_obs, reward, terminated, truncated, _ = self.env.step(action)
@@ -212,8 +212,7 @@ class PPO:
             # Bootstrap value if not done
             obs = obs.to(self.device)
             police_report = self.policy(obs)
-            _, _, _, next_value = police_report
-            next_value = next_value.detach()
+            next_value = police_report.value.detach()
 
             # Convert to tensors
             rewards_tensor = torch.tensor(

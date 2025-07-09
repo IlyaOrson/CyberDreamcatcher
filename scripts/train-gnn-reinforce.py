@@ -42,6 +42,7 @@ class Cfg:
     optimizer_iterations: int = 1000
     grad_clipping: float = 5
     normalize_advantage: bool = True
+    entropy_coef: float = 0.01
 
     policy_weights: Optional[str] = None
     latent_node_dim: int = 8
@@ -122,52 +123,23 @@ class REINFORCE:
         num_episodes = self.conf.batch_size_episodes
         batch_rewards_to_go = [None for _ in range(num_episodes)]
         batch_log_probs = [None for _ in range(num_episodes)]
+        batch_entropies = [None for _ in range(num_episodes)]
 
-        for epi in trange(num_episodes, desc="Sampling episodes"):
-            rewards_to_go, log_probs = collect_rewards_log_probs(
-                self.env, self.policy, self.conf.seed
+        pbar = trange(
+            num_episodes,
+            desc=f"Optimizer step {counter} - Collecting rewards-to-go and log probabilities",
+            leave=False,
+        )
+        for i in pbar:
+            seed = self.conf.seed + self.optimizer_step * num_episodes + i
+            rewards_to_go, log_probs, entropies = collect_rewards_log_probs(
+                self.env, self.policy, seed
             )
-            batch_rewards_to_go[epi] = rewards_to_go
-            batch_log_probs[epi] = log_probs
+            batch_rewards_to_go[i] = rewards_to_go
+            batch_log_probs[i] = log_probs
+            batch_entropies[i] = entropies
 
-        rewards_to_go = np.stack(batch_rewards_to_go)
-        log_probs = torch.stack(batch_log_probs)
-
-        reward_mean = np.mean(rewards_to_go[:, 0])
-        reward_std = np.std(rewards_to_go[:, 0])
-
-        # Calculate the time-step-dependent baseline (mean across episodes for each time step)
-        # Shape: (episode_length,)
-        baselines_t = np.mean(rewards_to_go, axis=0)
-
-        # Calculate advantages A_t = R_t - b_t using broadcasting
-        # NumPy automatically subtracts the 1D baselines_t from each row of rewards_to_go
-        # Shape: (num_episodes, episode_length)
-        advantages = rewards_to_go - baselines_t
-
-        # A'_{i,t} = (A_{i,t} - mean_A) / (std_A + EPS)
-        if self.conf.normalize_advantage:
-            advantages_mean = np.mean(advantages)
-            advantages_std = np.std(advantages)
-            advantages = (advantages - advantages_mean) / (advantages_std + EPS)
-
-        # invert signs to maximize reward
-        log_prob_R = -torch.sum(torch.mul(log_probs, torch.tensor(advantages)))
-
-        mean_log_prob_R = log_prob_R / num_episodes
-
-        if counter and self.experiment:
-            if counter in range(0, self.conf.optimizer_iterations, self.conf.log_freq):
-                self.experiment.log_histogram_3d(
-                    rewards_to_go[:, 0], name="reward-to-go", step=counter
-                )
-                self.experiment.log_histogram_3d(
-                    rewards_to_go[:, -1], name="final reward", step=counter
-                )
-            self.experiment.log_metric("reward mean", reward_mean, step=counter)
-            self.experiment.log_metric("reward std", reward_std, step=counter)
-
-        return mean_log_prob_R, reward_mean, reward_std
+        return batch_rewards_to_go, batch_log_probs, batch_entropies
 
     def learn(self):
         optimizer = torch.optim.AdamW(
@@ -189,43 +161,65 @@ class REINFORCE:
             )
 
         pbar = trange(self.conf.optimizer_iterations, desc="Optimizer iteration")
-        for it in pbar:
+        for it, _ in enumerate(pbar):
+            # sample a batch of episodes
+            (batch_rewards_to_go, batch_log_probs, batch_entropies) = self.sample_episodes(
+                counter=it
+            )
+
+            # Unpack batch
+            rewards = np.concatenate(batch_rewards_to_go, axis=0)
+            log_probs = torch.cat(batch_log_probs)
+            entropies = torch.cat(batch_entropies)
+
+            reward_mean = np.mean([r[0] for r in batch_rewards_to_go])
+            reward_std = np.std([r[0] for r in batch_rewards_to_go])
+            entropy_mean = entropies.mean().item()
+
+            # Compute advantage
+            advantage = torch.tensor(rewards.copy(), dtype=torch.float32)
+            if self.conf.normalize_advantage:
+                advantage = (advantage - advantage.mean()) / (
+                    advantage.std() + EPS
+                )  # mask NaNs
+
+            # Compute loss and update policy
+            # loss is the negative of the objective function
+            policy_loss = (log_probs * advantage).mean()
+            entropy_loss = entropies.mean()
+            loss = -(policy_loss + self.conf.entropy_coef * entropy_loss)
+
             optimizer.zero_grad()
-
-            mean_log_prob_R, reward_mean, reward_std = self.sample_episodes(counter=it)
-
-            mean_log_prob_R.backward()
-
-            # Apply gradient clipping if enabled
-            if self.conf.grad_clipping > 0:
-                clip_grad_norm_(
-                    self.policy.parameters(),
-                    max_norm=self.conf.grad_clipping,
-                    norm_type=2,
-                    error_if_nonfinite=True,
-                )
+            loss.backward()
+            # Clip gradients to prevent them from exploding
+            if self.conf.grad_clipping:
+                clip_grad_norm_(self.policy.parameters(), self.conf.grad_clipping)
 
             optimizer.step()
+            self.optimizer_step += 1
 
-            if scheduler is not None:
-                scheduler.step(reward_mean)  # Step the scheduler with the reward
+            if self.conf.use_scheduler:
+                scheduler.step(reward_mean)
 
-            # Log loss and gradient norm if Comet is enabled
             if self.experiment:
-                loss_val = mean_log_prob_R.item()
-                self.experiment.log_metric("loss", loss_val, step=it)
-                if scheduler is not None:
-                    # Log current learning rate
-                    current_lr = scheduler.get_last_lr()[-1]
+                self.experiment.log_metric("reward_mean", reward_mean, step=it)
+                self.experiment.log_metric("reward_std", reward_std, step=it)
+                self.experiment.log_metric("loss", loss.item(), step=it)
+                self.experiment.log_metric("policy_loss", policy_loss.item(), step=it)
+                self.experiment.log_metric("entropy_loss", entropy_loss.item(), step=it)
+                self.experiment.log_metric("entropy_mean", entropy_mean, step=it)
+                self.experiment.log_metric(
+                    "grad_norm",
+                    gradient_norm(self.policy.parameters()),
+                    step=it,
+                )
+                if self.conf.use_scheduler:
                     self.experiment.log_metric(
-                        "current_learning_rate", current_lr, step=it
+                        "learning_rate", scheduler._last_lr[0], step=it
                     )
 
                 grad_norm = gradient_norm(self.policy)
                 self.experiment.log_metric("gradient_norm", grad_norm, step=it)
-
-            # Explicitly delete loss and related tensors to potentially help GC
-            del mean_log_prob_R
 
             # Periodically run garbage collection
             if it % self.conf.log_freq == 0:
