@@ -55,9 +55,10 @@ def count_parameters(model, submodule=None):
     return sum(p.numel() for p in model.parameters())
 
 
-def gradient_norm(model):
-    total_norm = 0
-    for p in model.parameters():
+def gradient_norm(parameters):
+    """Compute the norm of the gradients for a given list of parameters."""
+    total_norm = 0.0
+    for p in parameters:
         if p.grad is not None:
             param_norm = p.grad.detach().data.norm(2)
             total_norm += param_norm.item() ** 2

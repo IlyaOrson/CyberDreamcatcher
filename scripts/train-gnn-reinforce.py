@@ -35,7 +35,7 @@ LOGGER = logging.getLogger(__name__)
 class Cfg:
     scenario: str = "Scenario2"
     episode_length: int = 30
-    failed_action_penalty: float = 0
+    failed_action_penalty: float = -0.05
     batch_size_episodes: int = 300
     seed: int = 0
     learning_rate: float = 3e-3
@@ -110,8 +110,6 @@ class REINFORCE:
                 self.experiment = None
 
         self.optimizer_step = 0
-
-        set_all_seeds(conf.seed)
 
     def sample_episodes(self, counter=None):
         """
@@ -218,9 +216,6 @@ class REINFORCE:
                         "learning_rate", scheduler._last_lr[0], step=it
                     )
 
-                grad_norm = gradient_norm(self.policy)
-                self.experiment.log_metric("gradient_norm", grad_norm, step=it)
-
             # Periodically run garbage collection
             if it % self.conf.log_freq == 0:
                 gc.collect()
@@ -276,6 +271,7 @@ if __name__ == "__main__":
 
     @hydra.main(version_base=None, config_name="hydra", config_path="conf")
     def main(cfg: Cfg) -> None:
+        set_all_seeds(cfg.seed)
         logging.basicConfig(level=cfg.log_level, handlers=[RichHandler()])
         LOGGER.info("Starting REINFORCE GNN Training")
         # https://hydra.cc/docs/tutorials/basic/running_your_app/working_directory/

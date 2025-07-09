@@ -11,6 +11,7 @@ import pandas as pd
 from cyberdreamcatcher.utils import (
     get_policy_weights_and_config,
     long_format_dataframe,
+    set_all_seeds,
 )
 from cyberdreamcatcher.sampler import EpisodeSampler
 
@@ -92,21 +93,26 @@ def main(cfg: Cfg):
                     print(warning_msg)
                     setattr(cfg, key, logged_value)
 
-        if cfg.use_single_seed:
-            logged_seed = getattr(logged_cfg, "seed", None)
-            if logged_seed is not None:
-                if cfg.seed is not None and int(logged_seed) != cfg.seed:
-                    print(
-                        f"Warning: --use_single_seed is on. Overriding provided seed ({cfg.seed}) "
-                        f"with seed from logged config ({logged_seed})."
-                    )
-                cfg.seed = int(logged_seed)
-
-            if cfg.seed is None:
-                raise ValueError(
-                    "'use_single_seed' is True, but no seed was found in the logged config "
-                    "and no seed was provided via the command line. Please provide a seed."
+        # For reproducibility, it's crucial to use the same seed as the training run.
+        # Prioritize the seed from the logged configuration.
+        logged_seed = getattr(logged_cfg, "seed", None)
+        if logged_seed is not None:
+            logged_seed = int(logged_seed)
+            if cfg.seed is not None and logged_seed != cfg.seed:
+                print(
+                    f"Warning: Overriding provided seed ({cfg.seed}) with seed from "
+                    f"logged config ({logged_seed}) for reproducibility."
                 )
+            cfg.seed = logged_seed
+
+        if cfg.seed is None:
+            raise ValueError(
+                "No seed was found in the logged config and no seed was provided "
+                "via the command line. Please provide a seed for reproducible results."
+            )
+
+    # Set all seeds for reproducibility
+    set_all_seeds(cfg.seed)
 
     dfs = []
     if policy_weights:

@@ -11,6 +11,7 @@ import logging
 from CybORG import CybORG
 from CybORG.Shared.Enums import TrinaryEnum
 from CybORG.Agents import RedMeanderAgent
+
 from CybORG.Agents.Wrappers import (
     TrueTableWrapper,
     BlueTableWrapper,
@@ -33,6 +34,19 @@ from cyberdreamcatcher.plots import (
 )
 
 LOGGER = logging.getLogger(__name__)
+
+
+# Monkey-patch CybORG.set_seed to also set the numpy random seed
+if not getattr(CybORG, '_is_patched', False):
+    CybORG._is_patched = True
+    original_set_seed = CybORG.set_seed
+
+    def set_seed_wrapper(self, seed: int):
+        original_set_seed(self, seed)
+        np.random.seed(seed)
+        logging.info(f"CybORG environment patched to set numpy random seed to {seed}.")
+
+    CybORG.set_seed = set_seed_wrapper
 
 
 # NOTE: override Wrappers basic methods to avoid calling cyborg.reset() (which regenerates IPs)
