@@ -230,6 +230,9 @@ def main(cfg: Cfg):
                     console.print(f"Failed action penalty: {env.failed_action_penalty}")
 
     # plt.show()
+    console.print(Rule("Failed Actions", style="purple"))
+    console.print(env.failed_actions)
+
     console.print(Rule("Total Reward", style="purple"))
     console.print(rewards)
     console.print(sum(rewards))

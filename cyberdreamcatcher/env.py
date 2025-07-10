@@ -667,6 +667,7 @@ class GraphEnv:
             action_name="Sleep",
             success=-1,  # TrinaryEnum.UNKNOWN --> -1
         )
+        self.failed_actions = {}
 
         cyborg_result = self.cyborg.reset(agent=self.agent_name, seed=seed)
         # patched BlueTable does not reset cyborg
@@ -762,8 +763,12 @@ class GraphEnv:
             info.update(graph_info)
 
         reward = cyborg_result.reward
-        if self.failed_action_penalty and cyborg_result.reward == 0:
+        if previous_action.success == 0:
             reward += self.failed_action_penalty
+
+            failure_times = self.failed_actions.get(previous_action, [])
+            failure_times.append(self.step_counter)
+            self.failed_actions[previous_action] = failure_times
 
         terminated = cyborg_result.done
 
