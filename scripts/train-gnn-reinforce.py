@@ -36,10 +36,10 @@ class Cfg:
     scenario: str = "Scenario2"
     episode_length: int = 30
     failed_action_penalty: float = -0.05
-    batch_size_episodes: int = 300
+    batch_size_episodes: int = 500
     seed: int = 0
-    learning_rate: float = 3e-3
-    optimizer_iterations: int = 1000
+    learning_rate: float = 1e-2
+    optimizer_iterations: int = 500
     grad_clipping: float = 5
     normalize_advantage: bool = True
     entropy_coef: float = 0.01
@@ -165,21 +165,40 @@ class REINFORCE:
                 counter=it
             )
 
-            # Unpack batch
-            rewards = np.concatenate(batch_rewards_to_go, axis=0)
-            log_probs = torch.cat(batch_log_probs)
-            entropies = torch.cat(batch_entropies)
+            # Unpack batch and compute statistics
+            rewards_to_go = torch.tensor(np.array(batch_rewards_to_go), dtype=torch.float32)
+            log_probs = torch.stack(batch_log_probs)
+            entropies = torch.stack(batch_entropies)
 
-            reward_mean = np.mean([r[0] for r in batch_rewards_to_go])
-            reward_std = np.std([r[0] for r in batch_rewards_to_go])
-            entropy_mean = entropies.mean().item()
+            reward_mean = rewards_to_go[:, 0].mean().item()
+            reward_std = rewards_to_go[:, 0].std().item()
+            # entropy_mean = entropies.mean().item()
 
             # Compute advantage
-            advantage = torch.tensor(rewards.copy(), dtype=torch.float32)
             if self.conf.normalize_advantage:
-                advantage = (advantage - advantage.mean()) / (
-                    advantage.std() + EPS
-                )  # mask NaNs
+                # Reshape rewards to (batch_size, episode_length)
+                # It's already in this shape from the sampler
+                # Calculate mean and std per timestep
+                mean_per_step = rewards_to_go.mean(dim=0, keepdim=True)
+                std_per_step = rewards_to_go.std(dim=0, keepdim=True)
+                # Normalize and get advantage
+                advantage = (rewards_to_go - mean_per_step) / (std_per_step + EPS)
+            else:
+                advantage = rewards_to_go
+
+            if self.experiment and (it % self.conf.log_freq == 0):
+                # Log advantage distribution per timestep
+                for t in range(advantage.shape[1]):
+                    self.experiment.log_histogram_3d(
+                        advantage[:, t].tolist(),
+                        name=f"advantage_t{t}",
+                        step=it,
+                    )
+
+            # Flatten tensors for loss calculation
+            advantage = advantage.view(-1)
+            log_probs = log_probs.view(-1)
+            entropies = entropies.view(-1)
 
             # Compute loss and update policy
             # loss is the negative of the objective function
@@ -205,7 +224,6 @@ class REINFORCE:
                 self.experiment.log_metric("loss", loss.item(), step=it)
                 self.experiment.log_metric("policy_loss", policy_loss.item(), step=it)
                 self.experiment.log_metric("entropy_loss", entropy_loss.item(), step=it)
-                self.experiment.log_metric("entropy_mean", entropy_mean, step=it)
                 self.experiment.log_metric(
                     "grad_norm",
                     gradient_norm(self.policy.parameters()),

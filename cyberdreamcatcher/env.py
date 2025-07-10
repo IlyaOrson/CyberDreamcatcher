@@ -44,7 +44,7 @@ if not getattr(CybORG, '_is_patched', False):
     def set_seed_wrapper(self, seed: int):
         original_set_seed(self, seed)
         np.random.seed(seed)
-        logging.info(f"CybORG environment patched to set numpy random seed to {seed}.")
+        logging.debug(f"CybORG environment patched to set numpy random seed to {seed}.")
 
     CybORG.set_seed = set_seed_wrapper
 
