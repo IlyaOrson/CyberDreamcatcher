@@ -24,8 +24,11 @@ from cyberdreamcatcher.policy import Police
 from cyberdreamcatcher.utils import (
     get_policy_weights_and_config,
 )
-from cyberdreamcatcher.plots import plot_attention_graph, plot_feasible_connections
-# from cyberdreamcatcher.plots import plot_action_probabilities, plot_observation_encoded
+from cyberdreamcatcher.plots import (
+    plot_attention_graph,
+    plot_feasible_connections,
+    plot_action_probabilities,
+)  # , plot_observation_encoded
 
 
 LOGGER = logging.getLogger(__name__)
@@ -49,8 +52,10 @@ class Cfg:
     log_level: str = "INFO"
     track_history: bool = True
     render_mode: Optional[str] = None
+    plot_action_probabilities: bool = False
     plot_attention: bool = False
-    plot_only_restore_remove: bool = False  # Only plot attention for Restore/Remove actions
+    # Only plot attention for Restore/Remove actions
+    plot_only_restore_remove: bool = False
 
 
 # Registering the Config class with the expected name 'args'.
@@ -149,6 +154,8 @@ def main(cfg: Cfg):
             range(cfg.episode_length), description="Running steps..."
         ):
             if policy:
+                if cfg.plot_action_probabilities:
+                    plot_action_probabilities(env, policy, obs, show=True, block=True)
                 report = policy(obs, return_attention_weights=cfg.plot_attention)
                 action = report.action
 
@@ -160,11 +167,15 @@ def main(cfg: Cfg):
                     if cfg.plot_only_restore_remove:
                         should_plot = action_name[1] in ["Restore", "Remove"]
                         if not should_plot:
-                            LOGGER.debug(f"Skipping attention plot for action (plot_only_restore_remove=True): {action_name}")
+                            LOGGER.debug(
+                                f"Skipping attention plot for action (plot_only_restore_remove=True): {action_name}"
+                            )
 
                     if should_plot:
                         # with plt.xkcd():
-                        plot_attention_graph(env, report.attention, action, show=True, block=True)
+                        plot_attention_graph(
+                            env, report.attention, action, show=True, block=True
+                        )
             else:
                 action = torch.tensor(env.action_space.sample())
 

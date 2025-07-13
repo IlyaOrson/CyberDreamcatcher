@@ -7,7 +7,21 @@ The results are then plotted as a heatmap.
 
 Example Usage:
     python scripts/test-feasible-actions.py
+
+MAIN FINDING:
+
+IMAGE_TO_VALID_DECOYS = {
+    "Gateway": ["DecoyApache", "DecoyHarakaSMPT", "DecoyTomcat", "DecoyVsftpd"],
+    "Velociraptor_Server": ["DecoyApache", "DecoyHarakaSMPT", "DecoyTomcat", "DecoyVsftpd"],
+    "OP_Server": ["DecoyApache", "DecoyHarakaSMPT", "DecoyTomcat", "DecoyVsftpd"],
+    "Internal": ["DecoyFemitter"],
+    "windows_user_host1": ["DecoyApache", "DecoySmss", "DecoySvchost", "DecoyTomcat"],
+    "windows_user_host2": ["DecoyApache", "DecoyFemitter", "DecoySSHD", "DecoyTomcat"],
+    "linux_user_host1": ["DecoySSHD", "DecoyVsftpd"],
+    "linux_user_host2": ["DecoyVsftpd"],
+}
 """
+
 import logging
 from collections import defaultdict
 from pathlib import Path
@@ -82,6 +96,7 @@ def print_success_report(success_counts, num_trials, output_path=None):
 @dataclass
 class Cfg:
     """Configuration for the GraphEnv."""
+
     scenario: str = "Scenario2"
     seed: int = 42
     num_trials: int = 3
@@ -106,7 +121,9 @@ def main(cfg: Cfg) -> None:
     # Get feasible actions and sort them for consistent ordering
     feasible_actions = sorted(env.feasible_actions, key=lambda x: (x[0] or "", x[1]))
 
-    LOGGER.info(f"Testing {len(feasible_actions)} feasible actions, {num_trials} trials each...")
+    LOGGER.info(
+        f"Testing {len(feasible_actions)} feasible actions, {num_trials} trials each..."
+    )
 
     for host_name, action_name in tqdm(feasible_actions, desc="Testing Actions"):
         for _ in range(num_trials):

@@ -161,12 +161,14 @@ class REINFORCE:
         pbar = trange(self.conf.optimizer_iterations, desc="Optimizer iteration")
         for it, _ in enumerate(pbar):
             # sample a batch of episodes
-            (batch_rewards_to_go, batch_log_probs, batch_entropies) = self.sample_episodes(
-                counter=it
+            (batch_rewards_to_go, batch_log_probs, batch_entropies) = (
+                self.sample_episodes(counter=it)
             )
 
             # Unpack batch and compute statistics
-            rewards_to_go = torch.tensor(np.array(batch_rewards_to_go), dtype=torch.float32)
+            rewards_to_go = torch.tensor(
+                np.array(batch_rewards_to_go), dtype=torch.float32
+            )
             log_probs = torch.stack(batch_log_probs)
             entropies = torch.stack(batch_entropies)
 

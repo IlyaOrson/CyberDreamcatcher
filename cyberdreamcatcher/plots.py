@@ -4,6 +4,7 @@ from matplotlib.cm import get_cmap
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 from matplotlib.ticker import StrMethodFormatter
+from matplotlib.patches import Rectangle
 import networkx as nx
 import numpy as np
 import seaborn as sns
@@ -99,7 +100,12 @@ def plot_feasible_connections(
     nx.draw_networkx_labels(graph, pos=node_positions, ax=axis, font_size=8, alpha=0.5)
 
     plt.title(f"{env.scenario_name}")
-    plt.legend(markerscale=0.5, loc="lower center", bbox_to_anchor=(0.5, -0.05), ncol=max(1, n_colors // 2))
+    plt.legend(
+        markerscale=0.5,
+        loc="lower center",
+        bbox_to_anchor=(0.5, -0.05),
+        ncol=max(1, n_colors // 2),
+    )
     plt.tight_layout()
     if show:
         plt.show(block=block)
@@ -272,8 +278,9 @@ def plot_observation_encoded(
 def _plot_action_probabilities(
     action_logits, host_names, action_names, value=None, show=False, block=False
 ):
+    """Helper function to plot action probabilities as a heatmap."""
     probs = softmax(action_logits.flat_logits, dim=-1)
-    min_prob = torch.min(probs).item()
+    min_prob = torch.min(probs[~torch.isinf(action_logits.flat_logits)]).item()
     max_prob = torch.max(probs).item()
     global_probs = probs[:2].unsqueeze(0).detach()
     node_probs = probs[2:].reshape(action_logits.node_logits.shape).detach()
@@ -281,15 +288,54 @@ def _plot_action_probabilities(
     global_action_names = action_names[:2]
     node_action_names = action_names[2:]
 
-    fig, axs = plt.subplots(
-        2, 1, gridspec_kw={"height_ratios": [action_logits.node_logits.shape[0], 1]}
+    # Use GridSpec for more control over the layout
+    fig = plt.figure(figsize=(10, 8))
+    num_node_actions = node_probs.shape[1]
+    num_global_actions = global_probs.shape[1]
+
+    # Height ratio for node vs global plot. The 0.4 factor is empirical.
+    node_plot_height = max(1, int(0.4 * action_logits.node_logits.shape[0]))
+
+    # Create a GridSpec.
+    # The main grid has 2 rows and 1 column (for node and global plots).
+    # A nested GridSpec is used for the bottom row to align cells.
+    gs_main = fig.add_gridspec(2, 1, height_ratios=[node_plot_height, 1])
+
+    # Top subplot for node actions
+    node_ax = fig.add_subplot(gs_main[0, 0])
+
+    # Nested grid for the bottom part (global actions and value text)
+    gs_bottom = gs_main[1, 0].subgridspec(1, num_node_actions)
+    global_ax = fig.add_subplot(gs_bottom[0, :num_global_actions])
+
+    # Use a perceptually uniform colormap
+    cmap = plt.get_cmap("viridis")
+
+    # Set aspect='auto' to allow cells to be non-square, fitting the layout.
+    mat_node = node_ax.matshow(
+        node_probs, vmin=min_prob, vmax=max_prob, cmap=cmap, aspect="auto"
+    )
+    mat_global = global_ax.imshow(
+        global_probs, vmin=min_prob, vmax=max_prob, cmap=cmap, aspect="auto"
     )
 
-    node_ax = axs[0]
-    global_ax = axs[1]
-
-    mat_node = node_ax.matshow(node_probs, vmin=min_prob, vmax=max_prob)
-    mat_global = global_ax.imshow(global_probs, vmin=min_prob, vmax=max_prob)
+    # Add hatching to the masked (invalid) cells instead of 'X'
+    mask = torch.isinf(action_logits.node_logits)
+    for i in range(mask.shape[0]):
+        for j in range(mask.shape[1]):
+            if mask[i, j]:
+                node_ax.add_patch(
+                    Rectangle(
+                        (j - 0.5, i - 0.5),
+                        1,
+                        1,
+                        hatch="//",
+                        fill=False,
+                        snap=False,
+                        edgecolor="white",
+                        lw=0.4,
+                    )
+                )
 
     # Show all ticks and label them with the respective list entries
     node_ax.set_yticks(np.arange(len(host_names)), labels=host_names)
@@ -300,45 +346,48 @@ def _plot_action_probabilities(
     )
 
     if value:
-        global_ax.text(
-            len(node_action_names) + 1,
-            0,
+        # Place the value text in a separate subplot to the right of global actions
+        value_ax = fig.add_subplot(gs_bottom[0, num_global_actions:])
+        value_ax.text(
+            0.95,  # x-position in axis coordinates
+            0.5,  # y-position in axis coordinates
             f"Value: {value:.2f}",
+            transform=value_ax.transAxes,
             verticalalignment="center",
             horizontalalignment="right",
-            in_layout=True,
-            # color="dimgrey",
-            fontsize=10,
+            fontsize=12,
             fontweight="bold",
             bbox={
                 "facecolor": "gold",
-                "alpha": 0.3,
-                "pad": 0.5,
+                "alpha": 0.5,
+                "pad": 5,
                 "boxstyle": "round",
             },
         )
+        value_ax.axis("off")  # Hide the axes for the value text subplot
 
     # Rotate the tick labels and set their alignment.
     plt.setp(node_ax.get_xticklabels(), rotation=45, ha="left", rotation_mode="anchor")
     plt.setp(
-        global_ax.get_xticklabels(), rotation=315, ha="left", rotation_mode="anchor"
+        global_ax.get_xticklabels(), rotation=-45, ha="center", rotation_mode="anchor"
     )
 
-    cbar = fig.colorbar(
-        mat_node, fraction=0.05, pad=0.05, format=StrMethodFormatter("{x:.1%}")
-    )
-    # cbar = fig.colorbar(axs, orientation="horizontal")
-    cbar.set_label("Probability")
+    # Position the colorbar closer to the main plot
+    fig.subplots_adjust(right=0.85)
+    cax = fig.add_axes([0.87, 0.15, 0.02, 0.7])
+    cbar = fig.colorbar(mat_node, cax=cax, format=StrMethodFormatter("{x:.1%}"))
+    cbar.set_label("Action Probability")
 
-    # fig.set_tight_layout(True)
-    plt.tight_layout()
+    # Use tight_layout to prevent labels from overlapping
+    fig.tight_layout(rect=[0, 0, 0.9, 1])
+
     if show:
         plt.show(block=block)
 
 
 def plot_action_probabilities(env, policy, obs, show=False, block=False):
     with torch.no_grad():
-        action_logits, value = policy.get_action_logits(obs)
+        action_logits, value, attention = policy.get_action_logits(obs)
         _plot_action_probabilities(
             action_logits,
             host_names=env.host_names,
@@ -483,21 +532,21 @@ def plot_attention_graph(
     # Process attention weights - handle multi-head attention
     # attention_weights shape: [num_edges, num_heads] or [num_edges]
     weights = attention_weights.detach().cpu()
-    
+
     # If we have multiple attention heads, average them
     if weights.dim() > 1:
         weights = weights.mean(dim=1)  # Average across attention heads
-    
+
     # Convert to numpy for percentile calculation
     weights_np = weights.numpy()
-    
+
     # Calculate percentile-based threshold (top 5% by default)
     percentile = 10  # Show top 5% of edges by attention weight
     attention_threshold = np.percentile(weights_np, 100 - percentile)
-    
+
     # Get edges and their corresponding weights
     edges_with_weights = list(zip(edge_index.T.tolist(), weights_np))
-    
+
     # Split edges into colored (above threshold) and uncolored (below threshold)
     colored_edges = [
         edge for edge, weight in edges_with_weights if weight >= attention_threshold
@@ -677,7 +726,7 @@ def plot_attention_graph(
         loc="lower center",
         bbox_to_anchor=(0.5, -0.15),  # Move legend further down
         ncol=4,
-        prop={'size': 10},  # Increased font size
+        prop={"size": 10},  # Increased font size
         title_fontsize=12,  # Larger title
         frameon=True,
         framealpha=0.9,

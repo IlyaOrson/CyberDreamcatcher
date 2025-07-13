@@ -1,5 +1,6 @@
 from collections import defaultdict, namedtuple
 from itertools import combinations, product
+import yaml
 
 import gymnasium as gym
 import matplotlib.pyplot as plt
@@ -37,7 +38,7 @@ LOGGER = logging.getLogger(__name__)
 
 
 # Monkey-patch CybORG.set_seed to also set the numpy random seed
-if not getattr(CybORG, '_is_patched', False):
+if not getattr(CybORG, "_is_patched", False):
     CybORG._is_patched = True
     original_set_seed = CybORG.set_seed
 
@@ -48,6 +49,23 @@ if not getattr(CybORG, '_is_patched', False):
 
     CybORG.set_seed = set_seed_wrapper
 
+# result obtained through empirical testing with scripts.test-feasible-actions.py
+# and comparing the result with the scenario config file
+IMAGE_TO_VALID_DECOYS = {
+    "Gateway": ["DecoyApache", "DecoyHarakaSMPT", "DecoyTomcat", "DecoyVsftpd"],
+    "Velociraptor_Server": [
+        "DecoyApache",
+        "DecoyHarakaSMPT",
+        "DecoyTomcat",
+        "DecoyVsftpd",
+    ],
+    "OP_Server": ["DecoyApache", "DecoyHarakaSMPT", "DecoyTomcat", "DecoyVsftpd"],
+    "Internal": ["DecoyFemitter"],
+    "windows_user_host1": ["DecoyApache", "DecoySmss", "DecoySvchost", "DecoyTomcat"],
+    "windows_user_host2": ["DecoyApache", "DecoyFemitter", "DecoySSHD", "DecoyTomcat"],
+    "linux_user_host1": ["DecoySSHD", "DecoyVsftpd"],
+    "linux_user_host2": ["DecoyVsftpd"],
+}
 
 # NOTE: override Wrappers basic methods to avoid calling cyborg.reset() (which regenerates IPs)
 #       cyborg is managed directly in our environment instead of through wrappers (to be able to use both blue/red tables)
@@ -122,9 +140,20 @@ class GraphEnv:
         "PreviousAction", ("host_name", "action_name", "success")
     )
 
+    # CRUCIAL: add feature that define which decoys are available at each host
+    DECOY_LIST = sorted(
+        list(set(d for decoys in IMAGE_TO_VALID_DECOYS.values() for d in decoys))
+    )
     NodeFeatures = namedtuple(
         "Node",
-        ("subnet_id", "relevance", "num_local_ports", "exploit", "malware"),
+        (
+            "subnet_id",
+            "relevance",
+            *DECOY_LIST,
+            "num_local_ports",
+            "exploit",
+            "malware",
+        ),
     )
     EdgeFeatures = None
     # EdgeFeatures = namedtuple("Edge", ("connections"))
@@ -164,7 +193,6 @@ class GraphEnv:
         else:
             self.scenario_path = get_scenario(name=scenario, from_cyborg=False)
             self.scenario_name = scenario
-
         self.cyborg = CybORG(self.scenario_path, "sim", agents={"Red": RedMeanderAgent})
         self.env_controller = self.cyborg.environment_controller
         self.scenario = self.env_controller.scenario
@@ -184,7 +212,7 @@ class GraphEnv:
         self.hosts_with_malware = set()
 
         # Form enumeration mappings
-        self.subnet_enumeration = enumerate_bidict(self.subnet_names)
+        self.subnet_enumeration = enumerate_bidict(self.subnet_names, centered=True)
         self.host_enumeration = enumerate_bidict(self.host_names)
         self.action_enumeration = enumerate_bidict(self.action_names)
 
@@ -346,6 +374,29 @@ class GraphEnv:
         )
         action_host_signatures = product(self.host_names, host_actions)
         self.feasible_actions = list(action_host_signatures) + global_signatures
+
+        # Build the mapping from host to decoys and images from the scenario data
+        self.host_to_decoys = {}
+        self.host_to_images = {}
+
+        with open(self.scenario_path, "r") as f:
+            scenario_conf = yaml.safe_load(f)
+
+        scenario_hosts = scenario_conf["Hosts"]
+
+        for host_name, host_details in scenario_hosts.items():
+            image_name = host_details["image"]
+            if image_name:
+                decoys = IMAGE_TO_VALID_DECOYS.get(image_name, [])
+                self.host_to_decoys[host_name] = decoys
+                self.host_to_images[host_name] = image_name
+
+        self.image_names = list(IMAGE_TO_VALID_DECOYS.keys())
+        self.decoy_names = list(
+            set(d for decoys in IMAGE_TO_VALID_DECOYS.values() for d in decoys)
+        )
+
+        self.image_enumeration = enumerate_bidict(self.image_names, centered=True)
 
         # Equivalent to the logic in EnumActionWrapper.action_space_change(action_space_dict)
         # self.feasible_action_instances = list(starmap(self.instantiate_action, self.feasible_actions))
@@ -569,6 +620,12 @@ class GraphEnv:
 
             relevance = self.host_relevance[host_name]
 
+            image_name_str = self.host_to_images[host_name]
+            valid_decoys = IMAGE_TO_VALID_DECOYS[image_name_str]
+            decoy_features = [
+                1 if decoy in valid_decoys else 0 for decoy in self.DECOY_LIST
+            ]
+
             num_local_ports = 0
             if host_name in host_obs:
                 num_local_ports = host_obs[host_name].num_local_ports
@@ -582,6 +639,7 @@ class GraphEnv:
             node_matrix[host_idx, :] = (
                 subnet_id,
                 relevance,
+                *decoy_features,
                 num_local_ports,
                 exploit,
                 malware,

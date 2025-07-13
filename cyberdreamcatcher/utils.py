@@ -18,6 +18,10 @@ import CybORG
 
 LOGGER = logging.getLogger(__name__)
 
+SCENARIO_DIR = Path(__file__).resolve().parent.parent / "scenarios"
+# IMAGE_TO_DECOY_PATH = SCENARIO_DIR / "Image-to-Decoy.yaml"
+assert SCENARIO_DIR.exists()
+
 
 def set_all_seeds(seed):
     random.seed(seed)
@@ -110,24 +114,27 @@ def vector_to_state_dict(vector: np.ndarray, template_state_dict: dict) -> dict:
     return new_state_dict
 
 
-def get_scenario(name="Scenario2", from_cyborg=True):
+def get_scenario(name="Scenario2", from_cyborg=False):
     if from_cyborg:
         # scenario_path = inspect.getfile(CybORG)[:-10] + f"/Shared/Scenarios/{self.scenario}.yaml"
         cyborg_path = Path(inspect.getfile(CybORG)).resolve()
         scenario_dir = cyborg_path.parent / "Shared" / "Scenarios"
     else:
-        scenario_dir = Path(__file__).resolve().parent.parent / "scenarios"
+        scenario_dir = SCENARIO_DIR
 
     scenario_path = scenario_dir / Path(name).with_suffix(".yaml")
-
-    assert scenario_path.exists()
 
     return scenario_path
 
 
-def enumerate_bidict(iterable):
+def enumerate_bidict(iterable, centered=False):
     "Form bidirectional mappings between categorical values and their enumeration."
-    return bidict((val, idx) for idx, val in enumerate(iterable))
+    if centered:
+        return bidict(
+            (val, idx - len(iterable) // 2) for idx, val in enumerate(iterable)
+        )
+    else:
+        return bidict((val, idx) for idx, val in enumerate(iterable))
 
 
 # taken from https://github.com/francois-rozet/torchist/
@@ -375,18 +382,3 @@ def profile_inference(data: Data, model: torch.nn.Module, device: str):
             sort_by="cuda_time_total" if device == "cuda" else "cpu_time_total"
         )
     )
-
-
-def get_scenario(name="Scenario2", from_cyborg=True):
-    if from_cyborg:
-        # scenario_path = inspect.getfile(CybORG)[:-10] + f"/Shared/Scenarios/{self.scenario}.yaml"
-        cyborg_path = Path(inspect.getfile(CybORG)).resolve()
-        scenario_dir = cyborg_path.parent / "Shared" / "Scenarios"
-    else:
-        scenario_dir = Path(__file__).resolve().parent.parent / "scenarios"
-
-    scenario_path = scenario_dir / Path(name).with_suffix(".yaml")
-
-    assert scenario_path.exists()
-
-    return scenario_path

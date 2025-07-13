@@ -13,7 +13,14 @@ class ActionLogits:
     Global action logits are the sum of the last 2 columns of the per-node action logits.
     """
 
-    def __init__(self, action_logits, mask_node=None):
+    def __init__(
+        self,
+        action_logits,
+        mask_node=None,
+        host_to_decoys=None,
+        action_enumeration=None,
+        host_enumeration=None,
+    ):
         self._raw_logits = action_logits
 
         self.node_logits = action_logits[:, :-2]
@@ -25,6 +32,25 @@ class ActionLogits:
             mask[mask_node, :] = True  # Set True for the entire row you want to mask
             # Apply masked_fill
             self.node_logits = self.node_logits.masked_fill(mask, float("-inf"))
+
+        if host_to_decoys and action_enumeration:
+            # Create a mask for the decoys
+            action_mask = torch.zeros_like(self.node_logits, dtype=torch.bool)
+            for host_name, available_decoys in host_to_decoys.items():
+                host_idx = host_enumeration[host_name]
+                for action_name, action_idx in action_enumeration.items():
+                    if (
+                        action_name.startswith("Decoy")
+                        and action_name not in available_decoys
+                    ):
+                        # We substract 2 from the action_idx to account for the global actions
+                        # which correspond to the first 2 indexes in the action enumeration
+                        # but the final columns in the action logits
+                        assert action_idx >= 2
+                        action_mask[host_idx, action_idx - 2] = True
+
+            # Apply the mask to the node_logits
+            self.node_logits.masked_fill_(action_mask, float("-inf"))
 
         # TODO mask sleep action and use sum for monitor?
         self.sleep_logit = torch.mean(action_logits[:, -1]).unsqueeze(-1)
@@ -91,6 +117,9 @@ class Police(torch.nn.Module):
     ):
         super().__init__(*args, **kwargs)
 
+        self.host_to_decoys = env.host_to_decoys
+        self.host_enumeration = env.host_enumeration
+        self.action_enumeration = env.action_enumeration
         self.mask_node = env.host_enumeration[mask_node]
 
         if latent_node_dim is None:
@@ -175,7 +204,14 @@ class Police(torch.nn.Module):
         #     for param in self.critic_layers.parameters():
         #         param.requires_grad = False
 
-    def actor(self, nodes_matrix, edge_index, edge_matrix, global_matrix, return_attention_weights=False):
+    def actor(
+        self,
+        nodes_matrix,
+        edge_index,
+        edge_matrix,
+        global_matrix,
+        return_attention_weights=False,
+    ):
         # Score each node to select actions
         actor_latent_nodes = self.actor_latent_0(
             nodes_matrix,
@@ -257,7 +293,17 @@ class Police(torch.nn.Module):
         else:
             value = None
 
-        return ActionLogits(action_logits, mask_node=self.mask_node), value, attention
+        return (
+            ActionLogits(
+                action_logits,
+                mask_node=self.mask_node,
+                host_to_decoys=self.host_to_decoys,
+                action_enumeration=self.action_enumeration,
+                host_enumeration=self.host_enumeration,
+            ),
+            value,
+            attention,
+        )
 
     def forward(self, graph, action=None, return_attention_weights=False):
         action_logits, value, attention = self.get_action_logits(
