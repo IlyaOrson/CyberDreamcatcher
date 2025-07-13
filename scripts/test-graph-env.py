@@ -43,7 +43,7 @@ class Cfg:
     scenario: str = "Scenario2"
     seed: int = 0
     episode_length: int = 30
-    failed_action_penalty: float = -0.1
+    failed_action_penalty: float = -0.05
     quiet: bool = False
     progress_bar: bool = True
     log_level: str = "INFO"

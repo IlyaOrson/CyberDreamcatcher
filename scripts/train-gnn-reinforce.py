@@ -36,7 +36,7 @@ class Cfg:
     scenario: str = "Scenario2"
     episode_length: int = 30
     failed_action_penalty: float = -0.05
-    batch_size_episodes: int = 500
+    batch_size_episodes: int = 600
     seed: int = 0
     learning_rate: float = 1e-2
     optimizer_iterations: int = 500
@@ -45,7 +45,7 @@ class Cfg:
     entropy_coef: float = 0.01
 
     policy_weights: Optional[str] = None
-    latent_node_dim: int = 8
+    latent_node_dim: int = 15
     actor_heads: int = 3
 
     log_comet: bool = True
@@ -187,13 +187,17 @@ class REINFORCE:
                 advantage = rewards_to_go
 
             if self.experiment and (it % self.conf.log_freq == 0):
-                # Log advantage distribution per timestep
-                for t in range(advantage.shape[1]):
-                    self.experiment.log_histogram_3d(
-                        advantage[:, t].tolist(),
-                        name=f"advantage_t{t}",
-                        step=it,
-                    )
+                # Log rewards-to-go distribution at the initial and final timesteps
+                self.experiment.log_histogram_3d(
+                    rewards_to_go[:, 0].tolist(),
+                    name="rewards_to_go_t0",
+                    step=it,
+                )
+                self.experiment.log_histogram_3d(
+                    rewards_to_go[:, -1].tolist(),
+                    name="rewards_to_go_t_final",
+                    step=it,
+                )
 
             # Flatten tensors for loss calculation
             advantage = advantage.view(-1)
