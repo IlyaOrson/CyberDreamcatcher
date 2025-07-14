@@ -2,15 +2,14 @@ from pathlib import Path
 import logging
 import time
 from dataclasses import dataclass
+from typing import Optional
 
 import hydra
 from hydra.core.config_store import ConfigStore
 from omegaconf import OmegaConf
-
 import comet_ml
-from comet_ml.integration.pytorch import log_model
+from comet_ml.integration.pytorch import log_model, watch
 from rich.logging import RichHandler
-
 import torch
 import numpy as np
 from botorch.models.gp_regression import SingleTaskGP
@@ -24,6 +23,8 @@ from cyberdreamcatcher.utils import (
     set_all_seeds,
     state_dict_to_vector,
     vector_to_state_dict,
+    load_trained_weights,
+    count_parameters,
 )
 from cyberdreamcatcher.sampler import EpisodeSampler
 from cyberdreamcatcher.env import GraphEnv
@@ -31,313 +32,227 @@ from cyberdreamcatcher.policy import Police
 
 LOGGER = logging.getLogger(__name__)
 
-# Filter the specific BoTorch InputDataWarning about unit cube scaling
-# warnings.filterwarnings("ignore", category=botorch.exceptions.warnings.InputDataWarning)
-
 
 @dataclass
 class Cfg:
-    seed: int = 0
-    device: str = "cuda" if torch.cuda.is_available() else "cpu"
-    log_level: str = "INFO"
     scenario: str = "Scenario2"
     episode_length: int = 30
-    num_jobs: int = -1
-    latent_node_dim: int = 8
-    actor_heads: int = 3
-    num_initial_points: int = 20
-    budget: int = 1000
+    failed_action_penalty: float = -0.05
     batch_size_episodes: int = 100
-    bounds_min: float = -2.0
-    bounds_max: float = 2.0
+    seed: int = 0
+    log_level: str = "INFO"
     log_comet: bool = True
 
+    # Policy
+    policy_weights: Optional[str] = None
+    latent_node_dim: int = 15
+    actor_heads: int = 3
 
-def evaluate_parameters(
-    parameters_vector: np.ndarray,
-    policy_ref_state_dict: dict,
-    sampler: EpisodeSampler,
-    cfg: Cfg,
-    device: torch.device,
-) -> tuple[torch.Tensor, torch.Tensor]:
-    """Evaluates a set of policy parameters using the EpisodeSampler."""
-    # Convert parameter vector back to state dict
-    current_state_dict = vector_to_state_dict(parameters_vector, policy_ref_state_dict)
+    # BoTorch settings
+    num_initial_points: int = 20
+    budget: int = 1000
+    bounds_min: float = -2.0
+    bounds_max: float = 2.0
 
-    # Set the policy weights on the sampler instance
-    sampler.policy_weights = current_state_dict
 
-    # Sample episodes using the updated policy weights stored in the sampler
-    batch_rewards_to_go, _ = sampler.sample_episodes(
-        num_episodes=cfg.batch_size_episodes
-    )
+class BoTorchTrainer:
+    def __init__(self, env, policy, conf, output_dir):
+        self.env = env
+        self.policy = policy
+        self.conf = conf
+        self.output_dir = output_dir
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.policy.to(self.device)
 
-    total_rewards = batch_rewards_to_go[:, 0]
-    # Convert mean and variance to tensors on the correct device
-    mean_reward = torch.tensor(
-        np.mean(total_rewards), dtype=torch.float64, device=device
-    )
-    variance_reward = torch.tensor(
-        max(np.var(total_rewards), 1e-6) if len(total_rewards) > 1 else 1e-6,
-        dtype=torch.float64,
-        device=device,
-    )
+        self.experiment = None
+        if conf.log_comet:
+            try:
+                comet_ml.login()
+                self.experiment = comet_ml.start(
+                    project_name="cyberdreamcatcher",
+                )
+                self.experiment.set_name(f"botorch_seed_{conf.seed}")
+                self.experiment.log_parameters(
+                    OmegaConf.to_container(conf, resolve=True)
+                )
+                watch(self.policy, log_step_interval=10)
+            except Exception as e:
+                LOGGER.warning(f"CometML initialization failed: {e}")
+                self.experiment = None
 
-    LOGGER.info(
-        f"Evaluated params via Sampler. Mean Reward: {mean_reward.item():.3f}, Variance: {variance_reward.item():.3f}"
-    )
+    def evaluate_parameters(self, params_vector: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        """Evaluate a tensor of parameter sets."""
+        # Ensure params_vector is a tensor
+        if isinstance(params_vector, np.ndarray):
+            params_vector = torch.from_numpy(params_vector).to(self.device, dtype=torch.float64)
 
-    return mean_reward, variance_reward
+        # Ensure params_vector is 2D
+        if params_vector.ndim == 1:
+            params_vector = params_vector.unsqueeze(0)
 
+        rewards = []
+        # BoTorch evaluates candidates sequentially in a batch
+        for params in params_vector:
+            # Ensure params is a tensor before processing
+            if not isinstance(params, torch.Tensor):
+                params = torch.from_numpy(params).to(self.device)
+            state_dict = vector_to_state_dict(params.cpu().numpy(), self.policy.state_dict())
+            
+            sampler = EpisodeSampler(
+                seed=self.conf.seed,
+                scenario=self.conf.scenario,
+                episode_length=self.conf.episode_length,
+                latent_node_dim=self.conf.latent_node_dim,
+                actor_heads=self.conf.actor_heads,
+                policy_weights=state_dict,
+                num_jobs=-1, # Use all available cores for evaluation
+            )
+
+            # For BoTorch, we typically want a single, high-quality estimate for the given parameters.
+            # So we average the rewards from a batch of episodes.
+            rewards_to_go, _ = sampler.sample_episodes(self.conf.batch_size_episodes)
+            mean_reward = np.mean(rewards_to_go[:, 0])
+            rewards.append(mean_reward)
+        
+        rewards_tensor = torch.tensor(rewards, device=self.device, dtype=torch.float64).unsqueeze(1)
+        # Return rewards and zero observation noise
+        return rewards_tensor, torch.zeros_like(rewards_tensor)
+
+    def optimize(self):
+        run_start_time = time.time()
+        initial_state_dict = self.policy.state_dict()
+        param_dim = len(state_dict_to_vector(initial_state_dict))
+        LOGGER.info(f"Policy parameter dimension: {param_dim}")
+        if self.experiment:
+            self.experiment.log_other("policy_parameter_dimension", param_dim)
+
+        bounds = torch.tensor(
+            [[self.conf.bounds_min] * param_dim, [self.conf.bounds_max] * param_dim],
+            dtype=torch.float64,
+            device=self.device,
+        )
+
+        LOGGER.info("Generating initial random points...")
+        initial_x = (
+            torch.rand(self.conf.num_initial_points, param_dim, device=self.device, dtype=torch.float64)
+            * (bounds[1] - bounds[0])
+            + bounds[0]
+        )
+
+        train_x = initial_x
+        train_y = torch.empty(self.conf.num_initial_points, 1, device=self.device, dtype=torch.float64)
+        train_y_var = torch.empty(self.conf.num_initial_points, 1, device=self.device, dtype=torch.float64)
+
+        for i in range(self.conf.num_initial_points):
+            params_vector = train_x[i].cpu().numpy()
+            mean, var = self.evaluate_parameters(params_vector)
+            train_y[i] = mean
+            train_y_var[i] = var
+
+        LOGGER.info("--- Starting BoTorch Optimization Loop ---")
+        for iteration in range(self.conf.budget):
+            iter_start_time = time.time()
+            train_x_normalized = normalize(train_x, bounds)
+
+            model = SingleTaskGP(train_x_normalized, train_y, train_Yvar=train_y_var)
+            mll = ExactMarginalLogLikelihood(model.likelihood, model)
+            fit_gpytorch_mll(mll)
+
+            best_f = train_y.max().item()
+            acq_func = LogExpectedImprovement(model, best_f=best_f)
+
+            new_x_normalized, acq_value = optimize_acqf(
+                acq_function=acq_func,
+                bounds=torch.tensor([[0.0] * param_dim, [1.0] * param_dim], device=self.device, dtype=torch.float64),
+                q=1, num_restarts=10, raw_samples=1024,
+            )
+
+            new_x_tensor = unnormalize(new_x_normalized.detach(), bounds=bounds)
+            new_params_vector = new_x_tensor.squeeze(0).cpu().numpy()
+            new_y, new_y_var = self.evaluate_parameters(new_params_vector)
+
+            train_x = torch.cat([train_x, new_x_tensor])
+            train_y = torch.cat([train_y, new_y.view(1, -1)])
+            train_y_var = torch.cat([train_y_var, new_y_var.view(1, -1)])
+
+            iter_time = time.time() - iter_start_time
+            current_best_reward = train_y.max().item()
+            LOGGER.info(f"Iteration {iteration+1}/{self.conf.budget} finished in {iter_time:.2f}s. Best reward so far: {current_best_reward:.3f}")
+            if self.experiment:
+                self.experiment.log_metrics({
+                    "acquisition_value": acq_value.item(),
+                    "candidate_reward": new_y.item(),
+                    "best_reward_so_far": current_best_reward,
+                    "iteration_time": iter_time
+                }, step=iteration)
+
+        best_idx = train_y.argmax()
+        best_reward = train_y[best_idx].item()
+        best_params_tensor = unnormalize(train_x_normalized[best_idx], bounds)
+        best_params_vector = best_params_tensor.cpu().numpy()
+
+        LOGGER.info("--- Optimization Finished ---")
+        LOGGER.info(f"Total time: {time.time() - run_start_time:.2f}s")
+        LOGGER.info(f"Best reward found: {best_reward:.4f}")
+
+        best_state_dict = vector_to_state_dict(best_params_vector, initial_state_dict)
+        self.policy.load_state_dict(best_state_dict)
+
+        if self.experiment:
+            self.experiment.log_metric("final_best_reward", best_reward)
+            log_model(self.experiment, self.policy, "best_policy")
+            self.experiment.end()
+
+        return self.policy
 
 cs = ConfigStore.instance()
 cs.store(name="args", node=Cfg)
 
-
-@hydra.main(config_path="conf", config_name="hydra", version_base=None)
-def train(cfg: Cfg):
-    run_start_time = time.time()
-    output_dir = Path(hydra.core.hydra_config.HydraConfig.get().runtime.output_dir)
+@hydra.main(version_base=None, config_name="hydra", config_path="conf")
+def main(cfg: Cfg) -> None:
+    set_all_seeds(cfg.seed)
     logging.basicConfig(level=cfg.log_level, handlers=[RichHandler()])
     LOGGER.info("Starting BoTorch GNN Training")
+    output_dir = Path(hydra.core.hydra_config.HydraConfig.get().runtime.output_dir)
     LOGGER.info(f"Output directory: {output_dir}")
-    LOGGER.info(f"Using device: {cfg.device}")
-
-    experiment = None
-    if cfg.log_comet:
-        try:
-            experiment = comet_ml.Experiment(
-                project_name="cyberdreamcatcher",
-                auto_param_logging=False,
-                auto_metric_logging=False,
-            )
-            experiment.set_name(f"botorch_seed_{cfg.seed}")
-            experiment.log_parameters(OmegaConf.to_container(cfg, resolve=True))
-            experiment.log_html(f"<p>Output Directory: {output_dir}</p>")
-        except Exception as e:
-            LOGGER.warning(f"CometML initialization failed: {e}")
-            experiment = None
-
     LOGGER.info(f"Config used: {OmegaConf.to_yaml(cfg)}")
 
-    set_all_seeds(cfg.seed)
-    device = torch.device(cfg.device)
+    assert cfg.policy_weights or cfg.scenario, "Please provide either 'scenario' or 'policy_weights'."
 
-    env_template = GraphEnv(scenario=cfg.scenario, max_steps=cfg.episode_length)
-    policy_template = Police(
-        env_template, latent_node_dim=cfg.latent_node_dim, actor_heads=cfg.actor_heads
-    ).to(device)
-    initial_state_dict = policy_template.state_dict()
-    initial_params_vector = state_dict_to_vector(initial_state_dict)
-    param_dim = len(initial_params_vector)
-    LOGGER.info(f"Policy parameter dimension: {param_dim}")
-    if experiment is not None:
-        experiment.log_other("policy_parameter_dimension", param_dim)
-    del env_template, policy_template
+    scenario = cfg.scenario
+    policy_weights = None
+    if cfg.policy_weights and Path(cfg.policy_weights).exists():
+        policy_weights, trained_scenario = load_trained_weights(cfg.policy_weights)
+        LOGGER.info(f"Found policy trained on {trained_scenario}.")
+        if trained_scenario != cfg.scenario:
+            LOGGER.warning(f"Will ignore the provided scenario {cfg.scenario}.")
+            scenario = trained_scenario
 
-    sampler = EpisodeSampler(
-        seed=cfg.seed,
-        scenario=cfg.scenario,
-        episode_length=cfg.episode_length,
-        num_jobs=cfg.num_jobs,
+    env = GraphEnv(
+        scenario=scenario,
+        max_steps=cfg.episode_length,
+        failed_action_penalty=cfg.failed_action_penalty,
+    )
+    policy = Police(
+        env,
         latent_node_dim=cfg.latent_node_dim,
         actor_heads=cfg.actor_heads,
     )
 
-    bounds = torch.tensor(
-        [[cfg.bounds_min] * param_dim, [cfg.bounds_max] * param_dim],
-        dtype=torch.float64,
-        device=device,
-    )
+    if policy_weights:
+        policy.load_state_dict(policy_weights)
 
-    initial_x_tensor = bounds[0] + (bounds[1] - bounds[0]) * torch.rand(
-        cfg.num_initial_points, param_dim, device=device
-    )
-    initial_y = []
-    initial_y_var = []
+    trainer = BoTorchTrainer(env, policy, cfg, output_dir=output_dir)
 
-    for i in range(cfg.num_initial_points):
-        params_vector = initial_x_tensor[i].cpu().numpy()
-        LOGGER.info(f"Evaluating initial point {i+1}/{cfg.num_initial_points}")
-        start_eval_time = time.time()
-        y, y_var = evaluate_parameters(
-            params_vector, initial_state_dict, sampler, cfg, device
-        )
-        eval_time = time.time() - start_eval_time
-        initial_y.append(y)
-        initial_y_var.append(y_var)
-        if experiment is not None:
-            experiment.log_metric("initial_point_reward", y.item(), step=i)
-            experiment.log_metric("initial_point_variance", y_var.item(), step=i)
-            experiment.log_metric("initial_point_eval_time", eval_time, step=i)
+    LOGGER.info("Starting optimization")
+    LOGGER.info(f"Policy parameters: {count_parameters(policy)}")
+    best_policy = trainer.optimize()
 
-    train_x = initial_x_tensor
-    train_y = torch.stack(initial_y).unsqueeze(-1)  # Shape [n_initial, 1]
-    train_y_var = torch.stack(initial_y_var).unsqueeze(-1)  # Shape [n_initial, 1]
+    file_path = output_dir / "best_policy.pt"
+    LOGGER.info(f"Saving final best policy to {file_path}")
+    torch.save(best_policy.state_dict(), file_path)
 
-    LOGGER.info("Starting Bayesian Optimization loop...")
-
-    for iteration in range(cfg.budget):
-        iter_start_time = time.time()
-        if experiment:
-            experiment.set_step(
-                cfg.num_initial_points + iteration
-            )  # Set step correctly
-
-        train_x_normalized = normalize(train_x, bounds)
-        train_x_normalized.clamp_(0.0, 1.0)
-
-        LOGGER.info(f"Iteration {iteration+1}/{cfg.budget}: Fitting GP model...")
-        try:
-            model = SingleTaskGP(train_x_normalized, train_y, train_Yvar=train_y_var)
-            mll = ExactMarginalLogLikelihood(model.likelihood, model)
-            fit_gpytorch_mll(mll)
-            LOGGER.info("GP model fitted successfully.")
-            if experiment is not None:
-                try:
-                    experiment.log_metric(
-                        "gp_lengthscale",
-                        model.covar_module.base_kernel.lengthscale.item(),
-                    )
-                    experiment.log_metric(
-                        "gp_outputscale", model.covar_module.outputscale.item()
-                    )
-                    experiment.log_metric("gp_noise", model.likelihood.noise.item())
-                except AttributeError as e:
-                    LOGGER.warning(f"Could not log GP hyperparameter: {e}")
-
-        except Exception as e:
-            LOGGER.error(f"GP model fitting failed: {e}")
-
-        best_observed_value = train_y.max().item()
-        acq_func = LogExpectedImprovement(
-            model=model,
-            best_f=best_observed_value,
-            maximize=True,
-        )
-
-        try:
-            candidate, acq_value = optimize_acqf(
-                acq_function=acq_func,
-                bounds=torch.tensor(
-                    [[0.0] * param_dim, [1.0] * param_dim],
-                    dtype=torch.float64,
-                    device=device,
-                ),
-                q=1,
-                num_restarts=10,
-                raw_samples=512,
-                options={"batch_limit": 5, "maxiter": 200},
-            )
-            LOGGER.info("Acquisition function optimized.")
-        except Exception as e:
-            LOGGER.error(f"Acquisition function optimization failed: {e}")
-            LOGGER.warning("Skipping iteration due to acquisition optimization error.")
-            continue
-
-        new_x_tensor = unnormalize(candidate.detach(), bounds)
-
-        new_x_vector = new_x_tensor.squeeze(0).cpu().numpy()
-        LOGGER.info(f"Evaluating candidate point {iteration+1}")
-        new_y, new_y_var = evaluate_parameters(
-            new_x_vector, initial_state_dict, sampler, cfg, device
-        )
-
-        new_x_normalized = normalize(new_x_tensor, bounds)
-        new_x_normalized.clamp_(0.0, 1.0)
-        train_x_normalized = torch.cat([train_x_normalized, new_x_normalized])
-        train_x_normalized.clamp_(0.0, 1.0)
-
-        train_x = torch.cat([train_x, new_x_tensor])
-        train_y = torch.cat([train_y, new_y.view(1, -1)])
-        train_y_var = torch.cat([train_y_var, new_y_var.view(1, -1)])
-
-        train_y = train_y.to(device)
-        train_y_var = train_y_var.to(device)
-
-        iter_time = time.time() - iter_start_time
-        current_best_reward = train_y.max().item()
-        LOGGER.info(
-            f"Iteration {iteration+1} finished in {iter_time:.2f}s. Acq value: {acq_value.item():.3f}. Candidate reward: {new_y.item():.3f}. Best reward so far: {current_best_reward:.3f}"
-        )
-        if experiment is not None:
-            experiment.log_metric("acquisition_value", acq_value.item())
-            experiment.log_metric("candidate_reward", new_y.item())
-            experiment.log_metric("candidate_reward_variance", new_y_var.item())
-            experiment.log_metric(
-                "best_reward_so_far", current_best_reward
-            )  # Renamed for clarity
-            experiment.log_metric("iteration_time", iter_time)
-
-    best_idx = train_y.argmax()
-    best_reward = train_y[best_idx].item()
-    best_params_tensor = unnormalize(
-        train_x_normalized[best_idx], bounds
-    )  # Use normalized x for lookup
-    best_params_vector = best_params_tensor.cpu().numpy()
-
-    LOGGER.info("--- Optimization Finished ---")
-    LOGGER.info(f"Total time: {time.time() - run_start_time:.2f}s")
-    LOGGER.info(
-        f"Total evaluations: {cfg.num_initial_points + cfg.budget}"
-    )  # Corrected total evaluations
-    LOGGER.info(f"Best reward found: {best_reward:.4f}")
-    if experiment is not None:
-        final_step = (
-            cfg.num_initial_points + cfg.budget
-        )  # Define final step for summary metrics
-        experiment.log_metric("final_best_reward", best_reward, step=final_step)
-        experiment.log_metric(
-            "total_runtime", time.time() - run_start_time, step=final_step
-        )
-        experiment.log_other("final_best_parameter_index", best_idx.item())
-
-    try:
-        LOGGER.info(f"Saving best policy state dict to {output_dir}/best_policy.pt")
-        best_state_dict = vector_to_state_dict(best_params_vector, initial_state_dict)
-        best_policy_path = output_dir / "best_policy.pt"
-        torch.save(best_state_dict, best_policy_path)
-
-        best_params_tensor_path = output_dir / "best_params_tensor.pt"
-        torch.save(best_params_tensor, best_params_tensor_path)
-
-        best_params_vector_path = output_dir / "best_params_vector.npy"
-        np.save(best_params_vector_path, best_params_vector)
-
-        training_data_path = output_dir / "training_data.pt"
-        torch.save(
-            {
-                "train_x_normalized": train_x_normalized.cpu(),  # Save normalized for consistency
-                "train_y": train_y.cpu(),
-                "train_y_var": train_y_var.cpu(),
-            },
-            training_data_path,
-        )
-        if experiment is not None:
-            LOGGER.info("Logging final assets to Comet...")
-            experiment.log_asset(best_policy_path)
-            experiment.log_asset(best_params_tensor_path)
-            experiment.log_asset(best_params_vector_path)
-            experiment.log_asset(training_data_path)
-
-            LOGGER.info("Logging final policy model to Comet...")
-            temp_policy = Police(
-                env_template,
-                latent_node_dim=cfg.latent_node_dim,
-                actor_heads=cfg.actor_heads,
-            )
-            temp_policy.load_state_dict(best_state_dict)  # Load the best weights
-            log_model(experiment, temp_policy, "BestPolicy")
-
-    except Exception as e:
-        LOGGER.error(f"Failed to save or log final results: {e}")
-
-    if experiment is not None:
-        LOGGER.info("Ending Comet experiment.")
-        experiment.end()
-
-    LOGGER.info("BoTorch training finished successfully!")
-
+    LOGGER.info("Training finished successfully!")
 
 if __name__ == "__main__":
-    train()
+    main()

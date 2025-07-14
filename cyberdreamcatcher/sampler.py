@@ -121,7 +121,7 @@ class EpisodeSampler:
         self.actor_heads = actor_heads
 
         self.policy_weights = policy_weights
-        self.num_jobs = num_jobs if num_jobs > 0 else Parallel().effective_n_jobs()
+        self.num_jobs = num_jobs if num_jobs > 0 else Parallel()._effective_n_jobs()
         self.use_single_seed = use_single_seed
 
         set_all_seeds(self.seed)
