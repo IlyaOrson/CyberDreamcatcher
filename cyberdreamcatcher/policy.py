@@ -3,9 +3,9 @@ from collections import namedtuple
 import torch
 from torch.nn import ModuleDict
 from torch.distributions import Categorical
+from torch_geometric.nn import GATv2Conv
 
 from cyberdreamcatcher.utils import ravel_multi_index
-from cyberdreamcatcher.gnn import GATGlobalConv
 
 
 class ActionLogits:
@@ -126,27 +126,24 @@ class Police(torch.nn.Module):
             latent_node_dim = env.host_encoding_dim
 
         # Latent layers (typically 1-4 in gnns due to oversmoothing)
-        self.actor_latent_0 = GATGlobalConv(
+        self.actor_latent_0 = GATv2Conv(
             in_channels=env.host_encoding_dim,
             out_channels=latent_node_dim,
-            global_dim=env.global_encoding_dim,
             edge_dim=env.edge_encoding_dim,
             heads=actor_heads,
             share_weights=False,
         )
-        self.actor_latent_1 = GATGlobalConv(
+        self.actor_latent_1 = GATv2Conv(
             in_channels=actor_heads * latent_node_dim,
             out_channels=latent_node_dim,
-            global_dim=env.global_encoding_dim,
             edge_dim=env.edge_encoding_dim,
             heads=actor_heads,
             share_weights=False,
         )
         # Returns logits in a matrix of shape (nodes x actions)
-        self.actor_head = GATGlobalConv(
+        self.actor_head = GATv2Conv(
             in_channels=actor_heads * latent_node_dim,
             out_channels=env.num_actions,  # one score per host/node and per action
-            global_dim=env.global_encoding_dim,
             edge_dim=env.edge_encoding_dim,
             heads=1,
             concat=False,  # average instead of concat
@@ -166,26 +163,23 @@ class Police(torch.nn.Module):
 
         # Train critic only in actor-critic methods
         if self.train_critic:
-            self.critic_latent_0 = GATGlobalConv(
+            self.critic_latent_0 = GATv2Conv(
                 in_channels=env.host_encoding_dim,
                 out_channels=latent_node_dim,
-                global_dim=env.global_encoding_dim,
                 edge_dim=env.edge_encoding_dim,
                 heads=critic_heads,
                 share_weights=False,
             )
-            self.critic_latent_1 = GATGlobalConv(
+            self.critic_latent_1 = GATv2Conv(
                 in_channels=latent_node_dim,
                 out_channels=latent_node_dim,
-                global_dim=env.global_encoding_dim,
                 edge_dim=env.edge_encoding_dim,
                 heads=critic_heads,
                 share_weights=False,
             )
-            self.critic_head = GATGlobalConv(
+            self.critic_head = GATv2Conv(
                 in_channels=latent_node_dim,
                 out_channels=1,  # one score per node
-                global_dim=env.global_encoding_dim,
                 edge_dim=env.edge_encoding_dim,
                 heads=critic_heads,
                 share_weights=False,
@@ -209,7 +203,6 @@ class Police(torch.nn.Module):
         nodes_matrix,
         edge_index,
         edge_matrix,
-        global_matrix,
         return_attention_weights=False,
     ):
         # Score each node to select actions
@@ -217,13 +210,11 @@ class Police(torch.nn.Module):
             nodes_matrix,
             edge_index,
             edge_attr=edge_matrix,
-            global_attr=global_matrix,
         )
         actor_latent_nodes = self.actor_latent_1(
             actor_latent_nodes,
             edge_index,
             edge_attr=edge_matrix,
-            global_attr=global_matrix,
         )
         # In case we want to visualise the attention weights
         if return_attention_weights:
@@ -231,7 +222,6 @@ class Police(torch.nn.Module):
                 actor_latent_nodes,
                 edge_index,
                 edge_attr=edge_matrix,
-                global_attr=global_matrix,
                 return_attention_weights=True,
             )
             return action_logits, attention_weights
@@ -240,29 +230,30 @@ class Police(torch.nn.Module):
             actor_latent_nodes,
             edge_index,
             edge_attr=edge_matrix,
-            global_attr=global_matrix,
         )
         return action_logits, None
 
-    def critic(self, nodes_matrix, edge_index, edges_matrix, global_matrix):
+    def critic(
+        self,
+        nodes_matrix,
+        edge_index,
+        edges_matrix,
+    ):
         # Score each node to value state
         critic_latent_nodes = self.critic_latent_0(
             nodes_matrix,
             edge_index,
             edge_attr=edges_matrix,
-            global_attr=global_matrix,
         )
         critic_latent_nodes = self.critic_latent_1(
             critic_latent_nodes,
             edge_index,
             edge_attr=edges_matrix,
-            global_attr=global_matrix,
         )
         node_values = self.critic_head(
             critic_latent_nodes,
             edge_index,
             edge_attr=edges_matrix,
-            global_attr=global_matrix,
         )
         value = torch.sum(node_values)
         return value
@@ -273,13 +264,10 @@ class Police(torch.nn.Module):
         edge_index = graph.edge_index
         edges_matrix = graph.edge_attr
 
-        global_matrix = graph.get("global_attr", None)
-
         action_logits, attention = self.actor(
             nodes_matrix,
             edge_index,
             edges_matrix,
-            global_matrix,
             return_attention_weights=return_attention_weights,
         )
 
@@ -288,7 +276,6 @@ class Police(torch.nn.Module):
                 nodes_matrix,
                 edge_index,
                 edges_matrix,
-                global_matrix,
             )
         else:
             value = None
