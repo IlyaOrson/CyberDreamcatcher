@@ -112,6 +112,9 @@ class Police(torch.nn.Module):
         actor_heads=1,
         critic_heads=1,
         mask_node="User0",
+        num_layers=2,
+        share_weights=False,
+        residual=True,
         *args,
         **kwargs,
     ):
@@ -125,36 +128,42 @@ class Police(torch.nn.Module):
         if latent_node_dim is None:
             latent_node_dim = env.host_encoding_dim
 
-        # Latent layers (typically 1-4 in gnns due to oversmoothing)
-        self.actor_latent_0 = GATv2Conv(
-            in_channels=env.host_encoding_dim,
-            out_channels=latent_node_dim,
-            edge_dim=env.edge_encoding_dim,
-            heads=actor_heads,
-            share_weights=False,
-        )
-        self.actor_latent_1 = GATv2Conv(
-            in_channels=actor_heads * latent_node_dim,
-            out_channels=latent_node_dim,
-            edge_dim=env.edge_encoding_dim,
-            heads=actor_heads,
-            share_weights=False,
-        )
+        self.num_layers = num_layers
+        self.latent_node_dim = latent_node_dim
+        self.actor_heads = actor_heads
+        self.share_weights = share_weights
+        self.residual = residual
+
+        # Create actor layers dynamically
+        self.actor_layers = ModuleDict()
+        
+        # Create latent layers (typically 1-4 in gnns due to oversmoothing)
+        for i in range(num_layers):
+            if i == 0:
+                # First layer: input is host encoding
+                in_channels = env.host_encoding_dim
+            else:
+                # Subsequent layers: input is from previous layer with heads
+                in_channels = actor_heads * latent_node_dim
+                
+            self.actor_layers[f"latent_{i}"] = GATv2Conv(
+                in_channels=in_channels,
+                out_channels=latent_node_dim,
+                edge_dim=env.edge_encoding_dim,
+                heads=actor_heads,
+                share_weights=self.share_weights,
+                residual=self.residual,
+            )
+        
         # Returns logits in a matrix of shape (nodes x actions)
-        self.actor_head = GATv2Conv(
+        self.actor_layers["head"] = GATv2Conv(
             in_channels=actor_heads * latent_node_dim,
             out_channels=env.num_actions,  # one score per host/node and per action
             edge_dim=env.edge_encoding_dim,
             heads=1,
             concat=False,  # average instead of concat
-            share_weights=False,
-        )
-        self.actor_layers = ModuleDict(
-            {
-                "latent_0": self.actor_latent_0,
-                "latent_1": self.actor_latent_1,
-                "head": self.actor_head,
-            }
+            share_weights=self.share_weights,
+            residual=self.residual,
         )
 
         # NOTE: this may break backwards compatibility
@@ -163,34 +172,35 @@ class Police(torch.nn.Module):
 
         # Train critic only in actor-critic methods
         if self.train_critic:
-            self.critic_latent_0 = GATv2Conv(
-                in_channels=env.host_encoding_dim,
-                out_channels=latent_node_dim,
-                edge_dim=env.edge_encoding_dim,
-                heads=critic_heads,
-                share_weights=False,
-            )
-            self.critic_latent_1 = GATv2Conv(
-                in_channels=latent_node_dim,
-                out_channels=latent_node_dim,
-                edge_dim=env.edge_encoding_dim,
-                heads=critic_heads,
-                share_weights=False,
-            )
-            self.critic_head = GATv2Conv(
-                in_channels=latent_node_dim,
+            self.critic_heads = critic_heads
+            self.critic_layers = ModuleDict()
+            
+            # Create critic layers dynamically
+            for i in range(num_layers):
+                if i == 0:
+                    # First layer: input is host encoding
+                    in_channels = env.host_encoding_dim
+                else:
+                    # Subsequent layers: input is from previous layer with heads
+                    in_channels = critic_heads * latent_node_dim
+                    
+                self.critic_layers[f"latent_{i}"] = GATv2Conv(
+                    in_channels=in_channels,
+                    out_channels=latent_node_dim,
+                    edge_dim=env.edge_encoding_dim,
+                    heads=critic_heads,
+                    share_weights=self.share_weights,
+                    residual=self.residual,
+                )
+            
+            # Critic head layer
+            self.critic_layers["head"] = GATv2Conv(
+                in_channels=critic_heads * latent_node_dim,
                 out_channels=1,  # one score per node
                 edge_dim=env.edge_encoding_dim,
                 heads=critic_heads,
-                share_weights=False,
-            )
-
-            self.critic_layers = ModuleDict(
-                {
-                    "latent_0": self.critic_latent_0,
-                    "latent_1": self.critic_latent_1,
-                    "head": self.critic_head,
-                }
+                share_weights=self.share_weights,
+                residual=self.residual,
             )
 
         # Train critic only in actor-critic methods
@@ -206,19 +216,19 @@ class Police(torch.nn.Module):
         return_attention_weights=False,
     ):
         # Score each node to select actions
-        actor_latent_nodes = self.actor_latent_0(
-            nodes_matrix,
-            edge_index,
-            edge_attr=edge_matrix,
-        )
-        actor_latent_nodes = self.actor_latent_1(
-            actor_latent_nodes,
-            edge_index,
-            edge_attr=edge_matrix,
-        )
+        actor_latent_nodes = nodes_matrix
+        
+        # Forward pass through all latent layers
+        for i in range(self.num_layers):
+            actor_latent_nodes = self.actor_layers[f"latent_{i}"](
+                actor_latent_nodes,
+                edge_index,
+                edge_attr=edge_matrix,
+            )
+        
         # In case we want to visualise the attention weights
         if return_attention_weights:
-            action_logits, attention_weights = self.actor_head(
+            action_logits, attention_weights = self.actor_layers["head"](
                 actor_latent_nodes,
                 edge_index,
                 edge_attr=edge_matrix,
@@ -226,7 +236,7 @@ class Police(torch.nn.Module):
             )
             return action_logits, attention_weights
 
-        action_logits = self.actor_head(
+        action_logits = self.actor_layers["head"](
             actor_latent_nodes,
             edge_index,
             edge_attr=edge_matrix,
@@ -240,17 +250,17 @@ class Police(torch.nn.Module):
         edges_matrix,
     ):
         # Score each node to value state
-        critic_latent_nodes = self.critic_latent_0(
-            nodes_matrix,
-            edge_index,
-            edge_attr=edges_matrix,
-        )
-        critic_latent_nodes = self.critic_latent_1(
-            critic_latent_nodes,
-            edge_index,
-            edge_attr=edges_matrix,
-        )
-        node_values = self.critic_head(
+        critic_latent_nodes = nodes_matrix
+        
+        # Forward pass through all latent layers
+        for i in range(self.num_layers):
+            critic_latent_nodes = self.critic_layers[f"latent_{i}"](
+                critic_latent_nodes,
+                edge_index,
+                edge_attr=edges_matrix,
+            )
+        
+        node_values = self.critic_layers["head"](
             critic_latent_nodes,
             edge_index,
             edge_attr=edges_matrix,

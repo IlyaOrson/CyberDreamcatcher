@@ -35,18 +35,21 @@ LOGGER = logging.getLogger(__name__)
 class Cfg:
     scenario: str = "Scenario2"
     episode_length: int = 30
-    failed_action_penalty: float = -0.05
-    batch_size_episodes: int = 600
+    failed_action_penalty: float = 0.0
+    batch_size_episodes: int = 128
     seed: int = 0
     learning_rate: float = 1e-2
-    optimizer_iterations: int = 500
-    grad_clipping: float = 5
+    optimizer_iterations: int = 300
+    grad_clipping: float = 1
     normalize_advantage: bool = True
     entropy_coef: float = 0.01
 
     policy_weights: Optional[str] = None
-    latent_node_dim: int = 15
-    actor_heads: int = 3
+    latent_node_dim: int = 5
+    actor_heads: int = 2
+    num_layers: int = 3
+    share_weights: bool = False
+    residual: bool = True
 
     log_comet: bool = True
     log_freq: int = 20
@@ -326,10 +329,15 @@ if __name__ == "__main__":
             env,
             latent_node_dim=cfg.latent_node_dim,
             actor_heads=cfg.actor_heads,
+            num_layers=cfg.num_layers,
+            share_weights=cfg.share_weights,
+            residual=cfg.residual,
         )
 
         if policy_weights:
             policy.load_state_dict(policy_weights)
+
+        torch.compile(policy)  # , fullgraph=True)
 
         trainer = REINFORCE(env, policy, cfg, output_dir=output_dir)
 

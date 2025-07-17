@@ -27,8 +27,11 @@ class Cfg:
     comet_experiment_key: Optional[str] = None
     comet_model_name: Optional[str] = None
     comet_model_step: Optional[int] = None
-    latent_node_dim: int = 8
-    actor_heads: int = 3
+    latent_node_dim: int = 5
+    actor_heads: int = 2
+    num_layers: int = 3
+    share_weights: bool = False
+    residual: bool = True
     seed: Optional[int] = None
     episode_length: int = 30
     num_episodes: int = 1000
@@ -122,12 +125,15 @@ def main(cfg: Cfg):
             weights_to_load = policy_weights["model_state_dict"]
 
         loaded_sampler = EpisodeSampler(
-            cfg.seed,
-            cfg.scenario,
-            cfg.episode_length,
+            seed=cfg.seed,
+            scenario=cfg.scenario,
+            episode_length=cfg.episode_length,
             latent_node_dim=cfg.latent_node_dim,
             actor_heads=cfg.actor_heads,
-            policy_weights=weights_to_load,
+            num_layers=cfg.num_layers,
+            share_weights=cfg.share_weights,
+            residual=cfg.residual,
+            policy_weights=policy_weights,
             num_jobs=cfg.num_jobs,
             use_single_seed=cfg.use_single_seed,
         )
@@ -139,12 +145,15 @@ def main(cfg: Cfg):
         dfs.append(df_long)
 
     random_sampler = EpisodeSampler(
-        cfg.seed,
-        cfg.scenario,
-        cfg.episode_length,
+        seed=cfg.seed,
+        scenario=cfg.scenario,
+        episode_length=cfg.episode_length,
         latent_node_dim=cfg.latent_node_dim,
         actor_heads=cfg.actor_heads,
-        policy_weights=None,
+        num_layers=cfg.num_layers,
+        share_weights=cfg.share_weights,
+        residual=cfg.residual,
+        policy_weights=None,  # Random policy
         num_jobs=cfg.num_jobs,
         use_single_seed=cfg.use_single_seed,
     )

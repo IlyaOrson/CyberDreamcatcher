@@ -41,8 +41,11 @@ class Cfg:
 
     # Policy
     policy_weights: Optional[str] = None
-    latent_node_dim: int = 15
-    actor_heads: int = 3
+    latent_node_dim: int = 5
+    actor_heads: int = 2
+    num_layers: int = 3
+    share_weights: bool = False
+    residual: bool = True
 
     # Nevergrad settings
     budget: int = 500
@@ -84,6 +87,9 @@ class NevergradTrainer:
             episode_length=self.conf.episode_length,
             latent_node_dim=self.conf.latent_node_dim,
             actor_heads=self.conf.actor_heads,
+            num_layers=self.conf.num_layers,
+            share_weights=self.conf.share_weights,
+            residual=self.conf.residual,
             policy_weights=state_dict,
             num_jobs=-1,  # Use all available cores for evaluation
         )
@@ -185,6 +191,9 @@ def main(cfg: Cfg) -> None:
         env,
         latent_node_dim=cfg.latent_node_dim,
         actor_heads=cfg.actor_heads,
+        num_layers=cfg.num_layers,
+        share_weights=cfg.share_weights,
+        residual=cfg.residual,
     )
 
     if policy_weights:

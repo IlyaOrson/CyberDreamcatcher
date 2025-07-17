@@ -58,8 +58,11 @@ class Cfg:
     norm_rewards: bool = True
     # Policy settings
     policy_weights: Optional[str] = None
-    latent_node_dim: int = 8
-    actor_heads: int = 3
+    latent_node_dim: int = 5
+    actor_heads: int = 2
+    num_layers: int = 3
+    share_weights: bool = False
+    residual: bool = True
     train_critic: bool = True
 
     # Logging
@@ -603,6 +606,9 @@ def main(cfg: Cfg) -> None:
         env,
         latent_node_dim=cfg.latent_node_dim,
         actor_heads=cfg.actor_heads,
+        num_layers=cfg.num_layers,
+        share_weights=cfg.share_weights,
+        residual=cfg.residual,
         train_critic=True,  # Enable critic for PPO
     )
 

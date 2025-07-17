@@ -41,8 +41,11 @@ class Cfg:
     comet_experiment_key: Optional[str] = None
     comet_model_name: Optional[str] = None
     comet_model_step: Optional[int] = None
-    latent_node_dim: int = 8
-    actor_heads: int = 3
+    latent_node_dim: int = 5
+    actor_heads: int = 2
+    num_layers: int = 3
+    share_weights: bool = False
+    residual: bool = True
     scenario: str = "Scenario2"
     seed: int = 0
     episode_length: int = 30
@@ -113,6 +116,9 @@ def main(cfg: Cfg):
             env,
             latent_node_dim=latent_node_dim,
             actor_heads=actor_heads,
+            num_layers=cfg.num_layers,
+            share_weights=cfg.share_weights,
+            residual=cfg.residual,
         )
         if policy_weights is not None:
             if (

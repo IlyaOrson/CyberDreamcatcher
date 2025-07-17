@@ -25,8 +25,11 @@ logging.getLogger("cyberdreamcatcher.utils").setLevel(logging.CRITICAL)
 class Cfg:
     local_policies: Optional[List[str]] = None
     policy_weights: Optional[str] = None
-    latent_node_dim: int = 8
-    actor_heads: int = 3
+    latent_node_dim: int = 5
+    actor_heads: int = 2
+    num_layers: int = 3
+    share_weights: bool = False
+    residual: bool = True
     seed: int = 31415
     episode_length: int = 30
     num_episodes: int = 1000
@@ -71,12 +74,15 @@ def main(cfg: Cfg):
         policy_weights, trained_scenario = load_trained_weights(local_policy_path)
 
         specialised_policy_sampler = EpisodeSampler(
-            cfg.seed,
-            trained_scenario,
-            cfg.episode_length,
+            seed=cfg.seed,
+            scenario=trained_scenario,
+            episode_length=cfg.episode_length,
             policy_weights=policy_weights,
             latent_node_dim=logged_cfg.latent_node_dim,
             actor_heads=logged_cfg.actor_heads,
+            num_layers=logged_cfg.num_layers,
+            share_weights=logged_cfg.share_weights,
+            residual=logged_cfg.residual,
             num_jobs=cfg.num_jobs,
         )
         stacked_rewards_to_go, _ = specialised_policy_sampler.sample_episodes(
@@ -86,12 +92,15 @@ def main(cfg: Cfg):
 
         # Generalization samples
         foreign_policy_sampler = EpisodeSampler(
-            cfg.seed,
-            trained_scenario,
-            cfg.episode_length,
+            seed=cfg.seed,
+            scenario=trained_scenario,
+            episode_length=cfg.episode_length,
             policy_weights=foreign_policy_weights,
             latent_node_dim=logged_cfg.latent_node_dim,
             actor_heads=logged_cfg.actor_heads,
+            num_layers=logged_cfg.num_layers,
+            share_weights=logged_cfg.share_weights,
+            residual=logged_cfg.residual,
             num_jobs=cfg.num_jobs,
         )
         stacked_rewards_to_go, _ = foreign_policy_sampler.sample_episodes(

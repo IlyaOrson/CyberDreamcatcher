@@ -110,6 +110,9 @@ class EpisodeSampler:
         episode_length,
         latent_node_dim,
         actor_heads,
+        num_layers,
+        share_weights,
+        residual,
         policy_weights=None,
         num_jobs=1,
         use_single_seed: bool = False,
@@ -119,6 +122,9 @@ class EpisodeSampler:
         self.episode_length = episode_length
         self.latent_node_dim = latent_node_dim
         self.actor_heads = actor_heads
+        self.num_layers = num_layers
+        self.share_weights = share_weights
+        self.residual = residual
 
         self.policy_weights = policy_weights
         self.num_jobs = num_jobs if num_jobs > 0 else Parallel()._effective_n_jobs()
@@ -138,7 +144,15 @@ class EpisodeSampler:
         """
 
         def _collect_rewards_log_probs(
-            seed, scenario, episode_length, policy_weights, latent_node_dim, actor_heads
+            seed,
+            scenario,
+            episode_length,
+            policy_weights,
+            latent_node_dim,
+            actor_heads,
+            num_layers,
+            share_weights,
+            residual,
         ):
             "Create an independent environment and policy"
             env = GraphEnv(
@@ -147,7 +161,12 @@ class EpisodeSampler:
                 render_mode=None,
             )
             policy = Police(
-                env, latent_node_dim=latent_node_dim, actor_heads=actor_heads
+                env,
+                latent_node_dim=latent_node_dim,
+                actor_heads=actor_heads,
+                num_layers=num_layers,
+                share_weights=share_weights,
+                residual=residual,
             )
 
             # load trained policy
@@ -169,6 +188,9 @@ class EpisodeSampler:
                 self.policy_weights,
                 self.latent_node_dim,
                 self.actor_heads,
+                self.num_layers,
+                self.share_weights,
+                self.residual,
             )
             for i in range(num_episodes)
         )
@@ -195,7 +217,15 @@ class EpisodeSampler:
         """
 
         def _collect_trajectory(
-            seed, scenario, episode_length, policy_weights, latent_node_dim, actor_heads
+            seed,
+            scenario,
+            episode_length,
+            policy_weights,
+            latent_node_dim,
+            actor_heads,
+            num_layers,
+            share_weights,
+            residual,
         ):
             "Create an independent environment and policy"
             env = GraphEnv(
@@ -204,7 +234,12 @@ class EpisodeSampler:
                 render_mode=None,
             )
             policy = Police(
-                env, latent_node_dim=latent_node_dim, actor_heads=actor_heads
+                env,
+                latent_node_dim=latent_node_dim,
+                actor_heads=actor_heads,
+                num_layers=num_layers,
+                share_weights=share_weights,
+                residual=residual,
             )
 
             # load trained policy
@@ -237,6 +272,9 @@ class EpisodeSampler:
                 self.policy_weights,
                 self.latent_node_dim,
                 self.actor_heads,
+                self.num_layers,
+                self.share_weights,
+                self.residual,
             )
             for i in range(num_episodes)
         )
