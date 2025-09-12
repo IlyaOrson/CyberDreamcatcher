@@ -1,27 +1,21 @@
 # Cyber Dreamcatcher
 
-This repository implements a Graph Attention Network (GAT) (same architecture as [TacticAI](https://www.nature.com/articles/s41467-024-45965-x#Sec8)) as a network-aware reinforcement learning policy for cyber defence.
-Our work extends the Cyber Operations Research Gym ([CybORG](https://github.com/alan-turing-institute/CybORG_plus_plus)) to represent network states as directed graphs with low-level features to explore more realistic autonomous defence strategies.
+This repository explores network-aware reinforcement learning for cyber defense, using a Graph Attention Network (GAT) architecture (similar to [TacticAI](https://www.nature.com/articles/s41467-024-45965-x#Sec8)).
+It uses the Cyber Operations Research Gym ([CybORG](https://github.com/alan-turing-institute/CybORG_plus_plus)) to represent network states as directed graphs with low-level features, as a proof-of-concept towards more realistic autonomous defence agents.
 
 <div align="center">
-  <img src="https://github.com/user-attachments/assets/2a77929c-ffb1-41ab-954b-7bb024bce8c7" width="70%">
+  <img src="https://github.com/user-attachments/assets/2a77929c-ffb1-41ab-954b-7bb024bce8c7" width="60%">
 </div>
 
 ## Overview
 
 #### Core Features
-- **Topology-Aware Defence**: Processes the complete network graph structure instead of simplified flat state observations
-- **Runtime Adaptability**: Handles dynamic changes in network topology as new connections appear
-- **Cross-Network Generalisation**: Trained policies can be deployed to networks of different sizes
-- **Enhanced Interpretability**: Defence actions can be explained through tangible network properties
-
-#### What is included?
-- Custom CybORG environment with graph-based network state representation
-- GAT architecture modified for compatibility with policy gradient methods
-- Empirical evaluation for assessing policy generalisation vs. specialised training across varying network sizes
+- **Topology-Aware Defence**: Processes the network graph structure with low-level realistic properties instead of simplified flat state observations.
+- **Runtime Adaptability**: Handles dynamic changes in network topology as new connections appear.
+- **Cross-Network Generalisation**: Trained policies can be deployed to networks of different sizes.
 
 > [!NOTE]
-> This is a research project that serves as a proof-of-concept towards more realistic network environments in cyber defence.
+> This is a research project exploring structural awareness and generalization in cyber defense, the work emphasizes feasibility demonstration over performance maximisation.
 > Our implementation uses the low-level structure of the CybORG v2.1 simulator as a practical context, but the technique itself can be adapted to other simulators with comparable complexity.
 
 ## Setup
@@ -50,7 +44,7 @@ Then install the submodules as local packages avoiding using pip to deal with de
 # install environments from git submodules as a local packages
 pixi run install-cyborg  # CybORG 2.1 + update to gymnasium API
 
-# OR a debugged version from The Alan Turing Institute (https://github.com/alan-turing-institute/CybORG_plus_plus)
+# as an alternative, a less-bugged version from The Alan Turing Institute (https://github.com/alan-turing-institute/CybORG_plus_plus)
 pixi run install-cyborg-debugged
 
 # install troublesome dependencies without using pip to track their requirements
@@ -64,7 +58,6 @@ pixi shell  # activate shell
 python -m cyberdreamcatcher  # try out a single environment simulation
 ```
 
-> [!TIP]
 > If you would like to use other project management tool, the list of dependencies and installation tasks are available in [pixi.toml](pixi.toml).
 > Untested environment files are provided for uv/pip ([pyproject.toml](pyproject.toml)) and for conda/mamba ([conda_env.yml](conda_env.yml)).
 > Make sure to manually ignore the deps set by CybORG/SB3 when installing it locally.
@@ -93,16 +86,17 @@ pixi run eval-cardiff  # CAGE 2 winner policy inference (simplified and flattene
 
 ### Graph Layout
 
-Quickly visualise the graph layout setup in the cage 2 challenge scenario file,
-and the graph observations received by a random GAT policy.
+Visualise the graph layout setup in the CAGE 2 challenge scenario file, and the corresponding encoded graph observations.
 
 ```bash
 pixi run plot-network scenario=Scenario2  # see --help for hyperparameters
 ```
 
 > [!WARNING]
-> This is the layout we expect from the simulator configuration and the actions available to the meander agent, but CybORG does not enforce these connection layout at runtime.
-> Connections between other subnets to User0 appear sporadically (unexpected), possibly as a hackish way of flagging the interaction of the meander agent with deployed decoys.
+> This is the layout we expect from the simulator configuration and the actions available to the meander red agent.
+> However, in the CAGE 2 usage of CybORG, connections are always directed to User0, regardless of the subnet.
+> This is a major roadblock for explainability through attention weights in the GAT policy, since the connections are not realistic (this setting is quite likely as a hackish way of flagging the interaction of the red agent with deployed decoys).
+> Nonetheless, the GAT policy is able to handle the unexpected connections between subnets at runtime.
 
 ### Training
 
@@ -117,7 +111,7 @@ pixi run train-gnn-ppo  # see --help for hyperparameters
 <!-- #### REINFORCE -->
 
 We include an implementation of the REINFORCE algorithm with a normalised rewards-to-go baseline.
-This is a bit slow since it samples a lot of episodes with a fixed policy to estimate the gradient before taking an optimisation step.
+This is slow since it samples several episodes with a fixed policy to estimate the gradient before taking an optimisation step, in order to reduce the high variance of the algorithm.
 
 ```bash
 pixi run train-gnn-reinforce  # see --help for hyperparameters
@@ -134,7 +128,6 @@ pixi run train-flat-sb3-ppo  # see --help for hyperparameters
 
 > [!IMPORTANT]
 > This SB3 MLP serves as a reference for performance, but cannot extrapolate to different network dimensions.
-> A major caveat for a performance comparison with this or the CAGE 2 submissions is that the observation spaces are fundamentally different: the flattened version is a higher level representation designed for the CAGE 2 Challenge, whereas our custom graph observation uses low-level information from the CybORG simulator.
 > See below for a performance comparison with CAGE 2 Challenge submissions.
 
 ### Performance
@@ -168,7 +161,7 @@ pixi run plot-performance policy_weights="path/to/trained_params.pt"
 <details>
   <summary><i>Expand</i></summary>
 
-The objective is to compare the optimality gap trade-off between the extrapolation of a policy against a policy trained from scratch in each scenario.
+We can compare the optimality gap trade-off between the extrapolation of a policy against a policy trained from scratch in each scenario.
 Specify the path to the trained policy to be tested and array of paths of the specialised policies to compare it to; the corresponding scenarios are loaded from the logged configuration.
 
 ```bash
@@ -187,9 +180,7 @@ pixi run plot-generalisation policy_weights=path/to/trained_params.pt local_poli
 <details>
   <summary><i>Expand</i></summary>
 
-For a detailed description of the CAGE 2 Challenge, see [this preprint](https://arxiv.org/abs/2309.07388).
-
-For a complete list of CAGE 2 submission standings, see [here](https://github.com/cage-challenge/cage-challenge-2).
+A major caveat for a performance comparison with this project and the CAGE 2 challenge agents is that the observation spaces are fundamentally different: the flattened version is a higher level representation designed for the CAGE 2 Challenge, whereas our custom graph observation uses low-level information from the CybORG simulator.
 
 |   Scenario 2<br>Red Agent: Meander<br>Steps: 30   | Penalty<br>mean |  Observation Space 	| Structural Generalization |
 |:------------------------------------------------:	|:---------------:|:------------------:	|:-------------------------:|
@@ -198,5 +189,9 @@ For a complete list of CAGE 2 submission standings, see [here](https://github.co
 |        **CyberDreamcatcher**<br>REINFORCE        	|       ~ 18      |   Low-level Graph 	|         Reasonable        |
 |                 CAGE2 CSS Random                 	|       ~ 33      |   High-level Flat 	|             N/A           |
 |                 CAGE2 CSS Sleeper                	|       ~ 39      |   High-level Flat 	|             N/A           |
+
+For a detailed description of the CAGE 2 Challenge, see [this preprint](https://arxiv.org/abs/2309.07388).
+
+For a complete list of CAGE 2 submission standings, see [here](https://github.com/cage-challenge/cage-challenge-2).
 
 </details>
