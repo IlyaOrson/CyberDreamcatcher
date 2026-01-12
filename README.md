@@ -1,4 +1,4 @@
-# Cyber Dreamcatcher
+# Cyber Dreamcatcher [![arXiv](https://img.shields.io/badge/arXiv-2501.14700-b31b1b.svg)](http://arxiv.org/abs/2501.14700)
 
 This repository explores network-aware reinforcement learning for cyber defense, using a Graph Attention Network (GAT) architecture (similar to [TacticAI](https://www.nature.com/articles/s41467-024-45965-x#Sec8)).
 It uses the Cyber Operations Research Gym ([CybORG](https://github.com/alan-turing-institute/CybORG_plus_plus)) to represent network states as directed graphs with low-level features, as a proof-of-concept towards more realistic autonomous defence agents.
